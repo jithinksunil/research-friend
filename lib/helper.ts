@@ -1,10 +1,11 @@
 import { ROLES } from '@/app/generated/prisma/enums';
 import { SessionPayload } from '@/interfaces';
 import { jwtVerify, SignJWT } from 'jose';
-
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 export function convertToErrorInstance(
   unknownError: unknown,
-  fallbackMessage = 'Unknown error'
+  fallbackMessage = 'Unknown error',
 ): Error {
   try {
     if (unknownError instanceof Error) return unknownError;
@@ -21,7 +22,7 @@ export async function createJWTToken(
   payload: SessionPayload & {
     secret: string;
     expirationTime?: number; //seconds
-  }
+  },
 ) {
   const encodedSecret = new TextEncoder().encode(payload.secret);
   const now = Math.floor(Date.now() / 1000);
@@ -38,7 +39,7 @@ export async function createJWTToken(
 
 export async function verifyJWTToken(
   token: string,
-  secret: string
+  secret: string,
 ): Promise<SessionPayload> {
   const encodedSecret = new TextEncoder().encode(secret);
 
@@ -50,4 +51,8 @@ export async function verifyJWTToken(
     userId: payload.userId as string,
     role: payload.role as ROLES,
   };
+}
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }

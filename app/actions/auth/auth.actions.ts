@@ -1,18 +1,13 @@
 'use server';
-import prisma from '@/lib/prisma';
 import { ServerActionResult } from '@/interfaces';
 import {
   ACCESS_TOKEN_EXPIRATION_S,
   convertToErrorInstance,
   createJWTToken,
-  forbiddenMessage,
-  getSession,
   REFRESH_TOKEN_EXPIRATION_S,
-  unauthorizedMessage,
 } from '@/lib';
 import { ROLES } from '@/app/generated/prisma/enums';
-import { redirect } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import prisma from '@/prisma';
 
 export const signup = async ({
   email,

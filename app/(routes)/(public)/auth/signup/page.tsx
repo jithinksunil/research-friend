@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { AuthLayout } from '@/components/layouts';
 import { productName } from '@/lib';
@@ -26,7 +27,9 @@ function page() {
           Efficiently review 1000s of applications within minutes using our
           proprietary algorithm through {productName}
         </p>
-        <SignupForm />
+        <Suspense fallback={<div>Loading...</div>}>
+          <SignupForm />
+        </Suspense>
       </div>
     </AuthLayout>
   );

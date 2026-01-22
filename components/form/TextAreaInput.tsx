@@ -20,15 +20,13 @@ export function TextAreaInput(props: PropTypes) {
         fieldState: { invalid, error, },
       }) => (
         <div
-          className={`h-[220px] md:h-full grid grid-rows-[1fr_auto] pb-4 ${
-            props.inputContainerClass || ''
-          }`}
+          className={`h-[220px] md:h-full grid grid-rows-[1fr_auto] pb-4 ${props.inputContainerClass || ''
+            }`}
         >
           <label className={`h-full`}>
             <textarea
-              className={`focus:outline-none resize-none block w-full border text-base rounded-lg h-full overflow-hidden p-4 border-solid ${
-                invalid ? 'border-[red]' : 'border-[#C8CFD6]'
-              }`}
+              className={`focus:outline-none resize-none block w-full border text-base rounded-lg h-full overflow-hidden p-4 border-solid ${invalid ? 'border-[red]' : 'border-[#C8CFD6]'
+                }`}
               name={props.name}
               onChange={onChange}
               value={value}

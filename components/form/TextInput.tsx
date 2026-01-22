@@ -1,5 +1,6 @@
 import { InfoOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
+import { HTMLInputTypeAttribute } from 'react';
 import { Control, Controller } from 'react-hook-form';
 
 interface PropTypes {
@@ -9,6 +10,7 @@ interface PropTypes {
   disabled?: boolean;
   inputContainer?: string;
   description?: string;
+  type?: HTMLInputTypeAttribute;
 }
 
 export function TextInput(props: PropTypes) {
@@ -26,7 +28,7 @@ export function TextInput(props: PropTypes) {
               className={`h-14 block w-full border text-sm md:text-base px-4 py-0 rounded-lg border-solid border-[#c8cfd6] outline-none ${
                 invalid ? 'border border-solid border-[red]' : ''
               }`}
-              type='text'
+              type={props.type || 'text'}
               name={props.name}
               onChange={onChange}
               value={value}

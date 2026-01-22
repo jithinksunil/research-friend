@@ -8,8 +8,8 @@ import { SignupFormInterface } from '@/interfaces';
 import { toastMessage } from '@/lib/toast';
 import { CheckBoxInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
-import { useAuth } from '@/context/AuthContext';
-import { signIn } from 'next-auth/react';
+// import { signIn } from 'next-auth/react';
+
 
 const schema = yup.object().shape({
   firstName: yup.string().trim().required('Last Name is required').defined(),
@@ -52,8 +52,8 @@ export function SignupForm() {
       setRegistering(true);
       if (!formData.termAndPrivacyPolicy)
         throw new Error('Must agree to terms and services');
-      const res = await signIn('credentials', { ...formData, redirect: false });
-      if (res.error) throw new Error(res.error);
+      // const res = await signIn('credentials', { ...formData, redirect: false });
+      // if (res.error) throw new Error(res.error);
       toastMessage.success('Signed up successfully');
       setRegistering(false);
       push('/user/dashboard');
@@ -121,7 +121,7 @@ export function SignupForm() {
           <span
             onClick={() =>
               window.open(
-                'https://calendly.com/mrugesh-abcxchange/30min?month=2023-07'
+                'https://calendly.com/mrugesh-abcxchange/30min?month=2023-07',
               )
             }
             className='text-[#0018FF] hover:cursor-pointer font-semibold'

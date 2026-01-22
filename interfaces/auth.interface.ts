@@ -7,6 +7,11 @@ export interface SignupFormInterface {
   termAndPrivacyPolicy: boolean;
 }
 
+export interface SigninFormInterface {
+  password: string;
+  email: string;
+}
+
 export interface SessionPayload {
   userId: string;
   role: ROLES;

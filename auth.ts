@@ -1,55 +1,29 @@
 import 'server-only';
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import {
-  ACCESS_TOKEN_EXPIRATION_S,
-  createJWTToken,
-  prisma,
-  refresh,
-  REFRESH_TOKEN_EXPIRATION_S,
-} from './lib';
-import { JWT } from 'next-auth/jwt';
-import { ROLES } from './app/generated/prisma/enums';
+import { refresh, signinUser } from './server';
 export const { auth, signIn, signOut, handlers } = NextAuth({
   session: { strategy: 'jwt' },
   providers: [
     CredentialsProvider({
       credentials: {
         email: { label: 'Email', type: 'text' },
-        firstName: { label: 'FirstName', type: 'text' },
-        lastName: { label: 'LastName', type: 'text' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials) return null;
-        const user = await prisma.user.create({
-          data: {
+        const { accessToken, refreshToken, expires_at, email, id, role } =
+          await signinUser({
             email: credentials.email as string,
-            firstName: credentials.firstName as string,
-            lastName: credentials.lastName as string,
-            role: ROLES.USER,
-          },
-          select: { email: true, id: true, role: true },
-        });
-        const accessToken = await createJWTToken({
-          userId: user.id,
-          role: user.role,
-          secret: process.env.ACCESS_TOKEN_SECRET!,
-          expirationTime: ACCESS_TOKEN_EXPIRATION_S,
-        });
-        const refreshToken = await createJWTToken({
-          userId: user.id,
-          role: user.role,
-          secret: process.env.REFRESH_TOKEN_SECRET!,
-          expirationTime: REFRESH_TOKEN_EXPIRATION_S, // 30 days
-        });
-
+            password: credentials.password as string,
+          });
         return {
-          id: user.id,
-          email: user.email,
-          role: user.role,
+          id,
+          email,
+          role,
           accessToken,
           refreshToken,
-          expires_at: Date.now() + ACCESS_TOKEN_EXPIRATION_S * 1000,
+          expires_at,
         };
       },
     }),
@@ -69,7 +43,15 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         };
       }
       if (Date.now() < (token.expires_at as number)) return { ...token };
-      return await refreshAccessToken(token);
+      const { accessToken, refreshToken, expires_at } = await refresh(
+        token.refreshToken as string,
+      );
+      return {
+        ...token,
+        accessToken,
+        refreshToken,
+        expires_at,
+      };
     },
 
     async session({ token, session }: any) {
@@ -81,15 +63,3 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
     },
   },
 });
-
-async function refreshAccessToken(token: JWT): Promise<JWT> {
-  const { accessToken, refreshToken } = await refresh(
-    token.refreshToken as string,
-  );
-  return {
-    ...token,
-    accessToken,
-    refreshToken,
-    expires_at: Date.now() + ACCESS_TOKEN_EXPIRATION_S * 1000,
-  };
-}

@@ -20,9 +20,7 @@ export function PasswordInput(props: PropTypes) {
         field: { onChange, value },
         fieldState: { invalid, error },
       }) => (
-        <div
-          className={`w-full mb-4 ${props?.inputContainer || ''}`}
-        >
+        <div className={`w-full mb-4 ${props?.inputContainer || ''}`}>
           <div className='flex'>
             <label>
               <input
@@ -47,9 +45,7 @@ export function PasswordInput(props: PropTypes) {
               {show ? <VisibilityOff /> : <Visibility />}
             </div>
           </div>
-          {invalid ? (
-            <p className={`error pt-2`}>{error?.message}</p>
-          ) : null}
+          {invalid ? <p className={`error pt-2`}>{error?.message}</p> : null}
         </div>
       )}
     />
