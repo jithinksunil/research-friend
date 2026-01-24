@@ -118,7 +118,7 @@ export function SignupForm() {
         <p className='flex items-center'>
           Have an account?&nbsp;
           <span
-            onClick={() => push(`/auth/signin`)}
+            onClick={() => push(`/`)}
             className='text-[#0018FF] hover:cursor-pointer font-semibold'
           >
             Sign in
