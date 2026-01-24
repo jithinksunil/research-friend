@@ -12,7 +12,7 @@ export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(
 
       const url = `${process.env.ALPHA_VANTAGE_BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(
         trimmed
-      )}&pikey=${process.env.ALPHA_VANTAGE_API_KEY}`;
+      )}&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`;
 
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) {
