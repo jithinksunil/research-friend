@@ -54,7 +54,6 @@ export function SignupForm() {
       if (!formData.termAndPrivacyPolicy)
         throw new Error('Must agree to terms and services');
       const res=await signup({email:formData.email,firstName:formData.firstName,lastName:formData.lastName})
-      // const res = await signIn('credentials', { ...formData, redirect: false });
       if (!res.okay) throw res.error
       toastMessage.success('Signed up successfully');
       setRegistering(false);
