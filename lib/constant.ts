@@ -1,4 +1,4 @@
-export const productName = 'AI.Fred Researcher';
+export const productName = 'AI.Fred Research Assistant';
 export const unauthorizedMessage = 'Unauthorized';
 export const forbiddenMessage = 'Forbidden';
 export const ACCESS_TOKEN_EXPIRATION_S = 60 * 30; //30 minutes
