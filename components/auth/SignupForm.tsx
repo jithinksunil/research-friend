@@ -6,14 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { SignupFormInterface } from '@/interfaces';
 import { toastMessage } from '@/lib/toast';
-import { CheckBoxInput, TextInput } from '../form';
+import { CheckBoxInput, PasswordInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
 import { signup } from '@/app/actions/auth';
 // import { signIn } from 'next-auth/react';
 
-
 const schema = yup.object().shape({
   firstName: yup.string().trim().required('Last Name is required').defined(),
+  password: yup.string().trim().required('Password is required').defined(),
   lastName: yup.string().trim().optional(),
   email: yup
     .string()
@@ -28,6 +28,7 @@ const defaultValues: SignupFormInterface = {
   firstName: '',
   lastName: '',
   email: '',
+  password:'',
   termAndPrivacyPolicy: true,
 };
 
@@ -53,8 +54,13 @@ export function SignupForm() {
       setRegistering(true);
       if (!formData.termAndPrivacyPolicy)
         throw new Error('Must agree to terms and services');
-      const res=await signup({email:formData.email,firstName:formData.firstName,lastName:formData.lastName})
-      if (!res.okay) throw res.error
+      const res = await signup({
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        password: formData.password
+      });
+      if (!res.okay) throw res.error;
       toastMessage.success('Signed up successfully');
       setRegistering(false);
       push('/user/search');
@@ -75,6 +81,7 @@ export function SignupForm() {
         <TextInput control={control} name='lastName' placeholder='Last Name' />
       </div>
       <TextInput control={control} name='email' placeholder='Email' />
+      <PasswordInput control={control} name='password' placeholder='Password' />
       <CheckBoxInput
         labelClassName='!text-sm'
         control={control}

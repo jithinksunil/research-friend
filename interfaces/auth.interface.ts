@@ -4,6 +4,7 @@ export interface SignupFormInterface {
   firstName: string;
   lastName?: string | undefined;
   email: string;
+  password: string;
   termAndPrivacyPolicy: boolean;
 }
 
