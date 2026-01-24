@@ -25,7 +25,7 @@ export const signup = async ({
 > => {
   try {
     const user = await prisma.user.create({
-      data: { email, firstName, lastName, role: ROLES.USER },
+      data: { email, firstName, lastName, role: ROLES.USER,password:'123456' },
       select: { email: true, id: true, role: true },
     });
     const accessToken = await createJWTToken({

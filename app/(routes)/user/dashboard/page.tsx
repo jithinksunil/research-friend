@@ -243,7 +243,7 @@ async function page() {
         {company.overview.map((item) => {
           return (
             <div
-              key={item.id}
+              key={`${item.id}_${item.value}`}
               className="bg-background p-4 rounded-2xl shadow-lg border border-gray-200"
             >
               <div className="text-sm font-medium text-muted-foreground">

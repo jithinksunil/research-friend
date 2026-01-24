@@ -8,7 +8,7 @@ import { getChartData, getStockDashboardData, requireRBAC } from '@/server';
 export const getDashboardData = requireRBAC(ROLES.USER)<StockDashboardData>(
   async (symbol: string) => {
     try {
-      const API_KEY = process.env.ALPHAVANTAGE_API_KEY!;
+      const API_KEY = process.env.ALPHA_VANTAGE_API_KEY!;
       const BASE = 'https://www.alphavantage.co/query';
       const keyMetrics = await getStockDashboardData(symbol, API_KEY, BASE);
       const chartData = await getChartData(symbol, API_KEY, BASE);

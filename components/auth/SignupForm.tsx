@@ -8,6 +8,7 @@ import { SignupFormInterface } from '@/interfaces';
 import { toastMessage } from '@/lib/toast';
 import { CheckBoxInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
+import { signup } from '@/app/actions/auth';
 // import { signIn } from 'next-auth/react';
 
 
@@ -52,11 +53,12 @@ export function SignupForm() {
       setRegistering(true);
       if (!formData.termAndPrivacyPolicy)
         throw new Error('Must agree to terms and services');
+      const res=await signup({email:formData.email,firstName:formData.firstName,lastName:formData.lastName})
       // const res = await signIn('credentials', { ...formData, redirect: false });
-      // if (res.error) throw new Error(res.error);
+      if (!res.okay) throw res.error
       toastMessage.success('Signed up successfully');
       setRegistering(false);
-      push('/user/dashboard');
+      push('/user/search');
     } catch (err: any) {
       toastMessage.error(err?.message);
     } finally {
