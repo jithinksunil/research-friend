@@ -27,7 +27,7 @@ export default async function Page({ params }: PageProps) {
   }
 
   const company = result.data.keyMetrics
-
+  
   return <div className="py-6">
   <div className="text-muted-foreground">
     <span className="font-bold">{symbol}</span>{' '}

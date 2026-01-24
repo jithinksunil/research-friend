@@ -3,7 +3,7 @@ import * as yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { SigninFormInterface } from '@/interfaces';
 import { toastMessage } from '@/lib/toast';
 import { PasswordInput, TextInput } from '../form';
@@ -28,6 +28,7 @@ const defaultValues: SigninFormInterface = {
 export function SigninForm() {
   const [loading, setLoading] = useState(false);
   const { replace, push } = useRouter();
+  const [isPending, startTransition]=useTransition()
   const { control, handleSubmit } = useForm({
     resolver: yupResolver(schema),
     defaultValues,
@@ -58,7 +59,8 @@ export function SigninForm() {
   const session = useSession();
   useEffect(() => {
     if (session.data) {
-      replace('/user/search');
+      startTransition(()=>
+      replace('/user/search'))
     }
   }, [session]);
   return (
@@ -76,7 +78,7 @@ export function SigninForm() {
           placeholder='Password'
         />
       </div>
-      <PrimaryButton type='submit' isLoading={loading}>
+      <PrimaryButton type='submit' isLoading={loading||isPending} className='mt-4'>
         Sign In
       </PrimaryButton>
 
