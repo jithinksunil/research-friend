@@ -24,6 +24,8 @@
   --color-secondary: var(--secondary);
 }
 
+
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -69,3 +71,281 @@ body {
 .search-suggestions-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #9ca3af;
 }
+
+
+.custom_label,
+.react-tel-input .special-label {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  color: #818181;
+  transition: all 0.3s;
+  cursor: text;
+  user-select: none;
+  pointer-events: none;
+}
+
+@media screen and (max-width: 768px) {
+  .custom_label {
+    font-size: 14px;
+  }
+}
+
+input:focus + .custom_label,
+input:not(:placeholder-shown) + .custom_label,
+textarea:focus + .custom_label,
+textarea:not(:placeholder-shown) + .custom_label,
+.selectInput:has(.select_has_value) + .custom_label,
+.selectInput:has(.select__control--is-focused) + .custom_label,
+.selectInput:has(.error__control--is-focused) + .custom_label,
+.react-datepicker-wrapper:has(.date_has_value) ~ .custom_label,
+.react-datepicker-wrapper:has(.react-datepicker-ignore-onclickoutside)
+  ~ .custom_label {
+  left: 8px;
+  transform: translateY(-26px);
+  background-color: #fff;
+  font-size: 13px;
+  border-radius: 12px;
+  padding: 0px 4px;
+}
+
+.tooltip {
+  opacity: 0;
+  transition: all 0.3s;
+}
+
+input:focus + .custom_label > .tooltip,
+input:not(:placeholder-shown) + .custom_label > .tooltip,
+textarea:focus + .custom_label > .tooltip,
+textarea:not(:placeholder-shown) + .custom_label > .tooltip,
+.selectInput:has(.select_has_value) + .custom_label > .tooltip,
+.selectInput:has(.select__control--is-focused) + .custom_label > .tooltip,
+.selectInput:has(.error__control--is-focused) + .custom_label > .tooltip {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* .react-datepicker-wrapper:has(.date_has_value)+.custom_label, */
+input::placeholder,
+textarea::placeholder,
+.select__placeholder,
+.error__placeholder {
+  opacity: 0;
+}
+
+label,
+.label {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+
+.error {
+  color: red;
+  flex-basis: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .error {
+    font-size: 12px;
+  }
+}
+
+.error::before {
+  content: '*';
+}
+
+
+.button {
+  display: block;
+  min-height: 40px;
+  min-width: 80px;
+  border-radius: 4px;
+  outline: none;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 8px;
+  padding: 8px 16px;
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+input[type='file'] {
+  display: none;
+}
+
+table th:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+table th:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.file {
+  height: 200px;
+  width: 150px;
+  margin: 16px auto;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.file img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+/* Main css */
+
+.select__control {
+  min-height: 56px !important;
+  border: 1px solid #c8cfd6 !important;
+  box-shadow: none;
+}
+
+.select__control.select_has_value {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.select__indicator-separator {
+  display: none;
+}
+
+.select__control:active,
+.select__control:hover,
+.select__control:focus,
+.select__control:focus-within {
+  box-shadow: none;
+  border-color: #c8cfd6 !important;
+}
+
+.error__control {
+  height: 56px;
+  border: 1px solid red !important;
+  box-shadow: none;
+}
+
+.error__indicator-separator {
+  display: none;
+}
+
+.error__control:active,
+.error__control:hover,
+.error__control:focus,
+.error__control:focus-within {
+  box-shadow: none;
+  border-color: red !important;
+}
+
+.backButton {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.backButton img {
+  height: 24px;
+  width: 24px;
+}
+
+.backRotate {
+  height: 16px;
+  width: 16px;
+  filter: invert(1);
+  transform: rotate(180deg);
+  margin-left: 4px;
+}
+
+.loader {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-block;
+  border-top: 3px solid #fff;
+  border-right: 3px solid transparent;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.primaryButton {
+  font-size: 16px;
+  color: #fff !important;
+  padding: 10px 24px !important;
+  border: none;
+  outline: none;
+  background-color: #6f0652;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer !important;
+  text-transform: none !important;
+}
+
+.secondaryButton {
+  font-size: 16px !important;
+  border-radius: 8px !important;
+  border: none;
+  outline: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 600 !important;
+  text-transform: none !important;
+}
+
+.secondaryButton:hover {
+  text-decoration: none !important;
+  background-color: rgba(111, 6, 82, 0.08) !important;
+}
+
+.primaryButton:not(:disabled),
+.secondaryButton:not(:disabled) {
+  cursor: pointer !important;
+}
+
+.primaryButton:not(:disabled):active,
+.secondaryButton:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+button:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
