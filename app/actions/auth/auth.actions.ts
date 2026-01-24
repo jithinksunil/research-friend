@@ -8,6 +8,7 @@ import {
 } from '@/lib';
 import { ROLES } from '@/app/generated/prisma/enums';
 import prisma from '@/prisma';
+import { signIn } from '@/auth';
 
 export const signup = async ({
   email,
@@ -18,37 +19,19 @@ export const signup = async ({
   lastName: string | undefined;
   email: string;
 }): Promise<
-  ServerActionResult<{
-    user: { role: ROLES; userId: string; email: string };
-    tokens: { refreshToken: string; accessToken: string };
-  }>
+  ServerActionResult<null>
 > => {
   try {
     const user = await prisma.user.create({
       data: { email, firstName, lastName, role: ROLES.USER,password:'123456' },
       select: { email: true, id: true, role: true },
     });
-    const accessToken = await createJWTToken({
-      userId: user.id,
-      role: user.role,
-      secret: process.env.ACCESS_TOKEN_SECRET!,
-      expirationTime: ACCESS_TOKEN_EXPIRATION_S,
-    });
-    const refreshToken = await createJWTToken({
-      userId: user.id,
-      role: user.role,
-      secret: process.env.REFRESH_TOKEN_SECRET!,
-      expirationTime: REFRESH_TOKEN_EXPIRATION_S, // 30 days
-    });
+    const res = await signIn('credentials', { email:user.email, password:'123456', redirect: false });
+    if (res.error) throw new Error(res.error);
+    
     return {
       okay: true,
-      data: {
-        user: { role: user.role, userId: user.id, email: user.email },
-        tokens: {
-          accessToken,
-          refreshToken,
-        },
-      },
+      data: null,
     };
   } catch (error) {
     if ((error as any).code === 'P2002') {
