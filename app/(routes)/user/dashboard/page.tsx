@@ -61,7 +61,7 @@ async function page() {
     tickName: 'AAPL',
     companyName: 'Apple Inc.',
     businessDescription:
-      'Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally. The company operates through segments including North America, International, and Amazon Web Services (AWS).',
+      `Apple Inc. is a preeminent American multinational technology company renowned for its innovative consumer electronics, software, and online services. With a staggering revenue of $274.5 billion in 2020, it stands as the world's most valuable publicly traded company, significantly influencing the global technology sector. Its flagship products—iPhone, iPad, and Mac—continue to define consumer expectations and set industry benchmarks, securing its position as a leader in both the smartphone and personal computer markets. As a key player among the "Big Five" technology firms, Apple remains at the forefront of technological advancements and consumer engagement strategies.`,
     overview: [
       {
         label: 'Market Cap',
