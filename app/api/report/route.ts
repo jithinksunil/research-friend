@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const reportBuffer = isDummy
       ? await fetchDummyReportBuffer()
       : await fetchAllSections(
-          `CompanyName:${companyName}, Symbol:${symbol}`,
+          companyName,
           symbol,
         );
 

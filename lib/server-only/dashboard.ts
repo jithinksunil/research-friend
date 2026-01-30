@@ -60,11 +60,13 @@ async function convertToPdf(buffer: Buffer): Promise<Buffer> {
 
 async function fetchSection({
   companyName,
+  symbol,
   schema,
   schemaName,
   prompt,
 }: {
   companyName: string;
+  symbol: string;
   schema: ZodType<any, ZodTypeDef, any>;
   schemaName: string;
   prompt: string;
@@ -84,7 +86,7 @@ async function fetchSection({
       { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `${prompt}\n\nCompany: ${companyName}`,
+        content: `${prompt}\n\nCompany: ${companyName}\n\nSymbol: ${symbol}`,
       },
     ],
   });
@@ -92,15 +94,20 @@ async function fetchSection({
 }
 
 export async function fetchAllSections(companyName: string, symbol: string) {
+  console.log({companyName,symbol});
+  
   const company = await prisma.company.findUnique({
     where: { symbol },
     select: { data: true },
   });
+  console.log(Boolean(company));
   if (company?.data) {
+
     return await createReportBuffer(company.data);
   }
   const overviewPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: OverviewSchema,
     schemaName: 'Overview',
     prompt: 'Extract company overview and stock metrics.',
@@ -108,6 +115,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const shareholdersPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: ShareholderSchema,
     schemaName: 'Shareholders',
     prompt: 'Extract shareholder structure and insider activity.',
@@ -115,6 +123,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const analystConsensusPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: AnalystConsensusSchema,
     schemaName: 'AnalystConsensus',
     prompt: 'Extract analyst recommendations and price targets.',
@@ -122,6 +131,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const financialsPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: FinancialsSchema,
     schemaName: 'Financials',
     prompt:
@@ -130,6 +140,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const ratiosPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: RatiosSchema,
     schemaName: 'Ratios',
     prompt: 'Compute key financial ratios and credit metrics.',
@@ -137,6 +148,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const segmentsPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: SegmentsSchema,
     schemaName: 'Segments',
     prompt: 'Extract business segments and revenue breakdown.',
@@ -144,6 +156,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const competitionPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: CompetitionSchema,
     schemaName: 'Competition',
     prompt: 'Analyze competitive landscape and market position.',
@@ -151,6 +164,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const guidancePromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: GuidanceSchema,
     schemaName: 'Guidance',
     prompt:
@@ -159,6 +173,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const regulatoryPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: RegulatorySchema,
     schemaName: 'Regulatory',
     prompt: 'Identify regulatory, legal, and policy risks.',
@@ -166,6 +181,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const newsPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: NewsSchema,
     schemaName: 'News',
     prompt: 'Extract recent news and corporate actions.',
@@ -173,6 +189,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const projectionsPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: ProjectionsSchema,
     schemaName: 'Projections',
     prompt: 'Generate forward projections and assumptions.',
@@ -180,6 +197,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const valuationPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: ValuationSchema,
     schemaName: 'Valuation',
     prompt: 'Produce a discounted cash flow valuation.',
@@ -187,6 +205,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const scenariosPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: ScenariosSchema,
     schemaName: 'Scenarios',
     prompt: 'Define bull, base, and bear valuation scenarios.',
@@ -194,6 +213,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const catalystsPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: CatalystsSchema,
     schemaName: 'Catalysts',
     prompt: 'Identify key upside and downside catalysts.',
@@ -201,6 +221,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 
   const esgPromise = fetchSection({
     companyName: companyName,
+    symbol,
     schema: ESGSchema,
     schemaName: 'ESG',
     prompt: 'Extract ESG and corporate governance highlights.',
@@ -236,7 +257,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
   }
 
   const jsonResult = {
-    companyName: 'Apple Inc.',
+    companyName,
     reportDate: new Date().toISOString(),
     ...data,
   };
@@ -248,12 +269,8 @@ export async function fetchAllSections(companyName: string, symbol: string) {
 export async function fetchDummyReportBuffer(): Promise<Buffer> {
   const file = await readFile('./report_data.json', 'utf-8');
   const data = JSON.parse(file);
-  console.log(file);
-
-  const jsonResult = {
-    companyName: 'Apple Inc.',
-    reportDate: new Date().toISOString(),
+  return await createReportBuffer({
     ...data,
-  };
-  return await createReportBuffer(jsonResult);
+    reportDate: new Date().toISOString(),
+  });
 }
