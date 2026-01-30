@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PrimaryButton } from '../common';
+import { toastMessage } from '@/lib';
 
 export const DownloadReportButton = ({
   companyName,
@@ -33,7 +34,7 @@ export const DownloadReportButton = ({
         window.URL.revokeObjectURL(url);
       })
       .catch((err) => {
-        console.error(err);
+        toastMessage.error(err?.message);
       })
       .finally(() => {
         setLoading(false);
