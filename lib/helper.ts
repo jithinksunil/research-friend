@@ -3,6 +3,7 @@ import { SessionPayload } from '@/interfaces';
 import { jwtVerify, SignJWT } from 'jose';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+
 export function convertToErrorInstance(
   unknownError: unknown,
   fallbackMessage = 'Unknown error',

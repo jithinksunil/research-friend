@@ -3,7 +3,12 @@ import stock from '@/stockdata.json';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
 import { cn } from '@/lib';
 import { Fragment } from 'react/jsx-runtime';
-export function formatValue(value: number|null, format: string, unit?: string | null) {
+import { DownloadReportButton } from '@/components/dashbord';
+export function formatValue(
+  value: number | null,
+  format: string,
+  unit?: string | null,
+) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return '—';
   }
@@ -39,9 +44,9 @@ export function formatValue(value: number|null, format: string, unit?: string | 
 }
 
 export function formatMetricValue(
-  value: number|null,
+  value: number | null,
   format: string,
-  unit?: string | null
+  unit?: string | null,
 ) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return '—';
@@ -60,8 +65,7 @@ async function page() {
   const company = {
     tickName: 'AAPL',
     companyName: 'Apple Inc.',
-    businessDescription:
-      `Apple Inc. is a preeminent American multinational technology company renowned for its innovative consumer electronics, software, and online services. With a staggering revenue of $274.5 billion in 2020, it stands as the world's most valuable publicly traded company, significantly influencing the global technology sector. Its flagship products—iPhone, iPad, and Mac—continue to define consumer expectations and set industry benchmarks, securing its position as a leader in both the smartphone and personal computer markets. As a key player among the "Big Five" technology firms, Apple remains at the forefront of technological advancements and consumer engagement strategies.`,
+    businessDescription: `Apple Inc. is a preeminent American multinational technology company renowned for its innovative consumer electronics, software, and online services. With a staggering revenue of $274.5 billion in 2020, it stands as the world's most valuable publicly traded company, significantly influencing the global technology sector. Its flagship products—iPhone, iPad, and Mac—continue to define consumer expectations and set industry benchmarks, securing its position as a leader in both the smartphone and personal computer markets. As a key player among the "Big Five" technology firms, Apple remains at the forefront of technological advancements and consumer engagement strategies.`,
     overview: [
       {
         label: 'Market Cap',
@@ -231,37 +235,43 @@ async function page() {
       },
     ],
   };
-
   return (
-    <div className="py-6">
-      <div className="text-muted-foreground">
-        <span className="font-bold">{company.tickName}</span>{' '}
-        {company.companyName}
+    <div className='py-6'>
+      <div className='flex items-center justify-between'>
+        <div className='text-muted-foreground'>
+          <span className='font-bold'>{company.tickName}</span>{' '}
+          {company.companyName}
+        </div>
+        <DownloadReportButton
+          companyName={company.companyName}
+          symbol={company.tickName}
+          isDummy
+        />
       </div>
-      <StockChart stock={stock}/>
-      <div className="grid grid-cols-4 gap-4 py-16">
+      <StockChart stock={stock} />
+      <div className='grid grid-cols-4 gap-4 py-16'>
         {company.overview.map((item) => {
           return (
             <div
               key={`${item.id}_${item.value}`}
-              className="bg-background p-4 rounded-2xl shadow-lg border border-gray-200"
+              className='bg-background p-4 rounded-2xl shadow-lg border border-gray-200'
             >
-              <div className="text-sm font-medium text-muted-foreground">
+              <div className='text-sm font-medium text-muted-foreground'>
                 {item.label}
               </div>
 
-              <div className="mt-1 text-lg font-bold">
+              <div className='mt-1 text-lg font-bold'>
                 {formatValue(item.value, item.format, item.unit)}
               </div>
             </div>
           );
         })}
       </div>
-      <div className="py-6 bg-background rounded-2xl shadow-lg border border-gray-200">
+      <div className='py-6 bg-background rounded-2xl shadow-lg border border-gray-200'>
         <TableWithoutPagination
           headings={[]}
           rows={company.fundamentalsMetrics.map((metric) => [
-            <div className="px-[20px] py-[10px] text-sm text-muted-foreground">
+            <div className='px-[20px] py-[10px] text-sm text-muted-foreground'>
               {metric.label}
             </div>,
 
@@ -273,23 +283,23 @@ async function page() {
                   'text-emerald-400',
                 metric.format === 'percentage' &&
                   metric.value < 0 &&
-                  'text-red-400'
+                  'text-red-400',
               )}
             >
               {formatValue(metric.value, metric.format, metric.unit)}
             </div>,
           ])}
-          noData="No fundamentals available"
+          noData='No fundamentals available'
         />
       </div>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 py-6">
+      <div className='grid grid-cols-2 gap-4 md:grid-cols-4 py-6'>
         {company.riskMetrics.map((metric) => (
           <div
             key={metric.id}
-            className="bg-background p-4 rounded-2xl shadow-lg border border-gray-200"
+            className='bg-background p-4 rounded-2xl shadow-lg border border-gray-200'
           >
             {/* Label */}
-            <div className="text-sm font-medium text-muted-foreground">
+            <div className='text-sm font-medium text-muted-foreground'>
               {metric.label}
             </div>
 
@@ -317,27 +327,27 @@ async function page() {
             </div>
 
             {/* Description */}
-            <div className="mt-1 text-xs text-muted-foreground">
+            <div className='mt-1 text-xs text-muted-foreground'>
               {metric.description}
             </div>
           </div>
         ))}
       </div>
-      <div className="bg-background p-4 rounded-2xl shadow-lg border border-gray-200  ">
-        <h3 className="mb-2 text-lg font-semibold">About the Company</h3>
+      <div className='bg-background p-4 rounded-2xl shadow-lg border border-gray-200  '>
+        <h3 className='mb-2 text-lg font-semibold'>About the Company</h3>
 
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className='text-sm leading-relaxed text-muted-foreground'>
           {company.businessDescription}
         </p>
       </div>
-      <div className="mt-6 bg-background p-4 rounded-2xl shadow-lg border border-gray-200 ">
-        <h3 className="mb-4 text-lg font-semibold">Company Details</h3>
+      <div className='mt-6 bg-background p-4 rounded-2xl shadow-lg border border-gray-200 '>
+        <h3 className='mb-4 text-lg font-semibold'>Company Details</h3>
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+        <div className='grid grid-cols-2 gap-x-6 gap-y-4 text-sm'>
           {company.companyProfile.map((item, index) => (
             <Fragment key={index}>
-              <div className="text-muted-foreground">{item.label}</div>
-              <div className="font-medium">{item.value}</div>
+              <div className='text-muted-foreground'>{item.label}</div>
+              <div className='font-medium'>{item.value}</div>
             </Fragment>
           ))}
         </div>

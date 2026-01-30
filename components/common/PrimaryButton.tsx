@@ -1,3 +1,4 @@
+'use client'
 import { ReactNode } from 'react';
 import { Button } from '@mui/material';
 import { Loader } from './Loader';
