@@ -1,4 +1,3 @@
-
 import { getDashboardData, getOverview } from '@/app/actions/user';
 import StockChart from '@/components/common/StockChart';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
@@ -31,7 +30,6 @@ export default async function Page({ params }: PageProps) {
 
   const company = result.data.keyMetrics;
 
-
   return (
     <div className='py-6'>
       <div className='flex items-center justify-between'>
@@ -39,7 +37,10 @@ export default async function Page({ params }: PageProps) {
           <span className='font-bold'>{symbol}</span>{' '}
           {company.companyProfile.name}
         </div>
-        <DownloadReportButton companyName={company.companyProfile.name!} symbol={symbol}/>
+        <DownloadReportButton
+          companyName={company.companyProfile.name!}
+          symbol={symbol}
+        />
       </div>
       {result.data.chartData ? (
         <StockChart stock={result.data.chartData} />
@@ -65,12 +66,16 @@ export default async function Page({ params }: PageProps) {
       <div className='py-6 bg-background rounded-2xl shadow-lg border border-gray-200'>
         <TableWithoutPagination
           headings={[]}
-          rows={company.fundamentals.map((metric) => [
-            <div className='px-[20px] py-[10px] text-sm text-muted-foreground'>
+          rows={company.fundamentals.map((metric, index) => [
+            <div
+              className='px-[20px] py-[10px] text-sm text-muted-foreground'
+              key={`col1-${index}`}
+            >
               {metric.label}
             </div>,
 
             <div
+              key={`col2-${index}`}
               className={cn(
                 'px-[20px] py-[10px] text-right font-medium',
                 metric.format === 'percentage' &&

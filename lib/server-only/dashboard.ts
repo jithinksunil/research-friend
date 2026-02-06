@@ -26,7 +26,9 @@ import {
 import { readFile } from 'node:fs/promises';
 import prisma from '@/prisma';
 
-export async function createReportBuffer(data: Object): Promise<Buffer> {
+export async function createReportBuffer(
+  data: Record<string, any>,
+): Promise<Buffer> {
   const template = readFileSync('./report_template.docx');
   const unit8Buffer = await docx.createReport({
     template: template,
@@ -94,16 +96,15 @@ async function fetchSection({
 }
 
 export async function fetchAllSections(companyName: string, symbol: string) {
-  console.log({companyName,symbol});
-  
+  console.log({ companyName, symbol });
+
   const company = await prisma.company.findUnique({
     where: { symbol },
     select: { data: true },
   });
   console.log(Boolean(company));
   if (company?.data) {
-
-    return await createReportBuffer(company.data);
+    return await createReportBuffer(company.data as Record<string, any>);
   }
   const overviewPromise = fetchSection({
     companyName: companyName,

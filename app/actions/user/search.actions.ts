@@ -3,6 +3,9 @@ import { ROLES } from '@/app/generated/prisma/enums';
 import { SearchSuggestion } from '@/interfaces';
 import { convertToErrorInstance } from '@/lib';
 import { requireRBAC } from '@/server';
+import YahooFinance from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinance();
 
 export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(
   async (query: string) => {
@@ -10,52 +13,49 @@ export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(
       const trimmed = query.trim();
       if (!trimmed) return { okay: true, data: [] };
 
-      const url = `${process.env.ALPHA_VANTAGE_BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(
-        trimmed
-      )}&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`;
+      const results = await yahooFinance.search(trimmed, {
+        quotesCount: 10,
+        newsCount: 0,
+        enableFuzzyQuery: true,
+      });
 
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) {
-        return {
-          okay: false,
-          error: new Error(`Request failed (${res.status})`),
-        };
-      }
+      const quotes = Array.isArray(results?.quotes) ? results.quotes : [];
+      const suggestions: SearchSuggestion[] = quotes
+        .map((quote) => {
+          if (!quote || typeof quote !== 'object') return null;
 
-      const json = (await res.json()) as
-        | {
-            bestMatches?: Array<Record<string, string>>;
-            Information?: string;
-            Note?: string;
-            'Error Message'?: string;
-          }
-        | undefined;
+          const symbol =
+            typeof (quote as { symbol?: unknown }).symbol === 'string'
+              ? (quote as { symbol: string }).symbol.trim()
+              : '';
 
-      if (!json) return { okay: true, data: [] };
+          if (!symbol) return null;
 
-      // Alpha Vantage sometimes returns rate limit / error payloads without bestMatches
-      const apiMessage = json.Note || json.Information || json['Error Message'];
-      if (apiMessage && !json.bestMatches) {
-        return {
-          okay: false,
-          error: new Error(apiMessage),
-        };
-      }
+          const name =
+            (typeof (quote as { shortname?: unknown }).shortname === 'string'
+              ? (quote as { shortname: string }).shortname.trim()
+              : '') ||
+            (typeof (quote as { longname?: unknown }).longname === 'string'
+              ? (quote as { longname: string }).longname.trim()
+              : '') ||
+            symbol;
 
-      const suggestions: SearchSuggestion[] = (json.bestMatches || []).map(
-        (m) => {
-          const symbol = (m['1. symbol'] || '').trim();
-          const name = (m['2. name'] || '').trim();
-          const region = (m['4. region'] || '').trim();
+          const region =
+            (typeof (quote as { exchDisp?: unknown }).exchDisp === 'string'
+              ? (quote as { exchDisp: string }).exchDisp.trim()
+              : '') ||
+            (typeof (quote as { exchange?: unknown }).exchange === 'string'
+              ? (quote as { exchange: string }).exchange.trim()
+              : '');
 
           return {
-            id: `${symbol || name}-${region || 'unknown'}`,
+            id: `${symbol}-${region || 'unknown'}`,
             symbol,
             name,
             region,
           };
-        }
-      );
+        })
+        .filter((item): item is SearchSuggestion => Boolean(item));
 
       return { okay: true, data: suggestions };
     } catch (error) {
