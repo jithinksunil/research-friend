@@ -1,6 +1,4 @@
-import {
-  getDashboardData,
-} from '@/app/actions/user';
+import { getDashboardData } from '@/app/actions/user';
 import StockChart from '@/components/common/StockChart';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
 import { formatMetricValue, formatValue } from '../page';
@@ -92,7 +90,7 @@ export default async function Page({ params }: PageProps) {
         />
       </div>
       <div className='grid grid-cols-2 gap-4 md:grid-cols-4 py-6'>
-        {company.riskMetrics.map((metric) => (
+        {result.data.riskMetrics?.map((metric) => (
           <div
             key={metric.label}
             className='bg-background p-4 rounded-2xl shadow-lg border border-gray-200'
@@ -106,15 +104,9 @@ export default async function Page({ params }: PageProps) {
             <div
               className={`
       mt-1 text-xl font-bold
-      ${
-        metric.label === 'maxDrawdown1Y'
-          ? 'text-red-400'
-          : metric.format === 'percentage' && metric.value && metric.value > 0
-            ? 'text-emerald-400'
-            : ''
-      }`}
+      `}
             >
-              {formatMetricValue(metric.value, metric.format, metric.unit)}
+              {metric.value}
             </div>
 
             {/* Description */}
@@ -128,7 +120,7 @@ export default async function Page({ params }: PageProps) {
         <h3 className='mb-2 text-lg font-semibold'>About the Company</h3>
 
         <p className='text-sm leading-relaxed text-muted-foreground'>
-          {company.companyProfile.description}
+          {result.data.quickMetrics?.description}
         </p>
       </div>
       <div className='mt-6 bg-background p-4 rounded-2xl shadow-lg border border-gray-200 '>

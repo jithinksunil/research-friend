@@ -2,7 +2,9 @@ import 'server-only';
 import {
   BasicStockInfo,
   KeyMetrics,
+  Metric,
   QuickMetric,
+  RiskMetric,
 } from '@/interfaces';
 import YahooFinance from 'yahoo-finance2';
 
@@ -263,7 +265,7 @@ export async function getBasicInfo(
 ): Promise<BasicStockInfo | null> {
   try {
     const quote = await yahooFinance.quote(symbol);
-
+console.log(quote);
     if (!quote) {
       return null;
     }
@@ -299,6 +301,8 @@ export async function getQuickMetrics(
 ): Promise<QuickMetric | null> {
   try {
     const info = await getBasicInfo(symbol);
+    
+    
     if (!info) {
       return null;
     }
@@ -331,6 +335,7 @@ export async function getQuickMetrics(
         },
       ],
       name: info.name,
+      description: info.description,
     };
   } catch (error) {
     return null;
@@ -449,7 +454,83 @@ export async function getFundamentalsMetrics(
     return {
       keyMetrics: formattedMetrics,
       name: quote.longName || quote.shortName || null,
+      description: quote.longBusinessSummary || null,
     };
+  } catch (error) {
+    return null;
+  }
+}
+export async function getRiskMetrics(
+  symbol: string,
+): Promise<RiskMetric[] | null> {
+  try {
+    const [quote, history] = await Promise.all([
+      yahooFinance.quote(symbol),
+      yahooFinance.historical(symbol, {
+        period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        period2: new Date(),
+        interval: '1d',
+      }),
+    ]);
+
+    if (!quote || !history || history.length === 0) {
+      return null;
+    }
+
+    // Calculate volatility (1Y)
+    const prices = history.map((h) => h.close).filter(Boolean) as number[];
+    let volatility: number | null = null;
+    if (prices.length >= 2) {
+      const returns = prices
+        .slice(1)
+        .map((p, i) => (p - prices[i]) / prices[i]);
+      const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+      const variance =
+        returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
+      volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
+    }
+
+    // Calculate max drawdown (1Y)
+    let maxDrawdown: number | null = null;
+    if (prices.length > 0) {
+      let peak = prices[0];
+      let maxDD = 0;
+      for (const price of prices) {
+        if (price > peak) peak = price;
+        const dd = (price - peak) / peak;
+        if (dd < maxDD) maxDD = dd;
+      }
+      maxDrawdown = maxDD * 100;
+    }
+
+    return [
+      {
+        label: 'Beta',
+        value: formatMetricValue(quote.beta || null, 'number'),
+        description:
+          'Measures how volatile the stock is compared to the overall market. Beta > 1 means higher risk.',
+      },
+      {
+        label: 'Volatility (1Y)',
+        value: formatMetricValue(volatility, 'percentage'),
+        description:
+          'Annualized price fluctuation over the past year. Higher volatility means larger price swings.',
+      },
+      {
+        label: 'Max Drawdown (1Y)',
+        value: formatMetricValue(maxDrawdown, 'percentage'),
+        description:
+          'Maximum observed loss from peak to trough over the past year.',
+      },
+      {
+        label: 'Debt Ratio',
+        value: quote.debtToEquity
+          ? formatMetricValue(quote.debtToEquity, 'number')
+          : '',
+        description:
+          'Proportion of assets financed by debt. Higher values indicate higher financial leverage.',
+      },
+    ];
   } catch (error) {
     return null;
   }

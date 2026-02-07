@@ -11,6 +11,7 @@ import prisma from '@/prisma';
 import {
   getHistory,
   getQuickMetrics,
+  getRiskMetrics,
   getSession,
   getStockDashboardData,
   requireRBAC,
@@ -24,12 +25,14 @@ export const getDashboardData = requireRBAC(ROLES.USER)<StockDashboardData>(
       const keyMetrics = await getStockDashboardData(symbol, API_KEY, BASE);
       const chartData = await getHistory(symbol);
       const quickMetrics = await getQuickMetrics(symbol);
+      const riskMetrics=await getRiskMetrics(symbol);
       return {
         okay: true,
         data: {
           keyMetrics,
           chartData,
           quickMetrics,
+          riskMetrics
         },
       };
     } catch (error) {

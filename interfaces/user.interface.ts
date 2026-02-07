@@ -115,13 +115,8 @@ export interface MetricItem {
   label: string;
   value: number | null;
   unit?: 'USD' | '%' | 'shares' | null;
-  description?:string
-  format:
-    | 'currency'
-    | 'currencyCompact'
-    | 'percentage'
-    | 'compact'
-    | 'number';
+  description?: string;
+  format: 'currency' | 'currencyCompact' | 'percentage' | 'compact' | 'number';
 }
 export interface StockHeader {
   symbol: string;
@@ -134,7 +129,7 @@ export interface CompanyProfile {
   sector: string | null;
   industry: string | null;
   country: string | null;
-  name:string|null
+  name: string | null;
 }
 
 export interface KeyMetrics {
@@ -147,8 +142,9 @@ export interface KeyMetrics {
 
 export interface StockDashboardData {
   keyMetrics: KeyMetrics;
-  chartData: HistoricalHistoryResult | null
-  quickMetrics:QuickMetric|null
+  chartData: HistoricalHistoryResult | null;
+  quickMetrics: QuickMetric | null;
+  riskMetrics: RiskMetric[] | null;
 }
 
 export interface DailyOHLCV {
@@ -199,6 +195,16 @@ export interface BasicStockInfo {
 }
 
 export interface QuickMetric {
-  keyMetrics: { label: string; value: string }[];
+  keyMetrics: Metric[];
   name: string | null;
+  description: string | null;
+}
+
+export interface Metric {
+  label: string;
+  value: string;
+}
+
+export interface RiskMetric extends Metric {
+  description: string;
 }
