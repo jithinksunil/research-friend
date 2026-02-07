@@ -1,3 +1,5 @@
+import { HistoricalHistoryResult } from 'yahoo-finance2/modules/historical';
+
 export interface SearchSuggestion {
   id: string;
   name: string;
@@ -126,8 +128,6 @@ export interface StockHeader {
   name: string | null;
   exchange: string | null;
 }
-export interface FundamentalMetric extends MetricItem {}
-export interface RiskMetric extends MetricItem {}
 
 export interface CompanyProfile {
   description: string | null;
@@ -147,7 +147,8 @@ export interface KeyMetrics {
 
 export interface StockDashboardData {
   keyMetrics: KeyMetrics;
-  chartData: TimeSeriesDailyResponse | null;
+  chartData: HistoricalHistoryResult | null
+  quickMetrics:QuickMetric|null
 }
 
 export interface DailyOHLCV {
@@ -173,4 +174,31 @@ export interface TimeSeriesDailyMetaData {
   '3. Last Refreshed': string; // YYYY-MM-DD
   '4. Output Size': 'Compact' | 'Full' | string;
   '5. Time Zone': string;
+}
+
+export interface BasicStockInfo {
+  symbol: string;
+  name: string | null;
+  price: number | null;
+  currency: string;
+  exchange: string | null;
+  marketCap: number | null;
+  trailingPE: number | null;
+  forwardPE: number | null;
+  eps: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
+  fiftyDayAverage: number | null;
+  twoHundredDayAverage: number | null;
+  avgVolume: number | null;
+  beta: number | null;
+  sector: string | null;
+  industry: string | null;
+  website: string | null;
+  description: string | null;
+}
+
+export interface QuickMetric {
+  keyMetrics: { label: string; value: string }[];
+  name: string | null;
 }

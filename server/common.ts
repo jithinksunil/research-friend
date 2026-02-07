@@ -7,7 +7,7 @@ import { forbiddenMessage, unauthorizedMessage } from '@/lib';
 
 export function requireRBAC(role: ROLES) {
   return function <T>(
-    action: (...args: any) => Promise<ServerActionResult<T>>
+    action: (...args: any) => Promise<ServerActionResult<T>>,
   ) {
     return async (...args: any): Promise<ServerActionResult<T>> => {
       const user = await getSession();
@@ -23,7 +23,7 @@ export function requireRBAC(role: ROLES) {
 }
 
 export async function requirePageLevelRBAC(role: ROLES) {
-  let user = await getSession();
+  const user = await getSession();
   if (!user) {
     return redirect(`/?message=${unauthorizedMessage}`);
   }

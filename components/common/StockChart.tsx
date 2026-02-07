@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   createChart,
   CrosshairMode,
@@ -9,12 +9,40 @@ import {
   HistogramSeries,
 } from 'lightweight-charts';
 import { brandingColors } from '@/lib';
-import { TimeSeriesDailyResponse } from '@/interfaces';
+import type { UTCTimestamp } from 'lightweight-charts';
 
-export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
+function toLineSeriesData(data: any[]) {
+  return data.map((d) => ({
+    time: d.date.toISOString().split('T')[0],
+    value: Math.floor(d.close * 10) / 10,
+  }));
+}
+
+export function toVolumeSeries(data: any[]) {
+  return data
+    .filter((d) => d.volume && d.open && d.close)
+    .map((d) => ({
+      time: Math.floor(new Date(d.date).getTime() / 1000) as UTCTimestamp,
+      value: d.volume,
+      color: d.close >= d.open ? 'rgba(34,197,94,0.8)' : 'rgba(239,68,68,0.8)',
+    }));
+}
+
+export default function StockChart({ stock }: { stock: any }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const tooltipTimeRef = useRef<HTMLDivElement>(null);
+  const tooltipPriceRef = useRef<HTMLSpanElement>(null);
+  const tooltipVolumeRef = useRef<HTMLSpanElement>(null);
+  const { lineData, volumeData } = useMemo(() => {
+    if (!stock) {
+      return { lineData: [], volumeData: [] };
+    }
+    const line = toLineSeriesData(stock);
+    const volume = toVolumeSeries(stock);
+    return { lineData: line, volumeData: volume };
+  }, [stock]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -47,7 +75,6 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
 
     chartRef.current = chart;
 
-    // Price line
     const priceSeries = chart.addSeries(AreaSeries, {
       lineColor: '#6f0652',
       topColor: brandingColors.background,
@@ -58,37 +85,6 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
       priceScaleId: 'volume',
       color: brandingColors.primary,
     });
-
-    // Volume bars
-    // const volumeSeries = chart.addHistogramSeries({
-    //   color: '#2b2f36',
-    //   priceFormat: { type: 'volume' },
-    //   priceScaleId: '',
-    // });
-
-    // // Adjust volume scale
-    // chart.priceScale('').applyOptions({
-    //   scaleMargins: {
-    //     top: 0.8,
-    //     bottom: 0,
-    //   },
-    // });
-
-    // Sample price data
-    const timeSeries = stock['Time Series (Daily)'];
-    const lineData = Object.entries(timeSeries)
-      .map(([date, v]) => ({
-        time: date, // YYYY-MM-DD (TradingView supports this directly)
-        value: Number(v['4. close']),
-      }))
-      .reverse(); // IMPORTANT: oldest → newest
-
-    const volumeData = Object.entries(timeSeries)
-      .map(([date, v]) => ({
-        time: date, // YYYY-MM-DD (TradingView supports this directly)
-        value: Number(v['5. volume']),
-      }))
-      .reverse(); // IMPORTANT: oldest → newest
 
     priceSeries.setData(lineData);
     volumeSeries.setData(volumeData);
@@ -105,9 +101,10 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
         bottom: 0,
       },
     });
-    // volumeSeries.setData(volumeData);
+
     chart.subscribeCrosshairMove(({ seriesData, time, point }) => {
-      const tooltip = tooltipRef.current!;
+      const tooltip = tooltipRef.current;
+      if (!tooltip) return;
 
       if (!time || !point) {
         tooltip.style.display = 'none';
@@ -117,16 +114,21 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
       const price = seriesData.get(priceSeries);
       const volumeData = seriesData.get(volumeSeries);
 
-      tooltip.querySelector('.tooltip-time')!.textContent = new Date(
-        time as string,
-      ).toLocaleString();
+      if (tooltipTimeRef.current) {
+        tooltipTimeRef.current.textContent = new Date(
+          time as string,
+        ).toLocaleString();
+      }
 
-      tooltip.querySelector('.price-value')!.textContent =
-        `$${(price as any)?.value}`;
+      if (tooltipPriceRef.current) {
+        tooltipPriceRef.current.textContent = `$${(price as any)?.value ?? '—'}`;
+      }
 
-      tooltip.querySelector('.volume-value')!.textContent = volumeData
-        ? Number((volumeData as any)?.value).toLocaleString()
-        : '—';
+      if (tooltipVolumeRef.current) {
+        tooltipVolumeRef.current.textContent = volumeData
+          ? Number((volumeData as any)?.value).toLocaleString()
+          : '—';
+      }
 
       tooltip.style.display = 'block';
       tooltip.style.left = point.x + 400 + 'px';
@@ -134,7 +136,6 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
     });
     chart.timeScale().fitContent();
 
-    // Resize handler
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({
@@ -149,7 +150,7 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, []);
+  }, [lineData, volumeData]);
 
   return (
     <>
@@ -166,7 +167,7 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
         className='pointer-events-none z-[999] absolute hidden min-w-[180px] rounded-xl bg-black/85 backdrop-blur-md px-4 py-3 text-sm text-white shadow-2xl'
       >
         {/* Time */}
-        <div className='mb-2 text-xs text-gray-400 tooltip-time'></div>
+        <div ref={tooltipTimeRef} className='mb-2 text-xs text-gray-400'></div>
 
         {/* Price row */}
         <div className='mt-1 flex items-center justify-between'>
@@ -174,7 +175,7 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
             <span className='h-4 w-1 rounded bg-purple-400'></span>
             <span className='text-gray-300'>Price</span>
           </div>
-          <span className='font-semibold price-value'></span>
+          <span ref={tooltipPriceRef} className='font-semibold'></span>
         </div>
 
         {/* Volume row */}
@@ -183,7 +184,10 @@ export default function StockChart({stock}:{stock:TimeSeriesDailyResponse}) {
             <span className='h-4 w-1 rounded bg-blue-400'></span>
             <span className='text-gray-300'>Volume</span>
           </div>
-          <span className='font-semibold text-gray-300 volume-value'></span>
+          <span
+            ref={tooltipVolumeRef}
+            className='font-semibold text-gray-300'
+          ></span>
         </div>
       </div>
     </>

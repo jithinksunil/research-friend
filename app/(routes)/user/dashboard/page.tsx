@@ -270,12 +270,16 @@ async function page() {
       <div className='py-6 bg-background rounded-2xl shadow-lg border border-gray-200'>
         <TableWithoutPagination
           headings={[]}
-          rows={company.fundamentalsMetrics.map((metric) => [
-            <div className='px-[20px] py-[10px] text-sm text-muted-foreground'>
+          rows={company.fundamentalsMetrics.map((metric, index) => [
+            <div
+              className='px-[20px] py-[10px] text-sm text-muted-foreground'
+              key={`colum_1${index}`}
+            >
               {metric.label}
             </div>,
 
             <div
+              key={`cl ${index}`}
               className={cn(
                 'px-[20px] py-[10px] text-right font-medium',
                 metric.format === 'percentage' &&

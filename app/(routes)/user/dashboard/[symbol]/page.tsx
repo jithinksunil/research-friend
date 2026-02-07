@@ -1,13 +1,14 @@
-import { getDashboardData, getOverview } from '@/app/actions/user';
+import {
+  getDashboardData,
+} from '@/app/actions/user';
 import StockChart from '@/components/common/StockChart';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
-import { CompanyOverview } from '@/interfaces';
-import { notFound } from 'next/navigation';
 import { formatMetricValue, formatValue } from '../page';
 import { cn } from '@/lib';
 import { Fragment } from 'react/jsx-runtime';
-import { PrimaryButton } from '@/components/common';
-import { DownloadReportButton } from '@/components/dashbord';
+import { ViewDetailedReport } from '@/components/dashbord/ViewDetailedReport';
+import { VoteButton } from './VoteButton';
+import { Suspense } from 'react';
 
 interface PageProps {
   params: Promise<{
@@ -17,10 +18,6 @@ interface PageProps {
 
 export default async function Page({ params }: PageProps) {
   const { symbol } = await params;
-
-  if (!symbol) {
-    notFound();
-  }
 
   const result = await getDashboardData(symbol);
 
@@ -32,36 +29,36 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <div className='py-6'>
-      <div className='flex items-center justify-between'>
+      <div className='flex items-center justify-between mb-4'>
         <div className='text-muted-foreground'>
           <span className='font-bold'>{symbol}</span>{' '}
-          {company.companyProfile.name}
+          {result.data?.quickMetrics?.name}
         </div>
-        <DownloadReportButton
-          companyName={company.companyProfile.name!}
-          symbol={symbol}
-        />
+        <ViewDetailedReport symbol={symbol} />
       </div>
+      <Suspense fallback={<div>Loading...</div>}>
+        <VoteButton symbol={symbol} />
+      </Suspense>
       {result.data.chartData ? (
         <StockChart stock={result.data.chartData} />
       ) : null}
       <div className='grid grid-cols-4 gap-4 py-16'>
-        {company.keyMetrics.map((item) => {
-          return (
-            <div
-              key={item.label}
-              className='bg-background p-4 rounded-2xl shadow-lg border border-gray-200'
-            >
-              <div className='text-sm font-medium text-muted-foreground'>
-                {item.label}
-              </div>
+        {result.data?.quickMetrics?.keyMetrics
+          .filter((item: any) => item.value)
+          .map((item: any) => {
+            return (
+              <div
+                key={item.label}
+                className='bg-background p-4 rounded-2xl shadow-lg border border-gray-200'
+              >
+                <div className='text-sm font-medium text-muted-foreground'>
+                  {item.label}
+                </div>
 
-              <div className='mt-1 text-lg font-bold'>
-                {formatValue(item.value, item.format, item.unit)}
+                <div className='mt-1 text-lg font-bold'>{item.value}</div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
       <div className='py-6 bg-background rounded-2xl shadow-lg border border-gray-200'>
         <TableWithoutPagination
@@ -115,15 +112,7 @@ export default async function Page({ params }: PageProps) {
           : metric.format === 'percentage' && metric.value && metric.value > 0
             ? 'text-emerald-400'
             : ''
-      }
-
-            
-
-
-            
-
-            
-    `}
+      }`}
             >
               {formatMetricValue(metric.value, metric.format, metric.unit)}
             </div>
