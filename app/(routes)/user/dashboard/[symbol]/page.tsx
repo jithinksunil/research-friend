@@ -1,7 +1,7 @@
 import { getDashboardData } from '@/app/actions/user';
 import StockChart from '@/components/common/StockChart';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
-import { formatMetricValue, formatValue } from '../page';
+import { formatValue } from '../page';
 import { cn } from '@/lib';
 import { Fragment } from 'react/jsx-runtime';
 import { ViewDetailedReport } from '@/components/dashbord/ViewDetailedReport';

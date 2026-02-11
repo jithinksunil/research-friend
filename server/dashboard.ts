@@ -265,7 +265,6 @@ export async function getBasicInfo(
 ): Promise<BasicStockInfo | null> {
   try {
     const quote = await yahooFinance.quote(symbol);
-console.log(quote);
     if (!quote) {
       return null;
     }
@@ -301,8 +300,7 @@ export async function getQuickMetrics(
 ): Promise<QuickMetric | null> {
   try {
     const info = await getBasicInfo(symbol);
-    
-    
+
     if (!info) {
       return null;
     }
@@ -472,6 +470,7 @@ export async function getRiskMetrics(
         interval: '1d',
       }),
     ]);
+console.log(quote);
 
     if (!quote || !history || history.length === 0) {
       return null;

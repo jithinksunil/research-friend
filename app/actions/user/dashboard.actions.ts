@@ -25,14 +25,14 @@ export const getDashboardData = requireRBAC(ROLES.USER)<StockDashboardData>(
       const keyMetrics = await getStockDashboardData(symbol, API_KEY, BASE);
       const chartData = await getHistory(symbol);
       const quickMetrics = await getQuickMetrics(symbol);
-      const riskMetrics=await getRiskMetrics(symbol);
+      const riskMetrics = await getRiskMetrics(symbol);
       return {
         okay: true,
         data: {
           keyMetrics,
           chartData,
           quickMetrics,
-          riskMetrics
+          riskMetrics,
         },
       };
     } catch (error) {
@@ -193,12 +193,7 @@ export const registerVote = requireRBAC(ROLES.USER)(async ({
   symbol: string;
 }) => {
   try {
-    const user = await getSession();
-    if (!user) {
-      return { okay: false, error: new Error(unauthorizedMessage) };
-    }
-    console.log(user);
-
+    const userId = (await getSession())!.userId;
     const company = await prisma.company.upsert({
       where: { symbol },
       update: {},
@@ -207,10 +202,10 @@ export const registerVote = requireRBAC(ROLES.USER)(async ({
     });
     await prisma.vote.upsert({
       where: {
-        companyId_userId: { companyId: company.id, userId: user.userId },
+        companyId_userId: { companyId: company.id, userId },
       },
       update: { positive: vote },
-      create: { positive: vote, userId: user.userId, companyId: company.id },
+      create: { positive: vote, userId, companyId: company.id },
     });
     return { okay: true, data: null };
   } catch (error) {
