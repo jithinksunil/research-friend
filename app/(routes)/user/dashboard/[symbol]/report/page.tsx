@@ -40,7 +40,7 @@ async function page({ params }: PageProps) {
       />
       <SectionSeparator />
       <Heading>1. COMPANY OVERVIEW & STOCK METRICS</Heading>
-      <SubHeading >Key Statistics</SubHeading>
+      <SubHeading>Key Statistics</SubHeading>
 
       <TableWithoutPagination
         headings={[
@@ -77,6 +77,72 @@ async function page({ params }: PageProps) {
       <Description>
         {report.data.overviewAndStockMetrics?.fiftyTwoWeekPerformance}
       </Description>
+      <SectionSeparator />
+      <Heading>2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY</Heading>
+      <SubHeading>Major Shareholders (Latest Data)</SubHeading>
+
+      <TableWithoutPagination
+        headings={[
+          <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
+            Shareholder Type
+          </div>,
+          <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
+            Ownership
+          </div>,
+          <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
+            Notes
+          </div>,
+        ]}
+        rows={[
+          ...report.data.shareHoldersInfo.majorShareholders?.map(
+            (shareHolder, index) => [
+              <div
+                className='py-[10px] text-sm text-muted-foreground'
+                key={`col1-${index}`}
+              >
+                {shareHolder.shareHolderType}
+              </div>,
+
+              <div
+                key={`col2-${index}`}
+                className={cn('py-[10px] font-medium')}
+              >
+                {shareHolder.ownership}
+              </div>,
+              <div
+                key={`col3-${index}`}
+                className={cn('py-[10px] font-medium')}
+              >
+                {shareHolder.notes}
+              </div>,
+            ],
+          ),
+          [
+            <div
+              className='py-[10px] text-sm text-muted-foreground'
+              key={`col1-Share Capital Structure`}
+            >
+              Share Capital Structure
+            </div>,
+
+            <div
+              key={`col2-Share Capital Structure`}
+              className={cn('py-[10px] font-medium')}
+            >
+              {report.data.shareHoldersInfo.shareCapitalStructure.totalShares}
+            </div>,
+            <div
+              key={`col3-Share Capital Structure`}
+              className={cn('py-[10px] font-medium')}
+            >
+              {report.data.shareHoldersInfo.shareCapitalStructure.notes}
+            </div>,
+          ],
+        ]}
+        noData='No fundamentals available'
+      />
+      <SubHeading className='mt-8'>Key Insider Observations:</SubHeading>
+      <List items={report.data.shareHoldersInfo.keyInsiderObservations} />
       <SectionSeparator />
     </div>
   );

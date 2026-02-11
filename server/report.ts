@@ -2,7 +2,11 @@ import 'server-only';
 import YahooFinance from 'yahoo-finance2';
 import { z } from 'zod';
 import { fetchSection } from './common';
-import { EXECUTIVE_PROMPT, OVERVIEW_PROMPT } from '@/lib';
+import {
+  EXECUTIVE_PROMPT,
+  OVERVIEW_PROMPT,
+  SHARE_HOLDER_STRUCTURE_PROMPT,
+} from '@/lib';
 interface StockResearchData {
   company: {
     name: string | null;
@@ -400,3 +404,184 @@ export const CompanyOverviewSchema = z.object({
     .length(8),
   fiftyTwoWeekPerformance: z.string(),
 });
+
+interface ShareholderStructure {
+  freeFloatPercent: number | null;
+  institutionalPercent: number | null;
+  insiderPercent: number | null;
+
+  sharesOutstanding: number | null;
+  floatShares: number | null;
+
+  majorInstitutions: {
+    name: string;
+    percentHeld: number;
+  }[];
+
+  insiderSummary: {
+    totalBuysValue: number;
+    totalSellsValue: number;
+    netActivity: 'NET_BUY' | 'NET_SELL' | 'NEUTRAL';
+    largestTransaction: {
+      name: string | null;
+      type: 'BUY' | 'SELL' | null;
+      value: number | null;
+      date: string | null;
+    };
+    activeInsiders: number;
+    transactionCount: number;
+  };
+}
+
+export async function getTrimmedShareholderStructure(
+  symbol: string,
+): Promise<ShareholderStructure> {
+  const summary = await yahooFinance.quoteSummary(symbol, {
+    modules: [
+      'defaultKeyStatistics',
+      'majorHoldersBreakdown',
+      'institutionOwnership',
+      'insiderTransactions',
+    ],
+  });
+
+  const safe = (v: any) => v ?? null;
+
+  // --------------------------
+  // Ownership Breakdown
+  // --------------------------
+
+  const institutionalPercent = summary.majorHoldersBreakdown
+    ?.institutionsPercentHeld
+    ? summary.majorHoldersBreakdown.institutionsPercentHeld * 100
+    : null;
+
+  const insiderPercent = summary.majorHoldersBreakdown?.insidersPercentHeld
+    ? summary.majorHoldersBreakdown.insidersPercentHeld * 100
+    : null;
+
+  const freeFloatPercent =
+    institutionalPercent !== null && insiderPercent !== null
+      ? 100 - (institutionalPercent + insiderPercent)
+      : null;
+
+  // --------------------------
+  // Major Institutions
+  // --------------------------
+
+  const majorInstitutions =
+    summary.institutionOwnership?.ownershipList?.map((inst: any) => ({
+      name: inst.organization,
+      percentHeld: inst.percentHeld ? inst.percentHeld * 100 : 0,
+    })) ?? [];
+
+  // --------------------------
+  // Insider Transaction Analytics
+  // --------------------------
+
+  const transactions = summary.insiderTransactions?.transactions ?? [];
+
+  let totalBuysValue = 0;
+  let totalSellsValue = 0;
+  let largestTransactionValue = 0;
+  let largestTransaction: any = null;
+
+  const uniqueInsiders = new Set<string>();
+
+  for (const tx of transactions) {
+    const value = tx.value ?? 0;
+    const isBuy = tx.transactionText?.toLowerCase().includes('buy');
+
+    uniqueInsiders.add(tx.filerName);
+
+    if (isBuy) {
+      totalBuysValue += value;
+    } else {
+      totalSellsValue += value;
+    }
+
+    if (value > largestTransactionValue) {
+      largestTransactionValue = value;
+      largestTransaction = {
+        name: tx.filerName ?? null,
+        type: isBuy ? 'BUY' : 'SELL',
+        value: value,
+        date: tx.startDate
+          ? new Date(tx.startDate).toLocaleDateString('en-IN')
+          : null,
+      };
+    }
+  }
+
+  let netActivity: 'NET_BUY' | 'NET_SELL' | 'NEUTRAL';
+
+  if (totalBuysValue > totalSellsValue) {
+    netActivity = 'NET_BUY';
+  } else if (totalSellsValue > totalBuysValue) {
+    netActivity = 'NET_SELL';
+  } else {
+    netActivity = 'NEUTRAL';
+  }
+
+  return {
+    freeFloatPercent,
+    institutionalPercent,
+    insiderPercent,
+
+    sharesOutstanding: safe(summary.defaultKeyStatistics?.sharesOutstanding),
+
+    floatShares: safe(summary.defaultKeyStatistics?.floatShares),
+
+    majorInstitutions,
+
+    insiderSummary: {
+      totalBuysValue,
+      totalSellsValue,
+      netActivity,
+      largestTransaction: largestTransaction ?? {
+        name: null,
+        type: null,
+        value: null,
+        date: null,
+      },
+      activeInsiders: uniqueInsiders.size,
+      transactionCount: transactions.length,
+    },
+  };
+}
+
+export const ShareholderStructureSectionSchema = z.object({
+  majorShareholders: z
+    .array(
+      z.object({
+        shareHolderType: z.enum([
+          'Free Float',
+          'Institutional Holdings',
+          'Management/Directors',
+        ]),
+        ownership: z.string(), // e.g., "~75%"
+        notes: z.string(),
+      }),
+    )
+    .length(3),
+
+  shareCapitalStructure: z.object({
+    totalShares: z.string(), // e.g., "401m shares"
+    notes: z.string(), // e.g., "Post-10:1 split equivalent..."
+  }),
+
+  keyInsiderObservations: z.array(z.string()).min(1).max(10),
+});
+
+export async function getShareholderStructureAboutCompany(symbol: string) {
+  const response = await getTrimmedShareholderStructure(symbol);
+  const analysis = await fetchSection<
+    z.infer<typeof ShareholderStructureSectionSchema>
+  >({
+    userPrompt: `Generate the "Shareholder Structure & Insider Activity" section using the following structured input data: ShareholderStructureRawData: ${JSON.stringify(response)}`,
+    systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
+    schema: ShareholderStructureSectionSchema,
+    schemaName: 'ShareHolderStructure',
+  });
+  return analysis;
+}
