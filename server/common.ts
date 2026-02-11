@@ -4,6 +4,9 @@ import { ServerActionResult } from '@/interfaces';
 import { redirect } from 'next/navigation';
 import { getSession } from './auth';
 import { forbiddenMessage, unauthorizedMessage } from '@/lib';
+import { ZodObject, ZodType } from 'zod';
+import OpenAI from 'openai';
+import { zodTextFormat } from 'openai/helpers/zod.mjs';
 
 export function requireRBAC(role: ROLES) {
   return function <T>(
@@ -30,4 +33,37 @@ export async function requirePageLevelRBAC(role: ROLES) {
   if (user?.role !== role) {
     return redirect(`/?message=${forbiddenMessage}`);
   }
+}
+
+export async function fetchSection<T>({
+  schema,
+  schemaName,
+  input,
+  prompt,
+}: {
+  schemaName: string;
+  schema: ZodObject<any>;
+  input: string;
+  prompt: string;
+}): Promise<T> {
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  const response = await client.responses.create({
+    model: 'gpt-5.2-2025-12-11',
+    text: {
+      format: zodTextFormat(schema, schemaName),
+    },
+    reasoning: { effort: 'low' },
+    tools: [{ type: 'web_search', search_context_size: 'high' }],
+    tool_choice: 'auto',
+    input: [
+      { role: 'system', content: prompt },
+      {
+        role: 'user',
+        content: `Input data: ${input}`,
+      },
+    ],
+  });
+  return JSON.parse(response.output_text);
 }

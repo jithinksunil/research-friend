@@ -57,3 +57,22 @@ export async function verifyJWTToken(
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+export const formatDate = (
+  isoString: string,
+  format: 'January 1, 2000',
+): string => {
+  const date = new Date(isoString);
+
+  if (isNaN(date.getTime())) return isoString;
+  switch (format) {
+    case 'January 1, 2000':
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    default:
+      return isoString.split('T')[0];
+  }
+};

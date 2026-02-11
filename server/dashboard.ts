@@ -470,7 +470,7 @@ export async function getRiskMetrics(
         interval: '1d',
       }),
     ]);
-console.log(quote);
+    console.log(quote);
 
     if (!quote || !history || history.length === 0) {
       return null;
