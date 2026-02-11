@@ -6,8 +6,10 @@ import { getExecutiveInformationAboutCompany, requireRBAC } from '@/server';
 
 export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
   try {
-    let company = (await prisma.company.findUnique({
+    let company = (await prisma.company.upsert({
       where: { symbol },
+      create: { symbol },
+      update: {},
       select: {
         executiveSummaries: true,
         id: true,
@@ -17,42 +19,27 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
     }))!;
     if (!company?.executiveSummaries) {
       const executiveInfo = await getExecutiveInformationAboutCompany(symbol);
-      const newInfo = await prisma.company.upsert({
+      const newInfo = await prisma.company.update({
         where: { id: company.id },
-        update: {
-          companyName: executiveInfo.companyName,
-          executiveSummaries: {
-            create: {
-              analystConsensus: executiveInfo.investmentThesis.analystConsensus,
-              positive: executiveInfo.investmentThesis.positives,
-              risk: executiveInfo.investmentThesis.risks,
-              summary: executiveInfo.executiveSummary,
-              upside: executiveInfo.investmentThesis.upside,
-              dcfFairValue: executiveInfo.investmentThesis.dcfFairValue,
-              currentPrice: executiveInfo.investmentThesis.currentPrice,
-            },
-          },
-        },
-        create: {
-          symbol: symbol,
-          companyName: executiveInfo.companyName,
-          executiveSummaries: {
-            create: {
-              analystConsensus: executiveInfo.investmentThesis.analystConsensus,
-              positive: executiveInfo.investmentThesis.positives,
-              risk: executiveInfo.investmentThesis.risks,
-              summary: executiveInfo.executiveSummary,
-              upside: executiveInfo.investmentThesis.upside,
-              dcfFairValue: executiveInfo.investmentThesis.dcfFairValue,
-              currentPrice: executiveInfo.investmentThesis.currentPrice,
-            },
-          },
-        },
         select: {
           executiveSummaries: true,
           id: true,
           data: true,
           companyName: true,
+        },
+        data: {
+          companyName: executiveInfo.companyName,
+          executiveSummaries: {
+            create: {
+              analystConsensus: executiveInfo.investmentThesis.analystConsensus,
+              positive: executiveInfo.investmentThesis.positives,
+              risk: executiveInfo.investmentThesis.risks,
+              summary: executiveInfo.executiveSummary,
+              upside: executiveInfo.investmentThesis.upside,
+              dcfFairValue: executiveInfo.investmentThesis.dcfFairValue,
+              currentPrice: executiveInfo.investmentThesis.currentPrice,
+            },
+          },
         },
       });
       company = { ...newInfo };
