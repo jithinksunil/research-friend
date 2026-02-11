@@ -32,9 +32,9 @@ async function page({ params }: PageProps) {
       <SubHeading>Investment Thesis</SubHeading>
       <List
         items={[
-          `Positive: ${report.data.executiveSummaries?.positive}`,
-          `Risks: ${report.data.executiveSummaries?.risk}`,
-          `Current Price: ${report.data.executiveSummaries?.currentPrice} | DCF Fair Value: ${report.data.executiveSummaries?.dcfFairValue} | Analyst Consensus: ${report.data.executiveSummaries?.analystConsensus} | Upside: ${report.data.executiveSummaries?.upside}`,
+          `<span style='font-weight: bold' >Positives</span>: ${report.data.executiveSummaries?.positive}`,
+          `<span style='font-weight: bold' >Risks</span>: ${report.data.executiveSummaries?.risk}`,
+          `<span style='font-weight: bold' >Current Price: ${report.data.executiveSummaries?.currentPrice} | DCF Fair Value: ${report.data.executiveSummaries?.dcfFairValue} | Analyst Consensus: ${report.data.executiveSummaries?.analystConsensus} | Upside: ${report.data.executiveSummaries?.upside}</span>`,
         ]}
       />
       <SectionSeparator />

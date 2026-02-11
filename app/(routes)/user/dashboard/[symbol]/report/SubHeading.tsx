@@ -9,6 +9,6 @@ export const SubHeading = ({
   className?: string;
 }) => {
   return (
-    <h1 className={cn('text-xl font-medium mb-1', className)}>{children}</h1>
+    <h1 className={cn('text-xl font-bold mb-1', className)}>{children}</h1>
   );
 };
