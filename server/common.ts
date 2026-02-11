@@ -38,13 +38,13 @@ export async function requirePageLevelRBAC(role: ROLES) {
 export async function fetchSection<T>({
   schema,
   schemaName,
-  input,
-  prompt,
+  systemPrompt,
+  userPrompt,
 }: {
   schemaName: string;
   schema: ZodObject<any>;
-  input: string;
-  prompt: string;
+  systemPrompt: string;
+  userPrompt: string;
 }): Promise<T> {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -58,10 +58,10 @@ export async function fetchSection<T>({
     tools: [{ type: 'web_search', search_context_size: 'high' }],
     tool_choice: 'auto',
     input: [
-      { role: 'system', content: prompt },
+      { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `Input data: ${input}`,
+        content: userPrompt,
       },
     ],
   });

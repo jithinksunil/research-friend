@@ -2,7 +2,7 @@ import 'server-only';
 import YahooFinance from 'yahoo-finance2';
 import { z } from 'zod';
 import { fetchSection } from './common';
-import { EXECUTIVE_PROMPT } from '@/lib';
+import { EXECUTIVE_PROMPT, OVERVIEW_PROMPT } from '@/lib';
 interface StockResearchData {
   company: {
     name: string | null;
@@ -66,8 +66,10 @@ export async function getTrimmedExecutiveData(
       ],
     }),
     yahooFinance.chart(symbol, {
-      period1: '2023-01-01',
-      period2: '2024-01-01',
+      period1: new Date(Date.now() - 5 * 365.25 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10),
+      period2: new Date().toISOString().slice(0, 10),
       interval: '1mo',
       events: 'div',
     }),
@@ -170,8 +172,8 @@ export async function getTrimmedExecutiveData(
 export async function getExecutiveInformationAboutCompany(symbol: string) {
   const response = await getTrimmedExecutiveData(symbol);
   const analysis = await fetchSection<z.infer<typeof ExecutiveSchema>>({
-    input: JSON.stringify(response),
-    prompt: EXECUTIVE_PROMPT,
+    userPrompt: `Input data: ${JSON.stringify(response)}`,
+    systemPrompt: EXECUTIVE_PROMPT,
     schema: ExecutiveSchema,
     schemaName: 'ExecutiveSchema',
   });
@@ -188,4 +190,213 @@ export const ExecutiveSchema = z.object({
     analystConsensus: z.string().nullable(),
     upside: z.string().nullable(),
   }),
+});
+
+interface CompanyOverviewMetrics {
+  price: number | null;
+  marketCap: number | null;
+  sharesOutstanding: number | null;
+
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
+  fiftyTwoWeekRangePercent: number | null;
+
+  trailingPE: number | null;
+  forwardPE: number | null;
+
+  dividendYield: number | null;
+  annualDividend: number | null;
+
+  analystTargetMean: number | null;
+  analystTargetHigh: number | null;
+  analystTargetLow: number | null;
+  analystCount: number | null;
+
+  oneYearReturnPercent: number | null;
+  recoveryFromLowPercent: number | null;
+
+  // NEW
+  dcfFairValue: number | null;
+  wacc: number | null;
+  terminalGrowth: number;
+  asOfDate: string | null;
+}
+
+export async function getTrimmedCompanyOverviewMetrics(
+  symbol: string,
+  terminalGrowth = 0.04, // 4% default India large cap
+  riskFreeRate = 0.07, // 7% India 10Y G-Sec
+  marketRiskPremium = 0.06, // 6% India ERP
+): Promise<CompanyOverviewMetrics> {
+  const [summary, chart] = await Promise.all([
+    yahooFinance.quoteSummary(symbol, {
+      modules: [
+        'price',
+        'summaryDetail',
+        'financialData',
+        'defaultKeyStatistics',
+      ],
+    }),
+    yahooFinance.chart(symbol, {
+      period1: new Date(Date.now() - 1 * 365.25 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10),
+      period2: new Date().toISOString().slice(0, 10),
+      interval: '1mo',
+    }),
+  ]);
+
+  const safe = (v: any) => v ?? null;
+
+  const price = summary.price?.regularMarketPrice ?? null;
+  const high52 = summary.summaryDetail?.fiftyTwoWeekHigh ?? null;
+  const low52 = summary.summaryDetail?.fiftyTwoWeekLow ?? null;
+
+  const sharesOutstanding =
+    summary.defaultKeyStatistics?.sharesOutstanding ?? null;
+
+  const beta = summary.defaultKeyStatistics?.beta ?? null;
+  const totalDebt = summary.financialData?.totalDebt ?? 0;
+  const totalCash = summary.financialData?.totalCash ?? 0;
+  const freeCashFlow = summary.financialData?.freeCashflow ?? null;
+
+  // --------------------------
+  // 1️⃣ WACC Calculation (CAPM)
+  // --------------------------
+
+  let wacc: number | null = null;
+
+  if (beta !== null && price !== null && sharesOutstanding !== null) {
+    const costOfEquity = riskFreeRate + beta * marketRiskPremium;
+
+    const equityValue = price * sharesOutstanding;
+    const debtValue = totalDebt;
+    const totalValue = equityValue + debtValue;
+
+    const weightEquity = equityValue / totalValue;
+    const weightDebt = debtValue / totalValue;
+
+    const costOfDebt = 0.09; // assume 9% India corporate avg
+
+    wacc = weightEquity * costOfEquity + weightDebt * costOfDebt * (1 - 0.25); // assume 25% tax
+  }
+
+  // --------------------------
+  // 2️⃣ Simple 5Y DCF Model
+  // --------------------------
+
+  let dcfFairValue: number | null = null;
+
+  if (freeCashFlow && wacc && sharesOutstanding && wacc > terminalGrowth) {
+    const growthRate = summary.financialData?.revenueGrowth ?? 0.1;
+
+    let projectedFCF = freeCashFlow;
+    let totalPV = 0;
+
+    for (let year = 1; year <= 5; year++) {
+      projectedFCF *= 1 + growthRate;
+      totalPV += projectedFCF / Math.pow(1 + wacc, year);
+    }
+
+    const terminalValue =
+      (projectedFCF * (1 + terminalGrowth)) / (wacc - terminalGrowth);
+
+    const discountedTerminal = terminalValue / Math.pow(1 + wacc, 5);
+
+    const enterpriseValue = totalPV + discountedTerminal;
+
+    const equityValue = enterpriseValue + totalCash - totalDebt;
+
+    dcfFairValue = equityValue / sharesOutstanding;
+  }
+
+  // --------------------------
+  // Performance Metrics
+  // --------------------------
+
+  const fiftyTwoWeekRangePercent =
+    high52 && low52 ? ((high52 - low52) / low52) * 100 : null;
+
+  const recoveryFromLowPercent =
+    price && low52 ? ((price - low52) / low52) * 100 : null;
+
+  const quotes = chart.quotes || [];
+  const firstClose = quotes[0]?.adjclose ?? null;
+  const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
+
+  const oneYearReturnPercent =
+    firstClose && lastClose
+      ? ((lastClose - firstClose) / firstClose) * 100
+      : null;
+
+  return {
+    price,
+    marketCap: safe(summary.price?.marketCap),
+    sharesOutstanding,
+
+    fiftyTwoWeekHigh: high52,
+    fiftyTwoWeekLow: low52,
+    fiftyTwoWeekRangePercent,
+
+    trailingPE: safe(summary.summaryDetail?.trailingPE),
+    forwardPE: safe(summary.summaryDetail?.forwardPE),
+
+    dividendYield: summary.summaryDetail?.dividendYield
+      ? summary.summaryDetail.dividendYield * 100
+      : null,
+
+    annualDividend: safe(summary.defaultKeyStatistics?.lastDividendValue),
+
+    analystTargetMean: safe(summary.financialData?.targetMeanPrice),
+    analystTargetHigh: safe(summary.financialData?.targetHighPrice),
+    analystTargetLow: safe(summary.financialData?.targetLowPrice),
+    analystCount: safe(summary.financialData?.numberOfAnalystOpinions),
+
+    oneYearReturnPercent,
+    recoveryFromLowPercent,
+
+    // NEW VALUES
+    dcfFairValue,
+    wacc: wacc ? wacc * 100 : null, // return in %
+    terminalGrowth: terminalGrowth * 100,
+    asOfDate: summary.price?.regularMarketTime
+      ? new Date(summary.price.regularMarketTime).toLocaleDateString('en-IN')
+      : null,
+  };
+}
+
+export async function getOverviewMetricsAboutCompany(symbol: string) {
+  const response = await getTrimmedCompanyOverviewMetrics(symbol);
+  const analysis = await fetchSection<z.infer<typeof CompanyOverviewSchema>>({
+    userPrompt: `Generate the Company Overview & Stock Metrics section using the following input data:
+
+CompanyOverviewMetrics:
+${JSON.stringify(response)}`,
+    systemPrompt: OVERVIEW_PROMPT,
+    schema: CompanyOverviewSchema,
+    schemaName: 'OverviewAndStockMetrics',
+  });
+  return analysis;
+}
+
+export const CompanyOverviewSchema = z.object({
+  metrics: z
+    .array(
+      z.object({
+        name: z.enum([
+          'Current Share Price',
+          '52-Week Range',
+          'Market Cap',
+          'Current P/E Ratio',
+          'Forward P/E (2026E)',
+          'DCF Fair Value',
+          'Dividend Yield',
+          'Price Target (Consensus)',
+        ]),
+        value: z.string(), // keep string because of pence, £, %, x etc
+        note: z.string(),
+      }),
+    )
+    .length(8),
+  fiftyTwoWeekPerformance: z.string(),
 });

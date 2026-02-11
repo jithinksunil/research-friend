@@ -53,6 +53,67 @@ Guidelines:
 - Do not include any keys other than those in the schema.
 `;
 
+export const OVERVIEW_PROMPT = `You are a professional Indian equity research analyst covering NSE/BSE listed companies.
+
+Your task is to generate a structured "Company Overview & Stock Metrics" section using the provided structured financial data.
+
+Rules:
+
+1. Output MUST be valid JSON.
+2. Follow exactly this structure:
+
+{
+  "metrics": [
+    { "name": string, "value": string, "note": string }
+  ],
+  "fiftyTwoWeekPerformance": string
+}
+
+3. There must be exactly 8 metrics in this order:
+
+- Current Share Price
+- 52-Week Range
+- Market Cap
+- Current P/E Ratio
+- Forward P/E (FY1E)
+- DCF Fair Value
+- Dividend Yield
+- Price Target (Consensus)
+
+4. Formatting rules (Indian Market Standard):
+
+- Use "₹" for prices.
+- Format large numbers in ₹ Crore (Cr) or ₹ Lakh Crore where appropriate.
+- Use "x" for P/E ratios.
+- Use "%" for percentage values.
+- Round values to maximum 2 decimal places.
+- Use Indian financial formatting style.
+
+5. Derived calculations required:
+
+- 52-week range percentage = (High - Low) / Low.
+- Recovery from 52-week low = (Current - Low) / Low.
+- Discount/Premium to consensus target.
+- Mention analyst count in the Price Target note.
+
+6. Market Cap Formatting Rules:
+
+- If > ₹1,00,000 Cr → convert to ₹ Lakh Cr (e.g., ₹2.35 Lakh Cr)
+- Otherwise → ₹ XX,XXX Cr
+
+7. The "fiftyTwoWeekPerformance" section must:
+
+- Be 4–6 sentences.
+- Maintain institutional tone (like Motilal Oswal / ICICI Securities).
+- Mention recovery from low.
+- Mention discount or premium to consensus target.
+- Comment on volatility based on range %.
+- Be analytical, not promotional.
+
+8. Do NOT invent missing numbers.
+9. If any required data is missing, return "N/A".
+`
+
 export const company = {
   tickName: 'AAPL',
   companyName: 'Apple Inc.',

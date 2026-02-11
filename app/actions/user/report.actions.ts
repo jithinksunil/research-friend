@@ -2,7 +2,11 @@
 import { ROLES } from '@/app/generated/prisma/enums';
 import { convertToErrorInstance } from '@/lib';
 import prisma from '@/prisma';
-import { getExecutiveInformationAboutCompany, requireRBAC } from '@/server';
+import {
+  getExecutiveInformationAboutCompany,
+  getOverviewMetricsAboutCompany,
+  requireRBAC,
+} from '@/server';
 
 export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
   try {
@@ -15,10 +19,14 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
         id: true,
         data: true,
         companyName: true,
+        overviewAndStockMetrics: {
+          select: { fiftyTwoWeekPerformance: true, stockMetrics: true },
+        },
       },
     }))!;
     if (!company?.executiveSummaries) {
       const executiveInfo = await getExecutiveInformationAboutCompany(symbol);
+      const overviewInfo = await getOverviewMetricsAboutCompany(symbol);
       const newInfo = await prisma.company.update({
         where: { id: company.id },
         select: {
@@ -26,6 +34,9 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
           id: true,
           data: true,
           companyName: true,
+          overviewAndStockMetrics: {
+            select: { fiftyTwoWeekPerformance: true, stockMetrics: true },
+          },
         },
         data: {
           companyName: executiveInfo.companyName,
@@ -38,6 +49,20 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
               upside: executiveInfo.investmentThesis.upside,
               dcfFairValue: executiveInfo.investmentThesis.dcfFairValue,
               currentPrice: executiveInfo.investmentThesis.currentPrice,
+            },
+          },
+          overviewAndStockMetrics: {
+            create: {
+              fiftyTwoWeekPerformance: overviewInfo.fiftyTwoWeekPerformance,
+              stockMetrics: {
+                createMany: {
+                  data: overviewInfo.metrics.map((metric) => ({
+                    name: metric.name,
+                    note: metric.note,
+                    value: metric.value,
+                  })),
+                },
+              },
             },
           },
         },

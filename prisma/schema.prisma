@@ -29,15 +29,16 @@ model User {
 }
 
 model Company {
-  id                 String            @id @default(uuid())
-  symbol             String            @unique
-  companyName        String?
-  data               Json?
-  comments           Comment[]
-  votes              Vote[]
-  executiveSummaries ExecutiveSummary?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  id                      String                   @id @default(uuid())
+  symbol                  String                   @unique
+  companyName             String?
+  data                    Json?
+  comments                Comment[]
+  votes                   Vote[]
+  executiveSummaries      ExecutiveSummary?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  overviewAndStockMetrics OverviewAndStockMetrics?
 
   @@map("company")
 }
@@ -85,4 +86,29 @@ model ExecutiveSummary {
   company Company @relation(fields: [companyId], references: [id])
 
   @@map("executive_summary")
+}
+
+model OverviewAndStockMetrics {
+  id                      Int           @id @default(autoincrement())
+  companyId               String        @unique
+  fiftyTwoWeekPerformance String?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  company                 Company       @relation(fields: [companyId], references: [id])
+  stockMetrics             StockMetric[]
+
+  @@map(name: "overview_and_stock_metrics")
+}
+
+model StockMetric {
+  id                        Int                     @id @default(autoincrement())
+  OverviewAndStockMetricsId Int
+  name                      String
+  value                     String
+  note                      String
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  overviewAndStockMetrics   OverviewAndStockMetrics @relation(fields: [OverviewAndStockMetricsId], references: [id])
+
+  @@map(name: "stock_metric")
 }
