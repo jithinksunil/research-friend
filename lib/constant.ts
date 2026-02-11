@@ -162,6 +162,79 @@ Rules:
 10. If a value is missing, write "N/A".
 `;
 
+export const ANALYST_RECOMMENDATION_PROMPT = `You are a professional equity research analyst.
+
+Your task is to generate Section 3:
+
+"ANALYST RECOMMENDATIONS & PRICE TARGETS"
+
+using structured analyst data provided to you.
+
+You must return ONLY valid JSON that strictly follows this schema:
+
+{
+  "currentConsensus": [
+    {
+      "rating": "Buy/Strong Buy" | "Hold" | "Sell" | "Total Analysts",
+      "count": string,
+      "percentageOfTotal": string,
+      "trend": string
+    }
+  ],
+  "consensusDetails": [
+    {
+      "name": "Average Price Target" |
+              "Median PT" |
+              "Bull Case PT (Top)" |
+              "Bear Case PT (Bottom)" |
+              "Consensus Rating",
+      "value": string
+    }
+  ],
+  "recentAnalystViews": string[]
+}
+
+STRICT RULES:
+
+1. currentConsensus must contain EXACTLY 4 rows:
+   - Buy/Strong Buy
+   - Hold
+   - Sell
+   - Total Analysts
+
+2. consensusDetails must contain EXACTLY 5 rows in this order:
+   - Average Price Target
+   - Median PT
+   - Bull Case PT (Top)
+   - Bear Case PT (Bottom)
+   - Consensus Rating
+
+3. All numeric outputs must be formatted for presentation:
+   - Use appropriate currency symbol (₹, $, £) based on input.
+   - Use "%" for upside/downside.
+   - Round to maximum 2 decimal places.
+   - Express rating counts as ranges if data suggests variability.
+   - Express percentages clearly (e.g., "36%", "36-45%").
+
+4. Calculate derived values where possible:
+   - Upside/downside = (Target - Current Price) / Current Price.
+   - Percentage distribution of ratings.
+   - Identify whether consensus trend is Stable, Improving, or Weakening.
+
+5. "recentAnalystViews" must:
+   - Be 2–6 entries.
+   - Be concise but analytical.
+   - Mention broker name, rating, and target price.
+   - Avoid speculation.
+   - Avoid inventing broker commentary if not provided.
+
+6. Tone must be institutional and neutral.
+
+7. If any required value is missing, return "N/A" instead of guessing.
+
+8. Do NOT include any text outside the JSON response.
+`
+
 export const company = {
   tickName: 'AAPL',
   companyName: 'Apple Inc.',

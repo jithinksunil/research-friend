@@ -3,6 +3,7 @@ import YahooFinance from 'yahoo-finance2';
 import { z } from 'zod';
 import { fetchSection } from './common';
 import {
+  ANALYST_RECOMMENDATION_PROMPT,
   EXECUTIVE_PROMPT,
   OVERVIEW_PROMPT,
   SHARE_HOLDER_STRUCTURE_PROMPT,
@@ -582,6 +583,142 @@ export async function getShareholderStructureAboutCompany(symbol: string) {
     systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
     schema: ShareholderStructureSectionSchema,
     schemaName: 'ShareHolderStructure',
+  });
+  return analysis;
+}
+
+interface AnalystRecommendationsData {
+  currentPrice: number | null;
+  currency: string | null;
+  reportingPeriod: string;
+
+  ratings: {
+    buy: number;
+    hold: number;
+    sell: number;
+    strongBuy: number;
+    strongSell: number;
+    total: number;
+  };
+
+  priceTargets: {
+    mean: number | null;
+    median: number | null;
+    high: number | null;
+    low: number | null;
+  };
+
+  recommendationKey: string | null;
+}
+
+export async function getAnalystRecommendationsData(
+  symbol: string,
+  reportingPeriod: string = 'Last 3 Months',
+): Promise<AnalystRecommendationsData> {
+  const summary = await yahooFinance.quoteSummary(symbol, {
+    modules: ['price', 'financialData', 'recommendationTrend'],
+  });
+
+  const safe = (v: any) => v ?? null;
+
+  // -------------------------
+  // Current Market Data
+  // -------------------------
+
+  const currentPrice = summary.price?.regularMarketPrice ?? null;
+  const currency = summary.price?.currency ?? null;
+
+  // -------------------------
+  // Analyst Ratings
+  // -------------------------
+
+  const trend = summary.recommendationTrend?.trend?.[0];
+
+  const strongBuy = trend?.strongBuy ?? 0;
+  const buy = trend?.buy ?? 0;
+  const hold = trend?.hold ?? 0;
+  const sell = trend?.sell ?? 0;
+  const strongSell = trend?.strongSell ?? 0;
+
+  const total = strongBuy + buy + hold + sell + strongSell;
+
+  // -------------------------
+  // Price Targets
+  // -------------------------
+
+  const mean = summary.financialData?.targetMeanPrice ?? null;
+  const median = summary.financialData?.targetMedianPrice ?? null;
+  const high = summary.financialData?.targetHighPrice ?? null;
+  const low = summary.financialData?.targetLowPrice ?? null;
+
+  const recommendationKey = summary.financialData?.recommendationKey ?? null;
+
+  return {
+    currentPrice,
+    currency,
+    reportingPeriod,
+
+    ratings: {
+      buy,
+      hold,
+      sell,
+      strongBuy,
+      strongSell,
+      total,
+    },
+
+    priceTargets: {
+      mean,
+      median,
+      high,
+      low,
+    },
+
+    recommendationKey,
+  };
+}
+
+export const AnalystRecommendationsSchema = z.object({
+  currentConsensus: z
+    .array(
+      z.object({
+        rating: z.enum(['Buy/Strong Buy', 'Hold', 'Sell', 'Total Analysts']),
+        count: z.string(), // e.g., "4-5" or "11"
+        percentageOfTotal: z.string(), // e.g., "36-45%" or "100%"
+        trend: z.string(), // e.g., "Stable", "Outlier", "Good coverage"
+      }),
+    )
+    .length(4),
+
+  consensusDetails: z
+    .array(
+      z.object({
+        name: z.enum([
+          'Average Price Target',
+          'Median PT',
+          'Bull Case PT (Top)',
+          'Bear Case PT (Bottom)',
+          'Consensus Rating',
+        ]),
+        value: z.string(), // e.g., "533p (+20.5% upside)", "HOLD"
+      }),
+    )
+    .length(5),
+
+  recentAnalystViews: z.array(z.string()).min(1).max(10),
+});
+
+export async function getAnalystRecommendationsAboutCompany(symbol: string) {
+  const response = await getAnalystRecommendationsData(symbol);
+  console.log(JSON.stringify(response, null, 2));
+
+  const analysis = await fetchSection<
+    z.infer<typeof AnalystRecommendationsSchema>
+  >({
+    userPrompt: `Generate the "Analyst Recommendations & Price Targets" section using the following structured input: ${JSON.stringify(response)}`,
+    systemPrompt: ANALYST_RECOMMENDATION_PROMPT,
+    schema: AnalystRecommendationsSchema,
+    schemaName: 'AnalystRecommendations',
   });
   return analysis;
 }

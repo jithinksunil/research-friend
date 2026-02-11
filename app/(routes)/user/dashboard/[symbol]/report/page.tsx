@@ -94,7 +94,7 @@ async function page({ params }: PageProps) {
           </div>,
         ]}
         rows={[
-          ...report.data.shareHoldersInfo.majorShareholders?.map(
+          ...report.data.shareHoldersInfo?.majorShareholders?.map(
             (shareHolder, index) => [
               <div
                 className='py-[10px] text-sm text-muted-foreground'
@@ -129,13 +129,13 @@ async function page({ params }: PageProps) {
               key={`col2-Share Capital Structure`}
               className={cn('py-[10px] font-medium')}
             >
-              {report.data.shareHoldersInfo.shareCapitalStructure.totalShares}
+              {report.data.shareHoldersInfo?.shareCapitalStructure.totalShares}
             </div>,
             <div
               key={`col3-Share Capital Structure`}
               className={cn('py-[10px] font-medium')}
             >
-              {report.data.shareHoldersInfo.shareCapitalStructure.notes}
+              {report.data.shareHoldersInfo?.shareCapitalStructure.notes}
             </div>,
           ],
         ]}
@@ -144,6 +144,71 @@ async function page({ params }: PageProps) {
       <SubHeading className='mt-8'>Key Insider Observations:</SubHeading>
       <List items={report.data.shareHoldersInfo.keyInsiderObservations} />
       <SectionSeparator />
+      <Heading>3. ANALYST RECOMMENDATIONS & PRICE TARGETS</Heading>
+      <SubHeading>Current Consensus (Last 3 Months: Oct-Dec 2025)</SubHeading>
+      <div>
+        <TableWithoutPagination
+          headings={[
+            <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
+              Rating
+            </div>,
+            <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
+              Count
+            </div>,
+            <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
+              % of Total
+            </div>,
+            <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
+              Trend
+            </div>,
+          ]}
+          rows={[
+            ...report.data.analystRecommendations.currentConsensus?.map(
+              (consensus, index) => [
+                <div
+                  className='py-[10px] text-sm text-muted-foreground'
+                  key={`col1-${index}`}
+                >
+                  {consensus.rating}
+                </div>,
+
+                <div
+                  key={`col2-${index}`}
+                  className={cn('py-[10px] font-medium')}
+                >
+                  {consensus.count}
+                </div>,
+                <div
+                  key={`col3-${index}`}
+                  className={cn('py-[10px] font-medium')}
+                >
+                  {consensus.percentageOfTotal}
+                </div>,
+                <div
+                  key={`col3-${index}`}
+                  className={cn('py-[10px] font-medium')}
+                >
+                  {consensus.trend}
+                </div>,
+              ],
+            ),
+          ]}
+          noData='No fundamentals available'
+        />
+      </div>
+      <SubHeading>Consensus Details:</SubHeading>
+      <List
+        items={report.data.analystRecommendations.consensusDetails.map(
+          (item) =>
+            `<span style="font-weight: bold">${item.name}</span>: ${item.value}`,
+        )}
+      />
+      {report.data.analystRecommendations.recentAnalystViews.length ? (
+        <>
+          <SubHeading>Recent Analyst Views</SubHeading>
+          <List items={report.data.analystRecommendations.recentAnalystViews} />
+        </>
+      ) : null}
     </div>
   );
 }
