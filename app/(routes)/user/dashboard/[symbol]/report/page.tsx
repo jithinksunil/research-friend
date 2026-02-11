@@ -146,7 +146,7 @@ async function page({ params }: PageProps) {
       <SectionSeparator />
       <Heading>3. ANALYST RECOMMENDATIONS & PRICE TARGETS</Heading>
       <SubHeading>Current Consensus (Last 3 Months: Oct-Dec 2025)</SubHeading>
-      <div>
+      <div className='mx-auto max-w-[900px]'>
         <TableWithoutPagination
           headings={[
             <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
