@@ -78,7 +78,7 @@ async function page({ params }: PageProps) {
         {report.data.overviewAndStockMetrics?.fiftyTwoWeekPerformance}
       </Description>
       <SectionSeparator />
-      <Heading>2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY</Heading>
+      {/* <Heading>2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY</Heading>
       <SubHeading>Major Shareholders (Latest Data)</SubHeading>
 
       <TableWithoutPagination
@@ -208,7 +208,8 @@ async function page({ params }: PageProps) {
           <SubHeading>Recent Analyst Views</SubHeading>
           <List items={report.data.analystRecommendations.recentAnalystViews} />
         </>
-      ) : null}
+      ) : null} */}
+      <p>{JSON.stringify(report.data.equityValuation)}</p>
     </div>
   );
 }

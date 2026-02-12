@@ -4,7 +4,12 @@ import { convertToErrorInstance } from '@/lib';
 import prisma from '@/prisma';
 import {
   getAnalystRecommendationsAboutCompany,
+  getBusinessSegmentDataAboutCompany,
+  getContingentLiabilitiesAndRegulatoryRiskAboutCompany,
+  getEquityValuationAboutCompany,
   getExecutiveInformationAboutCompany,
+  getFinancialStatementsAnalysisAboutCompany,
+  getInterimResultsAndQuarterlyPerformanceAboutCompany,
   getOverviewMetricsAboutCompany,
   getShareholderStructureAboutCompany,
   requireRBAC,
@@ -71,13 +76,15 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
       });
       company = { ...newInfo };
     }
-    const shareHoldersInfo = await getShareholderStructureAboutCompany(symbol);
-    const analystRecommendations =
-      await getAnalystRecommendationsAboutCompany(symbol);
+    // const shareHoldersInfo = await getShareholderStructureAboutCompany(symbol);
+    // const analystRecommendations =
+    //   await getAnalystRecommendationsAboutCompany(symbol);
+
+    const equityValuation = await getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol);
 
     return {
       okay: true,
-      data: { ...company, shareHoldersInfo, analystRecommendations },
+      data: { ...company, equityValuation },
     };
   } catch (error) {
     return { okay: false, error: convertToErrorInstance(error) };
