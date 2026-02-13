@@ -228,83 +228,121 @@ async function page({ params }: PageProps) {
       <TertiaryHeading>Projected Financials (FY26-FY30E):</TertiaryHeading>
       <TableWithoutPagination
         noData='No data'
-        headings={[
-          <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
-            Year
-          </div>,
-          <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
-            Metric
-          </div>,
-          <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
-            Value
-          </div>,
-        ]}
-        rows={(
-          report.data.report?.equityValuationAndDcfAnalysis
-            ?.projectedFinancialYears || []
-        ).flatMap((y, yi) =>
-          (y.projections || []).map((p, pi) => [
-            <div
-              className='py-[10px] text-sm text-muted-foreground'
-              key={`fy-${yi}-${pi}`}
-            >
-              {y.financialYear}
-            </div>,
-            <div
-              className='py-[10px] text-sm text-muted-foreground'
-              key={`met-${yi}-${pi}`}
-            >
-              {p.metric}
-            </div>,
-            <div
-              className={cn('py-[10px] font-medium')}
-              key={`val-${yi}-${pi}`}
-            >
-              {p.value}
-            </div>,
-          ]),
-        )}
-      />
-      <TertiaryHeading>DCF Valuation Build-up:</TertiaryHeading>
-      <TableWithoutPagination
-        noData='No data'
-        headings={[
-          <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
-            Item
-          </div>,
-          <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
-            Value
-          </div>,
-        ]}
-        rows={(() => {
-          const b =
-            report.data.report?.equityValuationAndDcfAnalysis
-              ?.dcfValuationBuildup;
-          if (!b) return [] as any[];
-          const pairs: { label: string; value: string | null | undefined }[] = [
-            { label: 'PV of FCF', value: b.pvOfFCF },
-            { label: 'PV of Terminal Value', value: b.pvOfTerminalValue },
-            { label: 'Enterprise Value', value: b.enterpriseValue },
-            { label: 'Net Debt', value: b.netDebt },
-            { label: 'Equity Value', value: b.equityValue },
-            { label: 'Fair Value / Share', value: b.fairValuePerShare },
-            { label: 'Current Price', value: b.currentPrice },
-            { label: 'Implied Upside', value: b.impliedUpside },
-            { label: 'Note', value: b.note },
+        headings={(() => {
+          const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'] as const;
+          const label: Record<string, string> = {
+            FY_2026: 'FY26E',
+            FY_2027: 'FY27E',
+            FY_2028: 'FY28E',
+            FY_2029: 'FY29E',
+            FY_2030: 'FY30E',
+          };
+          return [
+            <div key={`h-metric`} className={cn('px-[26px] py-[10px] font-medium')}>Metric</div>,
+            ...fyOrder.map((fy) => (
+              <div key={`h-${fy}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                {label[fy]}
+              </div>
+            )),
           ];
-          return pairs.map((row, idx) => [
-            <div
-              className='py-[10px] text-sm text-muted-foreground'
-              key={`bu-m-${idx}`}
-            >
-              {row.label}
+        })()}
+        rows={(() => {
+          const pfy =
+            report.data.report?.equityValuationAndDcfAnalysis?.projectedFinancialYears || [];
+          const byYear: Record<string, { metric: string; value: string }[]> = {};
+          pfy.forEach((y) => {
+            byYear[y.financialYear] = (y.projections || []).map((p: any) => ({
+              metric: p.metric,
+              value: p.value,
+            }));
+          });
+
+          const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'];
+          const metricOrder: { key: string; label: string }[] = [
+            { key: 'REVENUE_GBP_M', label: 'Revenue (£m)' },
+            { key: 'REVENUE_GROWTH', label: 'Revenue Growth' },
+            { key: 'PBT_MARGIN_PERCENT', label: 'PBT Margin %' },
+            { key: 'PBT_GBP_M', label: 'PBT (£m)' },
+            { key: 'TAX_RATE', label: 'Tax Rate' },
+            { key: 'NET_INCOME_GBP_M', label: 'Net Income (£m)' },
+            { key: 'DILUTED_SHARES_M', label: 'Diluted Shares (m)' },
+            { key: 'DILUTED_EPS_P', label: 'Diluted EPS (p)' },
+          ];
+
+          return metricOrder.map((m, mi) => [
+            <div className='py-[10px] text-sm text-muted-foreground' key={`met-name-${mi}`}>
+              {m.label}
             </div>,
-            <div className={cn('py-[10px] font-medium')} key={`bu-v-${idx}`}>
-              {row.value}
-            </div>,
+            ...fyOrder.map((fy, yi) => {
+              const list = byYear[fy] || [];
+              const found = list.find((it) => it.metric === m.key);
+              return (
+                <div className={cn('py-[10px] font-medium')} key={`met-val-${mi}-${yi}`}>
+                  {found?.value ?? '-'}
+                </div>
+              );
+            }),
           ]);
         })()}
       />
+      <TertiaryHeading>DCF Valuation Build-up:</TertiaryHeading>
+      {(() => {
+        const b =
+          report.data.report?.equityValuationAndDcfAnalysis
+            ?.dcfValuationBuildup;
+        if (!b)
+          return (
+            <div className='text-sm text-muted-foreground'>No data</div>
+          );
+        return (
+          <div className='mt-2 space-y-2 text-sm'>
+            <p>
+              <span className='font-semibold'>PV of FCF</span>: {b.pvOfFCF}
+            </p>
+            <p>
+              <span className='font-semibold'>PV of Terminal Value</span>:{' '}
+              {b.pvOfTerminalValue}
+            </p>
+
+            <div className='h-2' />
+
+            <p>
+              <span className='font-semibold'>Enterprise Value</span>:{' '}
+              {b.enterpriseValue}
+            </p>
+            <p>
+              <span className='font-semibold'>Less: Net Debt</span>: {b.netDebt}
+            </p>
+
+            <div className='h-2' />
+
+            <p>
+              <span className='font-semibold'>Equity Value</span>: {b.equityValue}
+            </p>
+
+            <div className='h-2' />
+
+            <p>
+              <span className='font-semibold'>Fair Value per Share</span>:{' '}
+              {b.fairValuePerShare}
+            </p>
+
+            <div className='h-2' />
+
+            <p>
+              <span className='font-semibold'>Current Price</span>: {b.currentPrice}
+            </p>
+            <p>
+              <span className='font-semibold'>Implied Upside</span>:{' '}
+              {b.impliedUpside}
+            </p>
+
+            {b.note ? (
+              <p className='pt-2 text-xs text-muted-foreground'>*Note: {b.note}</p>
+            ) : null}
+          </div>
+        );
+      })()}
       <SubHeading>Valuation Sensitivity Analysis</SubHeading>
       <TableWithoutPagination
         noData='No data'
