@@ -229,7 +229,13 @@ async function page({ params }: PageProps) {
       <TableWithoutPagination
         noData='No data'
         headings={(() => {
-          const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'] as const;
+          const fyOrder = [
+            'FY_2026',
+            'FY_2027',
+            'FY_2028',
+            'FY_2029',
+            'FY_2030',
+          ] as const;
           const label: Record<string, string> = {
             FY_2026: 'FY26E',
             FY_2027: 'FY27E',
@@ -238,9 +244,17 @@ async function page({ params }: PageProps) {
             FY_2030: 'FY30E',
           };
           return [
-            <div key={`h-metric`} className={cn('px-[26px] py-[10px] font-medium')}>Metric</div>,
+            <div
+              key={`h-metric`}
+              className={cn('px-[26px] py-[10px] font-medium')}
+            >
+              Metric
+            </div>,
             ...fyOrder.map((fy) => (
-              <div key={`h-${fy}`} className={cn('px-[26px] py-[10px] font-medium')}>
+              <div
+                key={`h-${fy}`}
+                className={cn('px-[26px] py-[10px] font-medium')}
+              >
                 {label[fy]}
               </div>
             )),
@@ -248,8 +262,10 @@ async function page({ params }: PageProps) {
         })()}
         rows={(() => {
           const pfy =
-            report.data.report?.equityValuationAndDcfAnalysis?.projectedFinancialYears || [];
-          const byYear: Record<string, { metric: string; value: string }[]> = {};
+            report.data.report?.equityValuationAndDcfAnalysis
+              ?.projectedFinancialYears || [];
+          const byYear: Record<string, { metric: string; value: string }[]> =
+            {};
           pfy.forEach((y) => {
             byYear[y.financialYear] = (y.projections || []).map((p: any) => ({
               metric: p.metric,
@@ -257,7 +273,13 @@ async function page({ params }: PageProps) {
             }));
           });
 
-          const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'];
+          const fyOrder = [
+            'FY_2026',
+            'FY_2027',
+            'FY_2028',
+            'FY_2029',
+            'FY_2030',
+          ];
           const metricOrder: { key: string; label: string }[] = [
             { key: 'REVENUE_GBP_M', label: 'Revenue (£m)' },
             { key: 'REVENUE_GROWTH', label: 'Revenue Growth' },
@@ -270,14 +292,20 @@ async function page({ params }: PageProps) {
           ];
 
           return metricOrder.map((m, mi) => [
-            <div className='py-[10px] text-sm text-muted-foreground' key={`met-name-${mi}`}>
+            <div
+              className='py-[10px] text-sm text-muted-foreground'
+              key={`met-name-${mi}`}
+            >
               {m.label}
             </div>,
             ...fyOrder.map((fy, yi) => {
               const list = byYear[fy] || [];
               const found = list.find((it) => it.metric === m.key);
               return (
-                <div className={cn('py-[10px] font-medium')} key={`met-val-${mi}-${yi}`}>
+                <div
+                  className={cn('py-[10px] font-medium')}
+                  key={`met-val-${mi}-${yi}`}
+                >
                   {found?.value ?? '-'}
                 </div>
               );
@@ -291,9 +319,7 @@ async function page({ params }: PageProps) {
           report.data.report?.equityValuationAndDcfAnalysis
             ?.dcfValuationBuildup;
         if (!b)
-          return (
-            <div className='text-sm text-muted-foreground'>No data</div>
-          );
+          return <div className='text-sm text-muted-foreground'>No data</div>;
         const items = [
           `<span class='font-semibold'>PV of FCF</span>: ${b.pvOfFCF}`,
           `<span class='font-semibold'>PV of Terminal Value</span>: ${b.pvOfTerminalValue}`,
@@ -308,7 +334,9 @@ async function page({ params }: PageProps) {
           <>
             <List items={items} />
             {b.note ? (
-              <p className='-mt-4 pt-0 text-xs text-muted-foreground'>*Note: {b.note}</p>
+              <p className='-mt-4 pt-0 text-xs text-muted-foreground'>
+                *Note: {b.note}
+              </p>
             ) : null}
           </>
         );
@@ -367,6 +395,394 @@ async function page({ params }: PageProps) {
         Key Takeaway:{' '}
         {report.data.report?.equityValuationAndDcfAnalysis?.keyTakeAway || ''}
       </p>
+      <SectionSeparator />
+      <Heading>5. FINANCIAL STATEMENTS ANALYSIS</Heading>
+
+      {/* Income Statement Trend */}
+      <SubHeading>Income Statement Trend (FY20–FY25)</SubHeading>
+      <TableWithoutPagination
+        noData='No data'
+        headings={(() => {
+          const cols = [
+            'Fiscal Year',
+            'Revenue (£m)',
+            'Y/Y Growth',
+            'Operating Income (£m)',
+            'Net Income (£m)',
+            'EPS (p)',
+          ];
+          return cols.map((c, i) => (
+            <div
+              key={`ist-h-${i}`}
+              className={cn('px-[26px] py-[10px] font-medium')}
+            >
+              {c}
+            </div>
+          ));
+        })()}
+        rows={(() => {
+          const rows =
+            report.data.report?.financialStatementAnalyasis
+              ?.incomeStatementTrendRows || [];
+          const order = [
+            'FY20',
+            'FY21',
+            'FY22',
+            'FY23',
+            'FY24',
+            'FY25',
+            'FY25_EST',
+          ];
+          const label: Record<string, string> = {
+            FY20: 'FY20',
+            FY21: 'FY21',
+            FY22: 'FY22',
+            FY23: 'FY23',
+            FY24: 'FY24',
+            FY25: 'FY25',
+            FY25_EST: 'FY25 (est)',
+          };
+          return order
+            .map((fy) => rows.find((r: any) => r.fiscalYear === fy))
+            .filter(Boolean)
+            .slice(0, 6)
+            .map((r: any, idx: number) => [
+              <div
+                className='py-[10px] text-sm text-muted-foreground'
+                key={`ist-fy-${idx}`}
+              >
+                {label[r.fiscalYear]}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`ist-rev-${idx}`}
+              >
+                {r.revenue}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`ist-yoy-${idx}`}
+              >
+                {r.yoyGrowth}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`ist-oi-${idx}`}
+              >
+                {r.operatingIncome}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`ist-ni-${idx}`}
+              >
+                {r.netIncome}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`ist-eps-${idx}`}
+              >
+                {r.eps}
+              </div>,
+            ]);
+        })()}
+      />
+      <TertiaryHeading>Key Observations:</TertiaryHeading>
+      <List
+        items={
+          report.data.report?.financialStatementAnalyasis?.keyObservations || []
+        }
+      />
+
+      {/* Balance Sheet Strength */}
+      <SubHeading>Balance Sheet Strength (FY20–FY25)</SubHeading>
+      <TableWithoutPagination
+        noData='No data'
+        headings={(() => {
+          const cols = [
+            'Fiscal Year',
+            'Cash (£m)',
+            'Total Assets (£m)',
+            'Total Debt (£m)',
+            "Shareholders' Equity (£m)",
+            'Debt/Equity',
+          ];
+          return cols.map((c, i) => (
+            <div
+              key={`bss-h-${i}`}
+              className={cn('px-[26px] py-[10px] font-medium')}
+            >
+              {c}
+            </div>
+          ));
+        })()}
+        rows={(() => {
+          const rows =
+            report.data.report?.financialStatementAnalyasis
+              ?.balanceSheetStrengthRows || [];
+          const order = [
+            'FY20',
+            'FY21',
+            'FY22',
+            'FY23',
+            'FY24',
+            'FY25',
+            'FY25_EST',
+          ];
+          const label: Record<string, string> = {
+            FY20: 'FY20',
+            FY21: 'FY21',
+            FY22: 'FY22',
+            FY23: 'FY23',
+            FY24: 'FY24',
+            FY25: 'FY25',
+            FY25_EST: 'FY25 (est)',
+          };
+          return order
+            .map((fy) => rows.find((r: any) => r.fiscalYear === fy))
+            .filter(Boolean)
+            .slice(0, 6)
+            .map((r: any, idx: number) => [
+              <div
+                className='py-[10px] text-sm text-muted-foreground'
+                key={`bss-fy-${idx}`}
+              >
+                {label[r.fiscalYear]}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`bss-cash-${idx}`}
+              >
+                {r.cash}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`bss-ta-${idx}`}
+              >
+                {r.totalAssets}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`bss-td-${idx}`}
+              >
+                {r.totalDebt}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`bss-se-${idx}`}
+              >
+                {r.shareholdersEquity}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`bss-de-${idx}`}
+              >
+                {r.debtToEquity}
+              </div>,
+            ]);
+        })()}
+      />
+      <TertiaryHeading>Capital Position Analysis:</TertiaryHeading>
+      <List
+        items={
+          report.data.report?.financialStatementAnalyasis
+            ?.capitalPositionAnalysis || []
+        }
+      />
+
+      {/* Cash Flow Analysis */}
+      <SubHeading>Cash Flow Analysis</SubHeading>
+      <TableWithoutPagination
+        noData='No data'
+        headings={(() => {
+          const cols = [
+            'Fiscal Year',
+            'Operating CF (£m)',
+            'CapEx (£m)',
+            'Free CF (£m)',
+            'FCF Margin',
+            'Dividends Paid (£m)',
+            'Share Buyback (£m)',
+          ];
+          return cols.map((c, i) => (
+            <div
+              key={`cfa-h-${i}`}
+              className={cn('px-[26px] py-[10px] font-medium')}
+            >
+              {c}
+            </div>
+          ));
+        })()}
+        rows={(() => {
+          const rows =
+            report.data.report?.financialStatementAnalyasis
+              ?.cashFlowAnalysisRows || [];
+          const order = [
+            'FY20',
+            'FY21',
+            'FY22',
+            'FY23',
+            'FY24',
+            'FY25',
+            'FY25_EST',
+          ];
+          const label: Record<string, string> = {
+            FY20: 'FY20',
+            FY21: 'FY21',
+            FY22: 'FY22',
+            FY23: 'FY23',
+            FY24: 'FY24',
+            FY25: 'FY25',
+            FY25_EST: 'FY25 (est)',
+          };
+          return order
+            .map((fy) => rows.find((r: any) => r.fiscalYear === fy))
+            .filter(Boolean)
+            .slice(0, 6)
+            .map((r: any, idx: number) => [
+              <div
+                className='py-[10px] text-sm text-muted-foreground'
+                key={`cfa-fy-${idx}`}
+              >
+                {label[r.fiscalYear]}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`cfa-ocf-${idx}`}
+              >
+                {r.operatingCF}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`cfa-capex-${idx}`}
+              >
+                {r.capex}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`cfa-fcf-${idx}`}
+              >
+                {r.freeCF}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`cfa-margin-${idx}`}
+              >
+                {r.fcfMargin}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`cfa-div-${idx}`}
+              >
+                {r.dividendsPaid}
+              </div>,
+              <div
+                className={cn('py-[10px] font-medium')}
+                key={`cfa-buy-${idx}`}
+              >
+                {r.shareBuyback}
+              </div>,
+            ]);
+        })()}
+      />
+      <TertiaryHeading>FCF Quality Analysis:</TertiaryHeading>
+      <List
+        items={
+          report.data.report?.financialStatementAnalyasis?.fcfQualityAnalysis ||
+          []
+        }
+      />
+
+      {/* Financial Ratios & Credit Metrics */}
+      <SubHeading>Financial Ratios & Credit Metrics</SubHeading>
+      {(() => {
+        const ratioRows =
+          report.data.report?.financialStatementAnalyasis
+            ?.financialRatioMetrics || [];
+        const yearOrder = ['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25'];
+        const yearLabel: Record<string, string> = {
+          FY20: 'FY20',
+          FY21: 'FY21',
+          FY22: 'FY22',
+          FY23: 'FY23',
+          FY24: 'FY24',
+          FY25: 'FY25',
+        };
+        const labelMap: Record<string, string> = {
+          P_E_RATIO: 'P/E Ratio',
+          PEG_RATIO: 'PEG Ratio',
+          EV_REVENUE: 'EV/Revenue',
+          EV_EBITDA: 'EV/EBITDA',
+          DEBT_EQUITY: 'Debt/Equity',
+          INTEREST_COVERAGE: 'Interest Coverage',
+          CURRENT_RATIO: 'Current Ratio',
+          ROE: 'ROE',
+          ROIC: 'ROIC',
+        };
+
+        const buildTable = (metricKeys: string[]) => (
+          <TableWithoutPagination
+            noData='No data'
+            headings={[
+              <div
+                key={`frcm-h-m`}
+                className={cn('px-[26px] py-[10px] font-medium')}
+              >
+                Metric
+              </div>,
+              ...yearOrder.map((y) => (
+                <div
+                  key={`frcm-h-${y}`}
+                  className={cn('px-[26px] py-[10px] font-medium')}
+                >
+                  {yearLabel[y]}
+                </div>
+              )),
+            ]}
+            rows={metricKeys.map((key, mi) => {
+              const row = ratioRows.find((r: any) => r.metric === key);
+              const vByYear: Record<string, string> = {};
+              (row?.values || []).forEach(
+                (v: any) => (vByYear[v.year] = v.value),
+              );
+              return [
+                <div
+                  className='py-[10px] text-sm text-muted-foreground'
+                  key={`frcm-name-${mi}`}
+                >
+                  {labelMap[key] || key}
+                </div>,
+                ...yearOrder.map((y, yi) => (
+                  <div
+                    key={`frcm-v-${mi}-${yi}`}
+                    className={cn('py-[10px] font-medium')}
+                  >
+                    {vByYear[y] ?? '-'}
+                  </div>
+                )),
+              ];
+            })}
+          />
+        );
+
+        return buildTable([
+          'P_E_RATIO',
+          'PEG_RATIO',
+          'EV_REVENUE',
+          'EV_EBITDA',
+          'DEBT_EQUITY',
+          'INTEREST_COVERAGE',
+          'CURRENT_RATIO',
+          'ROE',
+          'ROIC',
+        ]);
+      })()}
+      <TertiaryHeading>Valuation Observations:</TertiaryHeading>
+      <List
+        items={
+          report.data.report?.financialStatementAnalyasis
+            ?.valuationObservations || []
+        }
+      />
       <SectionSeparator />
     </div>
   );

@@ -4,16 +4,17 @@ import { convertToErrorInstance } from '@/lib';
 import prisma from '@/prisma';
 import {
   getAnalystRecommendationsAboutCompany,
-  getBusinessSegmentDataAboutCompany,
-  getContingentLiabilitiesAndRegulatoryRiskAboutCompany,
   getEquityValuationAboutCompany,
-  getExecutiveInformationAboutCompany,
   getFinancialStatementsAnalysisAboutCompany,
+  getContingentLiabilitiesAndRegulatoryRiskAboutCompany,
+  getExecutiveInformationAboutCompany,
+  getBusinessSegmentDataAboutCompany,
   getInterimResultsAndQuarterlyPerformanceAboutCompany,
   getOverviewMetricsAboutCompany,
   getShareholderStructureAboutCompany,
   requireRBAC,
 } from '@/server';
+import * as fs from 'fs';
 
 export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
   try {
@@ -24,6 +25,7 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
       select: {
         report: {
           select: {
+            id: true,
             executiveSummary: true,
             overviewAndStockMetrics: {
               select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
@@ -56,18 +58,29 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                 },
               },
             },
+            financialStatementAnalyasis: {
+              select: {
+                keyObservations: true,
+                capitalPositionAnalysis: true,
+                fcfQualityAnalysis: true,
+                valuationObservations: true,
+                incomeStatementTrendRows: true,
+                balanceSheetStrengthRows: true,
+                cashFlowAnalysisRows: true,
+                financialRatioMetrics: { include: { values: true } },
+              },
+            },
           },
         },
         companyName: true,
       },
     }))!;
-    if (!company?.report) {
-      const executiveInfo = await getExecutiveInformationAboutCompany(symbol);
-      const overviewInfo = await getOverviewMetricsAboutCompany(symbol);
-      const shareHolderInfo = await getShareholderStructureAboutCompany(symbol);
-      const analystInfo = await getAnalystRecommendationsAboutCompany(symbol);
-      const equityValuationAndDcfAnalysisInfo =
-        await getEquityValuationAboutCompany(symbol);
+    fs.writeFileSync('company.json', JSON.stringify(company, null, 2));
+
+    if (!company.report?.financialStatementAnalyasis) {
+      const financialStatementAnalysisInfo =
+        await getFinancialStatementsAnalysisAboutCompany(symbol);
+
       const newInfo = await prisma.company.update({
         where: { symbol },
         select: {
@@ -99,6 +112,139 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                   keyTakeAway: true,
                   projectedFinancialYears: { include: { projections: true } },
                   valuationSensitivities: { include: { values: true } },
+                },
+              },
+              financialStatementAnalyasis: {
+                select: {
+                  keyObservations: true,
+                  capitalPositionAnalysis: true,
+                  fcfQualityAnalysis: true,
+                  valuationObservations: true,
+                  incomeStatementTrendRows: true,
+                  balanceSheetStrengthRows: true,
+                  cashFlowAnalysisRows: true,
+                  financialRatioMetrics: { include: { values: true } },
+                },
+              },
+            },
+          },
+          companyName: true,
+        },
+        data: {
+          report: {
+            update: {
+              financialStatementAnalyasis: {
+                create: {
+                  keyObservations:
+                    financialStatementAnalysisInfo.incomeStatementTrend
+                      .keyObservations,
+                  capitalPositionAnalysis:
+                    financialStatementAnalysisInfo.balanceSheetStrength
+                      .capitalPositionAnalysis,
+                  fcfQualityAnalysis:
+                    financialStatementAnalysisInfo.cashFlowAnalysis
+                      .fcfQualityAnalysis,
+                  valuationObservations:
+                    financialStatementAnalysisInfo
+                      .financialRatiosAndCreditMetrics.valuationObservations,
+                  incomeStatementTrendRows: {
+                    createMany: {
+                      //@ts-ignore
+                      data: financialStatementAnalysisInfo.incomeStatementTrend
+                        .table,
+                    },
+                  },
+                  balanceSheetStrengthRows: {
+                    createMany: {
+                      //@ts-ignore
+                      data: financialStatementAnalysisInfo.balanceSheetStrength
+                        .table,
+                    },
+                  },
+                  cashFlowAnalysisRows: {
+                    createMany: {
+                      //@ts-ignore
+                      data: financialStatementAnalysisInfo.cashFlowAnalysis
+                        .table,
+                    },
+                  },
+                  financialRatioMetrics: {
+                    createMany: {
+                      data: financialStatementAnalysisInfo.financialRatiosAndCreditMetrics.table.map(
+                        ({ metric, values }) => ({
+                          metric,
+                          values,
+                        }),
+                      ),
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      //@ts-ignore
+      company = { ...newInfo };
+    }
+    if (!company?.report) {
+      const executiveInfo = await getExecutiveInformationAboutCompany(symbol);
+      const overviewInfo = await getOverviewMetricsAboutCompany(symbol);
+      const shareHolderInfo = await getShareholderStructureAboutCompany(symbol);
+      const analystInfo = await getAnalystRecommendationsAboutCompany(symbol);
+      const equityValuationAndDcfAnalysisInfo =
+        await getEquityValuationAboutCompany(symbol);
+      const financialStatementAnalysisInfo =
+        await getFinancialStatementsAnalysisAboutCompany(symbol);
+      const newInfo = await prisma.company.update({
+        where: { symbol },
+        select: {
+          report: {
+            select: {
+              id: true,
+              executiveSummary: true,
+              overviewAndStockMetrics: {
+                select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
+              },
+              shareHolderStructure: {
+                select: {
+                  majorShareholders: true,
+                  keyInsiderObservations: true,
+                  shareCapitalNotes: true,
+                  totalShares: true,
+                },
+              },
+              analystRecommendation: {
+                select: {
+                  consensusDetails: true,
+                  currentConsensus: true,
+                  recentAnalystViews: true,
+                },
+              },
+              equityValuationAndDcfAnalysis: {
+                select: {
+                  keyAssumptions: true,
+                  dcfValuationBuildup: true,
+                  keyTakeAway: true,
+                  projectedFinancialYears: {
+                    include: { projections: true },
+                  },
+                  valuationSensitivities: {
+                    include: { values: true },
+                  },
+                },
+              },
+              financialStatementAnalyasis: {
+                select: {
+                  keyObservations: true,
+                  capitalPositionAnalysis: true,
+                  fcfQualityAnalysis: true,
+                  valuationObservations: true,
+                  incomeStatementTrendRows: true,
+                  balanceSheetStrengthRows: true,
+                  cashFlowAnalysisRows: true,
+                  financialRatioMetrics: { include: { values: true } },
                 },
               },
             },
@@ -156,6 +302,7 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                   },
                 },
               },
+
               analystRecommendation: {
                 create: {
                   recentAnalystViews: analystInfo.recentAnalystViews,
@@ -175,7 +322,10 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                   keyAssumptions: {
                     createMany: {
                       data: equityValuationAndDcfAnalysisInfo.keyAssumptions.map(
-                        (a) => ({ modelName: a.modelName, assumption: a.assumption }),
+                        (a) => ({
+                          modelName: a.modelName,
+                          assumption: a.assumption,
+                        }),
                       ),
                     },
                   },
@@ -221,11 +371,11 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                       impliedUpside:
                         equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
                           .impliedUpside,
-                      note:
-                        equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                          .note,
+                      note: equityValuationAndDcfAnalysisInfo
+                        .dcfValuationBuildups.note,
                     },
                   },
+
                   valuationSensitivities: {
                     create:
                       equityValuationAndDcfAnalysisInfo.valuationSensitivityAnalysis.map(
@@ -241,6 +391,49 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                           },
                         }),
                       ),
+                  },
+                },
+              },
+              financialStatementAnalyasis: {
+                create: {
+                  keyObservations:
+                    financialStatementAnalysisInfo.incomeStatementTrend
+                      .keyObservations,
+                  capitalPositionAnalysis:
+                    financialStatementAnalysisInfo.balanceSheetStrength
+                      .capitalPositionAnalysis,
+                  fcfQualityAnalysis:
+                    financialStatementAnalysisInfo.cashFlowAnalysis
+                      .fcfQualityAnalysis,
+                  valuationObservations:
+                    financialStatementAnalysisInfo
+                      .financialRatiosAndCreditMetrics.valuationObservations,
+                  incomeStatementTrendRows: {
+                    createMany: {
+                      data: financialStatementAnalysisInfo.incomeStatementTrend
+                        .table,
+                    },
+                  },
+                  balanceSheetStrengthRows: {
+                    createMany: {
+                      data: financialStatementAnalysisInfo.balanceSheetStrength
+                        .table,
+                    },
+                  },
+                  cashFlowAnalysisRows: {
+                    createMany: {
+                      data: financialStatementAnalysisInfo.cashFlowAnalysis
+                        .table,
+                    },
+                  },
+                  financialRatioMetrics: {
+                    createMany: {
+                      data: financialStatementAnalysisInfo.financialRatiosAndCreditMetrics.table.map(
+                        ({ metric, values }) => ({
+                          metric,
+                        }),
+                      ),
+                    },
                   },
                 },
               },

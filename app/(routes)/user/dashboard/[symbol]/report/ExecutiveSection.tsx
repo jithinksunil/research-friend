@@ -9,7 +9,6 @@ export const ExecutiveSection = () => {
     const handleFetch = async () => {
       const report = await getReport('AAPL');
       setData(JSON.stringify(report));
-      console.log(report);
     };
     handleFetch();
   }, []);

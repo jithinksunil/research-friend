@@ -713,7 +713,6 @@ export const AnalystRecommendationsSchema = z.object({
 
 export async function getAnalystRecommendationsAboutCompany(symbol: string) {
   const response = await getAnalystRecommendationsData(symbol);
-  console.log(JSON.stringify(response, null, 2));
 
   const analysis = await fetchSection<
     z.infer<typeof AnalystRecommendationsSchema>
@@ -1193,7 +1192,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
             'FY23',
             'FY24',
             'FY25',
-            'FY25 (est)',
+            'FY25_EST',
           ]),
           revenue: z.string(), // "126.7"
           yoyGrowth: z.string(), // "-12%"
@@ -1217,7 +1216,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
             'FY23',
             'FY24',
             'FY25',
-            'FY25 (est)',
+            'FY25_EST',
           ]),
           cash: z.string(),
           totalAssets: z.string(),
@@ -1241,7 +1240,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
             'FY23',
             'FY24',
             'FY25',
-            'FY25 (est)',
+            'FY25_EST',
           ]),
           operatingCF: z.string(),
           capex: z.string(),
@@ -1289,7 +1288,6 @@ export async function getFinancialStatementsAnalysisAboutCompany(
   symbol: string,
 ) {
   const response = await getTrimmedFinancialStatementsAnalysisData(symbol);
-  console.log(JSON.stringify(response, null, 2));
 
   const analysis = await fetchSection<
     z.infer<typeof FinancialStatementsAnalysisSchema>
@@ -1533,7 +1531,6 @@ export const BusinessSegmentsCompetitivePositionSchema = z.object({
 
 export async function getBusinessSegmentDataAboutCompany(symbol: string) {
   const response = await getTrimmedBusinessSegmentsData(symbol);
-  console.log(JSON.stringify(response, null, 2));
 
   const analysis = await fetchSection<
     z.infer<typeof BusinessSegmentsCompetitivePositionSchema>
@@ -1830,7 +1827,6 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   symbol: string,
 ) {
   const response = await getInterimResultsData(symbol);
-  console.log(JSON.stringify(response, null, 2));
 
   const analysis = await fetchSection<
     z.infer<typeof InterimResultsQuarterlyPerformanceSchema>

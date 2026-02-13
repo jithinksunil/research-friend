@@ -81,6 +81,7 @@ model Report {
   shareHolderStructure          ShareHolderStructure?
   analystRecommendation         AnalystRecommendation?
   equityValuationAndDcfAnalysis EquityValuationAndDcfAnalysis?
+  financialStatementAnalyasis   FinancialStatementAnalyasis?
 
   @@map("report")
 }
@@ -391,4 +392,135 @@ model ValuationSensitivityValue {
 
   @@unique([valuationSensitivityId, terminalGrowth])
   @@map("valuation_sensitivity_value")
+}
+
+model FinancialStatementAnalyasis {
+  id Int @id @default(autoincrement())
+
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  // Sections: free-text bullet lists
+  keyObservations         String[]
+  capitalPositionAnalysis String[]
+  fcfQualityAnalysis      String[]
+  valuationObservations   String[]
+
+  // Tables
+  incomeStatementTrendRows IncomeStatementTrendRow[]
+  balanceSheetStrengthRows BalanceSheetStrengthRow[]
+  cashFlowAnalysisRows     CashFlowAnalysisRow[]
+  financialRatioMetrics    FinancialRatioMetricRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("financial_statement_analysis")
+}
+
+// -------------------- Financial Statements Enums --------------------
+enum FinancialStatementYear {
+  FY20
+  FY21
+  FY22
+  FY23
+  FY24
+  FY25
+  FY25_EST
+
+  @@map("financial_statement_year")
+}
+
+// -------------------- Financial Statements Models --------------------
+model IncomeStatementTrendRow {
+  id Int @id @default(autoincrement())
+
+  financialStatementAnalyasisId Int
+  financialStatementAnalyasis   FinancialStatementAnalyasis @relation(fields: [financialStatementAnalyasisId], references: [id], onDelete: Cascade)
+
+  fiscalYear      FinancialStatementYear
+  revenue         String
+  yoyGrowth       String
+  operatingIncome String
+  netIncome       String
+  eps             String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([financialStatementAnalyasisId, fiscalYear])
+  @@map("income_statement_trend_row")
+}
+
+model BalanceSheetStrengthRow {
+  id Int @id @default(autoincrement())
+
+  financialStatementAnalyasisId Int
+  financialStatementAnalyasis   FinancialStatementAnalyasis @relation(fields: [financialStatementAnalyasisId], references: [id], onDelete: Cascade)
+
+  fiscalYear         FinancialStatementYear
+  cash               String
+  totalAssets        String
+  totalDebt          String
+  shareholdersEquity String
+  debtToEquity       String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([financialStatementAnalyasisId, fiscalYear])
+  @@map("balance_sheet_strength_row")
+}
+
+model CashFlowAnalysisRow {
+  id Int @id @default(autoincrement())
+
+  financialStatementAnalyasisId Int
+  financialStatementAnalyasis   FinancialStatementAnalyasis @relation(fields: [financialStatementAnalyasisId], references: [id], onDelete: Cascade)
+
+  fiscalYear    FinancialStatementYear
+  operatingCF   String
+  capex         String
+  freeCF        String
+  fcfMargin     String
+  dividendsPaid String
+  shareBuyback  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([financialStatementAnalyasisId, fiscalYear])
+  @@map("cash_flow_analysis_row")
+}
+
+model FinancialRatioMetricRow {
+  id Int @id @default(autoincrement())
+
+  financialStatementAnalyasisId Int
+  financialStatementAnalyasis   FinancialStatementAnalyasis @relation(fields: [financialStatementAnalyasisId], references: [id], onDelete: Cascade)
+
+  metric String
+  values FinancialRatioValue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([financialStatementAnalyasisId, metric])
+  @@map("financial_ratio_metric_row")
+}
+
+model FinancialRatioValue {
+  id Int @id @default(autoincrement())
+
+  financialRatioMetricRowId Int
+  financialRatioMetricRow   FinancialRatioMetricRow @relation(fields: [financialRatioMetricRowId], references: [id], onDelete: Cascade)
+
+  year  FinancialStatementYear
+  value String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([financialRatioMetricRowId, year])
+  @@map("financial_ratio_value")
 }
