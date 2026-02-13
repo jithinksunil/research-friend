@@ -395,7 +395,7 @@ async function page({ params }: PageProps) {
         Key Takeaway:{' '}
         {report.data.report?.equityValuationAndDcfAnalysis?.keyTakeAway || ''}
       </p>
-      <SectionSeparator />
+      <SectionSeparator/>
       <Heading>5. FINANCIAL STATEMENTS ANALYSIS</Heading>
 
       {/* Income Statement Trend */}
@@ -783,7 +783,7 @@ async function page({ params }: PageProps) {
             ?.valuationObservations || []
         }
       />
-      <SectionSeparator />
+      <SectionSeparator className='!mt-4' />
     </div>
   );
 }
