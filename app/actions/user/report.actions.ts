@@ -75,8 +75,6 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
         companyName: true,
       },
     }))!;
-    fs.writeFileSync('company.json', JSON.stringify(company, null, 2));
-
     if (!company.report?.financialStatementAnalyasis) {
       const financialStatementAnalysisInfo =
         await getFinancialStatementsAnalysisAboutCompany(symbol);
