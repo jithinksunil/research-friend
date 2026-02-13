@@ -294,53 +294,23 @@ async function page({ params }: PageProps) {
           return (
             <div className='text-sm text-muted-foreground'>No data</div>
           );
+        const items = [
+          `<span class='font-semibold'>PV of FCF</span>: ${b.pvOfFCF}`,
+          `<span class='font-semibold'>PV of Terminal Value</span>: ${b.pvOfTerminalValue}`,
+          `<span class='font-semibold'>Enterprise Value</span>: ${b.enterpriseValue}`,
+          `<span class='font-semibold'>Less: Net Debt</span>: ${b.netDebt}`,
+          `<span class='font-semibold'>Equity Value</span>: ${b.equityValue}`,
+          `<span class='font-semibold'>Fair Value per Share</span>: ${b.fairValuePerShare}`,
+          `<span class='font-semibold'>Current Price</span>: ${b.currentPrice}`,
+          `<span class='font-semibold'>Implied Upside</span>: ${b.impliedUpside}`,
+        ];
         return (
-          <div className='mt-2 space-y-2 text-sm'>
-            <p>
-              <span className='font-semibold'>PV of FCF</span>: {b.pvOfFCF}
-            </p>
-            <p>
-              <span className='font-semibold'>PV of Terminal Value</span>:{' '}
-              {b.pvOfTerminalValue}
-            </p>
-
-            <div className='h-2' />
-
-            <p>
-              <span className='font-semibold'>Enterprise Value</span>:{' '}
-              {b.enterpriseValue}
-            </p>
-            <p>
-              <span className='font-semibold'>Less: Net Debt</span>: {b.netDebt}
-            </p>
-
-            <div className='h-2' />
-
-            <p>
-              <span className='font-semibold'>Equity Value</span>: {b.equityValue}
-            </p>
-
-            <div className='h-2' />
-
-            <p>
-              <span className='font-semibold'>Fair Value per Share</span>:{' '}
-              {b.fairValuePerShare}
-            </p>
-
-            <div className='h-2' />
-
-            <p>
-              <span className='font-semibold'>Current Price</span>: {b.currentPrice}
-            </p>
-            <p>
-              <span className='font-semibold'>Implied Upside</span>:{' '}
-              {b.impliedUpside}
-            </p>
-
+          <>
+            <List items={items} />
             {b.note ? (
-              <p className='pt-2 text-xs text-muted-foreground'>*Note: {b.note}</p>
+              <p className='-mt-4 pt-0 text-xs text-muted-foreground'>*Note: {b.note}</p>
             ) : null}
-          </div>
+          </>
         );
       })()}
       <SubHeading>Valuation Sensitivity Analysis</SubHeading>
