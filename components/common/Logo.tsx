@@ -7,7 +7,7 @@ interface PropTypes {
 export function Logo({ disableLogo }: PropTypes) {
   const { push } = useRouter();
   const handleDashboard = () => {
-    push('/user/dashboard');
+    push('/user/search');
   };
 
   return (
