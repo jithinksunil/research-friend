@@ -29,16 +29,15 @@ model User {
 }
 
 model Company {
-  id                      String                   @id @default(uuid())
-  symbol                  String                   @unique
-  companyName             String?
-  data                    Json?
-  comments                Comment[]
-  votes                   Vote[]
-  executiveSummaries      ExecutiveSummary?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  overviewAndStockMetrics OverviewAndStockMetrics?
+  id          String    @id @default(uuid())
+  symbol      String    @unique
+  companyName String?
+  data        Json?
+  comments    Comment[]
+  votes       Vote[]
+  report      Report?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@map("company")
 }
@@ -70,9 +69,26 @@ model Vote {
   @@map("vote")
 }
 
+model Report {
+  id                      Int                      @id @default(autoincrement())
+  companyId               String                   @unique
+  executiveSummary        ExecutiveSummary?
+  overviewAndStockMetrics OverviewAndStockMetrics?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  company                       Company                        @relation(fields: [companyId], references: [id])
+  shareHolderStructure          ShareHolderStructure?
+  analystRecommendation         AnalystRecommendation?
+  equityValuationAndDcfAnalysis EquityValuationAndDcfAnalysis?
+
+  @@map("report")
+}
+
 model ExecutiveSummary {
   id               Int      @id @default(autoincrement())
-  companyId        String   @unique
+  reportId         Int      @unique
+  report           Report   @relation(fields: [reportId], references: [id])
   summary          String?
   positive         String?
   risk             String?
@@ -83,32 +99,296 @@ model ExecutiveSummary {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id])
-
   @@map("executive_summary")
 }
 
 model OverviewAndStockMetrics {
   id                      Int           @id @default(autoincrement())
-  companyId               String        @unique
+  reportId                Int           @unique
+  report                  Report        @relation(fields: [reportId], references: [id])
+  updatedAt               DateTime      @updatedAt
+  stockMetrics            StockMetric[]
   fiftyTwoWeekPerformance String?
   createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
-  company                 Company       @relation(fields: [companyId], references: [id])
-  stockMetrics             StockMetric[]
 
   @@map(name: "overview_and_stock_metrics")
 }
 
 model StockMetric {
   id                        Int                     @id @default(autoincrement())
-  OverviewAndStockMetricsId Int
+  overviewAndStockMetricsId Int
+  overviewAndStockMetrics   OverviewAndStockMetrics @relation(fields: [overviewAndStockMetricsId], references: [id])
   name                      String
   value                     String
   note                      String
   createdAt                 DateTime                @default(now())
   updatedAt                 DateTime                @updatedAt
-  overviewAndStockMetrics   OverviewAndStockMetrics @relation(fields: [OverviewAndStockMetricsId], references: [id])
 
-  @@map(name: "stock_metric")
+  @@map("stock_metric")
+}
+
+model ShareHolderStructure {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  // Share Capital Structure data
+  totalShares       String?
+  shareCapitalNotes String?
+
+  // Relations
+  majorShareholders      MajorShareholder[]
+  keyInsiderObservations String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("share_holder_structure")
+}
+
+enum ShareHolderType {
+  FREE_FLOAT
+  INSTITUTIONAL_HOLDINGS
+  MANAGEMENT_DIRECTORS
+
+  @@map("share_holder_type")
+}
+
+model MajorShareholder {
+  id Int @id @default(autoincrement())
+
+  shareHolderStructureId Int
+  shareHolderStructure   ShareHolderStructure @relation(fields: [shareHolderStructureId], references: [id], onDelete: Cascade)
+
+  shareHolderType ShareHolderType
+  ownership       String
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("major_shareholder")
+}
+
+model AnalystRecommendation {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  // Relations
+  currentConsensus   CurrentConsensus[]
+  consensusDetails   ConsensusDetail[]
+  recentAnalystViews String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("analyst_recommendation")
+}
+
+enum RatingType {
+  BUY_OR_STRONG_BUY
+  HOLD
+  SELL
+  TOTAL_ANALYSTS
+
+  @@map("rating_type")
+}
+
+enum ConsensusDetailType {
+  AVERAGE_PRICE_TARGET
+  MEDIAN_PT
+  BULL_CASE_PT_TOP
+  BEAR_CASE_PT_BOTTOM
+  CONSENSUS_RATING
+
+  @@map("consensus_detail_type")
+}
+
+model CurrentConsensus {
+  id Int @id @default(autoincrement())
+
+  analystRecommendationId Int
+  analystRecommendation   AnalystRecommendation @relation(fields: [analystRecommendationId], references: [id], onDelete: Cascade)
+
+  rating            RatingType
+  count             String
+  percentageOfTotal String
+  trend             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("current_consensus")
+}
+
+model ConsensusDetail {
+  id Int @id @default(autoincrement())
+
+  analystRecommendationId Int
+  analystRecommendation   AnalystRecommendation @relation(fields: [analystRecommendationId], references: [id], onDelete: Cascade)
+
+  name  ConsensusDetailType
+  value String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("consensus_detail")
+}
+
+model EquityValuationAndDcfAnalysis {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  // Single fields
+  keyTakeAway String?
+
+  // Relations
+  keyAssumptions          KeyAssumption[]
+  projectedFinancialYears ProjectedFinancialYear[]
+  dcfValuationBuildup     DcfValuationBuildup?
+  valuationSensitivities  ValuationSensitivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("equity_valuation_and_dcf_analysis")
+}
+
+// -------------------- Enums --------------------
+enum KeyAssumptionModelName {
+  WACC
+  TERMINAL_GROWTH_RATE
+  FORECAST_PERIOD
+  REVENUE_GROWTH
+
+  @@map("key_assumption_model_name")
+}
+
+enum FinancialYear {
+  FY_2026
+  FY_2027
+  FY_2028
+  FY_2029
+  FY_2030
+
+  @@map("financial_year")
+}
+
+enum ProjectionMetricType {
+  REVENUE_GBP_M
+  REVENUE_GROWTH
+  PBT_MARGIN_PERCENT
+  PBT_GBP_M
+  TAX_RATE
+  NET_INCOME_GBP_M
+  DILUTED_SHARES_M
+  DILUTED_EPS_P
+
+  @@map("projection_metric_type")
+}
+
+// -------------------- Models --------------------
+model KeyAssumption {
+  id Int @id @default(autoincrement())
+
+  equityValuationAndDcfAnalysisId Int
+  equityValuationAndDcfAnalysis   EquityValuationAndDcfAnalysis @relation(fields: [equityValuationAndDcfAnalysisId], references: [id], onDelete: Cascade)
+
+  modelName  KeyAssumptionModelName
+  assumption String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([equityValuationAndDcfAnalysisId, modelName])
+  @@map("key_assumption")
+}
+
+model ProjectedFinancialYear {
+  id Int @id @default(autoincrement())
+
+  equityValuationAndDcfAnalysisId Int
+  equityValuationAndDcfAnalysis   EquityValuationAndDcfAnalysis @relation(fields: [equityValuationAndDcfAnalysisId], references: [id], onDelete: Cascade)
+
+  financialYear FinancialYear
+  projections   ProjectionMetric[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([equityValuationAndDcfAnalysisId, financialYear])
+  @@map("projected_financial_year")
+}
+
+model ProjectionMetric {
+  id Int @id @default(autoincrement())
+
+  projectedFinancialYearId Int
+  projectedFinancialYear   ProjectedFinancialYear @relation(fields: [projectedFinancialYearId], references: [id], onDelete: Cascade)
+
+  metric ProjectionMetricType
+  value  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectedFinancialYearId, metric])
+  @@map("projection_metric")
+}
+
+model DcfValuationBuildup {
+  id Int @id @default(autoincrement())
+
+  equityValuationAndDcfAnalysisId Int                           @unique
+  equityValuationAndDcfAnalysis   EquityValuationAndDcfAnalysis @relation(fields: [equityValuationAndDcfAnalysisId], references: [id], onDelete: Cascade)
+
+  pvOfFCF           String
+  pvOfTerminalValue String
+  enterpriseValue   String
+  netDebt           String
+  equityValue       String
+  fairValuePerShare String
+  currentPrice      String
+  impliedUpside     String
+  note              String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dcf_valuation_buildup")
+}
+
+model ValuationSensitivity {
+  id Int @id @default(autoincrement())
+
+  equityValuationAndDcfAnalysisId Int
+  equityValuationAndDcfAnalysis   EquityValuationAndDcfAnalysis @relation(fields: [equityValuationAndDcfAnalysisId], references: [id], onDelete: Cascade)
+
+  wacc   String
+  values ValuationSensitivityValue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([equityValuationAndDcfAnalysisId, wacc])
+  @@map("valuation_sensitivity")
+}
+
+model ValuationSensitivityValue {
+  id Int @id @default(autoincrement())
+
+  valuationSensitivityId Int
+  valuationSensitivity   ValuationSensitivity @relation(fields: [valuationSensitivityId], references: [id], onDelete: Cascade)
+
+  terminalGrowth String
+  value          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([valuationSensitivityId, terminalGrowth])
+  @@map("valuation_sensitivity_value")
 }

@@ -561,9 +561,9 @@ export const ShareholderStructureSectionSchema = z.object({
     .array(
       z.object({
         shareHolderType: z.enum([
-          'Free Float',
-          'Institutional Holdings',
-          'Management/Directors',
+          'FREE_FLOAT',
+          'INSTITUTIONAL_HOLDINGS',
+          'MANAGEMENT_DIRECTORS',
         ]),
         ownership: z.string(), // e.g., "~75%"
         notes: z.string(),
@@ -685,7 +685,7 @@ export const AnalystRecommendationsSchema = z.object({
   currentConsensus: z
     .array(
       z.object({
-        rating: z.enum(['Buy/Strong Buy', 'Hold', 'Sell', 'Total Analysts']),
+        rating: z.enum(['BUY_OR_STRONG_BUY', 'HOLD', 'SELL', 'TOTAL_ANALYSTS']),
         count: z.string(), // e.g., "4-5" or "11"
         percentageOfTotal: z.string(), // e.g., "36-45%" or "100%"
         trend: z.string(), // e.g., "Stable", "Outlier", "Good coverage"
@@ -697,11 +697,11 @@ export const AnalystRecommendationsSchema = z.object({
     .array(
       z.object({
         name: z.enum([
-          'Average Price Target',
-          'Median PT',
-          'Bull Case PT (Top)',
-          'Bear Case PT (Bottom)',
-          'Consensus Rating',
+          'AVERAGE_PRICE_TARGET',
+          'MEDIAN_PT',
+          'BULL_CASE_PT_TOP',
+          'BEAR_CASE_PT_BOTTOM',
+          'CONSENSUS_RATING',
         ]),
         value: z.string(), // e.g., "533p (+20.5% upside)", "HOLD"
       }),
@@ -945,9 +945,9 @@ export const EquityValuationDcfSchema = z.object({
       z.object({
         modelName: z.enum([
           'WACC',
-          'Terminal Growth Rate',
-          'Forecast Period',
-          'Revenue Growth',
+          'TERMINAL_GROWTH_RATE',
+          'FORECAST_PERIOD',
+          'REVENUE_GROWTH',
         ]),
         assumption: z.string(),
       }),
@@ -957,19 +957,19 @@ export const EquityValuationDcfSchema = z.object({
   projectedFinanacialNext5Years: z
     .array(
       z.object({
-        financialYear: z.enum(['2026', '2027', '2028', '2029', '2030']),
+        financialYear: z.enum(['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030']),
         projections: z
           .array(
             z.object({
               metric: z.enum([
-                'Revenue (£m)',
-                'Revenue Growth',
-                'PBT Margin %',
-                'PBT (£m)',
-                'Tax Rate',
-                'Net Income (£m)',
-                'Diluted Shares (m)',
-                'Diluted EPS (p)',
+                'REVENUE_GBP_M',
+                'REVENUE_GROWTH',
+                'PBT_MARGIN_PERCENT',
+                'PBT_GBP_M',
+                'TAX_RATE',
+                'NET_INCOME_GBP_M',
+                'DILUTED_SHARES_M',
+                'DILUTED_EPS_P',
               ]),
               value: z.string(),
             }),
