@@ -14,7 +14,6 @@ import {
   getShareholderStructureAboutCompany,
   requireRBAC,
 } from '@/server';
-import * as fs from 'fs';
 
 export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
   try {
@@ -70,6 +69,33 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                 financialRatioMetrics: { include: { values: true } },
               },
             },
+            businessSegmentData: {
+              select: {
+                id: true,
+                businessModelDynamics: true,
+                competitivePosition: true,
+                platformSegmentPerformance: true,
+                revenueModelBreakdown: true,
+              },
+            },
+            interimResultsAndQuarterlyPerformance: {
+              select: {
+                id: true,
+                forwardGuidance: true,
+                keyNegatives: true,
+                keyPositives: true,
+                recordFinancialPerformance: true,
+                title: true,
+              },
+            },
+            contingentLiabilitiesAndRegulatoryRisk: {
+              select: {
+                id: true,
+                balanceSheetContingencies: true,
+                keyRegulatoryConsiderations: true,
+                netContingentPosition: true,
+              },
+            },
           },
         },
         companyName: true,
@@ -122,6 +148,33 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                   balanceSheetStrengthRows: true,
                   cashFlowAnalysisRows: true,
                   financialRatioMetrics: { include: { values: true } },
+                },
+              },
+              businessSegmentData: {
+                select: {
+                  id: true,
+                  businessModelDynamics: true,
+                  competitivePosition: true,
+                  platformSegmentPerformance: true,
+                  revenueModelBreakdown: true,
+                },
+              },
+              interimResultsAndQuarterlyPerformance: {
+                select: {
+                  id: true,
+                  forwardGuidance: true,
+                  keyNegatives: true,
+                  keyPositives: true,
+                  recordFinancialPerformance: true,
+                  title: true,
+                },
+              },
+              contingentLiabilitiesAndRegulatoryRisk: {
+                select: {
+                  id: true,
+                  balanceSheetContingencies: true,
+                  keyRegulatoryConsiderations: true,
+                  netContingentPosition: true,
                 },
               },
             },
@@ -243,6 +296,33 @@ export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {
                   balanceSheetStrengthRows: true,
                   cashFlowAnalysisRows: true,
                   financialRatioMetrics: { include: { values: true } },
+                },
+              },
+              businessSegmentData: {
+                select: {
+                  id: true,
+                  businessModelDynamics: true,
+                  competitivePosition: true,
+                  platformSegmentPerformance: true,
+                  revenueModelBreakdown: true,
+                },
+              },
+              interimResultsAndQuarterlyPerformance: {
+                select: {
+                  id: true,
+                  forwardGuidance: true,
+                  keyNegatives: true,
+                  keyPositives: true,
+                  recordFinancialPerformance: true,
+                  title: true,
+                },
+              },
+              contingentLiabilitiesAndRegulatoryRisk: {
+                select: {
+                  id: true,
+                  balanceSheetContingencies: true,
+                  keyRegulatoryConsiderations: true,
+                  netContingentPosition: true,
                 },
               },
             },

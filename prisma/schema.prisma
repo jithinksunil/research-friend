@@ -36,6 +36,8 @@ model Company {
   comments    Comment[]
   votes       Vote[]
   report      Report?
+  reportGenerationRuns  ReportGenerationRun[]
+  reportEnhancementRuns ReportEnhancementRun[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -77,11 +79,14 @@ model Report {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
-  company                       Company                        @relation(fields: [companyId], references: [id])
-  shareHolderStructure          ShareHolderStructure?
-  analystRecommendation         AnalystRecommendation?
-  equityValuationAndDcfAnalysis EquityValuationAndDcfAnalysis?
-  financialStatementAnalyasis   FinancialStatementAnalyasis?
+  company                                Company                                 @relation(fields: [companyId], references: [id])
+  shareHolderStructure                   ShareHolderStructure?
+  analystRecommendation                  AnalystRecommendation?
+  equityValuationAndDcfAnalysis          EquityValuationAndDcfAnalysis?
+  financialStatementAnalyasis            FinancialStatementAnalyasis?
+  businessSegmentData                    BusinessSegmentData?
+  interimResultsAndQuarterlyPerformance  InterimResultsAndQuarterlyPerformance?
+  contingentLiabilitiesAndRegulatoryRisk ContingentLiabilitiesAndRegulatoryRisk?
 
   @@map("report")
 }
@@ -400,7 +405,6 @@ model FinancialStatementAnalyasis {
   reportId Int    @unique
   report   Report @relation(fields: [reportId], references: [id])
 
-  // Sections: free-text bullet lists
   keyObservations         String[]
   capitalPositionAnalysis String[]
   fcfQualityAnalysis      String[]
@@ -523,4 +527,306 @@ model FinancialRatioValue {
 
   @@unique([financialRatioMetricRowId, year])
   @@map("financial_ratio_value")
+}
+
+model BusinessSegmentData {
+  id                         Int                          @id @default(autoincrement())
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  revenueModelBreakdown      RevenueModelBreakdown[]
+  platformSegmentPerformance PlatformSegmentPerformance[]
+  businessModelDynamics      String[]
+  competitivePosition        CompetitivePosition?
+  reportId                   Int                          @unique
+  report                     Report                       @relation(fields: [reportId], references: [id])
+
+  @@map("business_segment_data")
+}
+
+model RevenueModelBreakdown {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  revenueStream         String
+  amount                String
+  percentOfTotal        String
+  growth                String
+  driver                String
+  businessSegmentData   BusinessSegmentData? @relation(fields: [businessSegmentDataId], references: [id])
+  businessSegmentDataId Int?
+
+  @@map("revenue_model_breakdown")
+}
+
+model PlatformSegmentPerformance {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  segment               String
+  customers             String
+  aua                   String
+  growth                String
+  netInflows            String
+  comments              String
+  businessSegmentData   BusinessSegmentData? @relation(fields: [businessSegmentDataId], references: [id])
+  businessSegmentDataId Int?
+}
+
+model CompetitivePosition {
+  id                    Int                    @id @default(autoincrement())
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  keyCompetitors        KeyCompetitor[]
+  competitiveAdvantage  CompetitiveAdvantage[]
+  businessSegmentDataId Int                    @unique
+  businessSegmentDatas  BusinessSegmentData    @relation(fields: [businessSegmentDataId], references: [id])
+}
+
+model KeyCompetitor {
+  id                    Int                  @id @default(autoincrement())
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  name                  String
+  description           String
+  competitivePosition   CompetitivePosition? @relation(fields: [competitivePositionId], references: [id])
+  competitivePositionId Int?
+}
+
+model CompetitiveAdvantage {
+  id                    Int                  @id @default(autoincrement())
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  title                 String
+  description           String
+  competitivePosition   CompetitivePosition? @relation(fields: [competitivePositionId], references: [id])
+  competitivePositionId Int?
+}
+
+model InterimResultsAndQuarterlyPerformance {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  title String
+
+  recordFinancialPerformance RecordFinancialPerformance[]
+  keyPositives               String[]
+  keyNegatives               String[]
+  forwardGuidance            ForwardGuidance?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("interim_results_and_quarterly_performance")
+}
+
+model RecordFinancialPerformance {
+  id Int @id @default(autoincrement())
+
+  interimResultsAndQuarterlyPerformanceId Int
+  interimResultsAndQuarterlyPerformance   InterimResultsAndQuarterlyPerformance @relation(fields: [interimResultsAndQuarterlyPerformanceId], references: [id], onDelete: Cascade)
+
+  metric            String
+  currentYearValue  String
+  previousYearValue String
+  change            String
+  margin            String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([interimResultsAndQuarterlyPerformanceId, metric])
+  @@map("record_financial_performance")
+}
+
+model ForwardGuidance {
+  id Int @id @default(autoincrement())
+
+  interimResultsAndQuarterlyPerformanceId Int                                   @unique
+  interimResultsAndQuarterlyPerformance   InterimResultsAndQuarterlyPerformance @relation(fields: [interimResultsAndQuarterlyPerformanceId], references: [id], onDelete: Cascade)
+
+  managementCommentary ManagementCommentary?
+  analystConsensusFY1  AnalystConsensusFY1[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("forward_guidance")
+}
+
+model ManagementCommentary {
+  id Int @id @default(autoincrement())
+
+  forwardGuidanceId Int             @unique
+  forwardGuidance   ForwardGuidance @relation(fields: [forwardGuidanceId], references: [id], onDelete: Cascade)
+
+  ceoName String
+  quotes  String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("management_commentary")
+}
+
+model AnalystConsensusFY1 {
+  id Int @id @default(autoincrement())
+
+  forwardGuidanceId Int
+  forwardGuidance   ForwardGuidance @relation(fields: [forwardGuidanceId], references: [id], onDelete: Cascade)
+
+  metric        String
+  forecastValue String
+  growth        String
+  commentary    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([forwardGuidanceId, metric])
+  @@map("analyst_consensus_fy1")
+}
+
+model ContingentLiabilitiesAndRegulatoryRisk {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  sectionTitle String
+
+  balanceSheetContingencies   BalanceSheetContingency[]
+  netContingentPosition       NetContingentPosition?
+  keyRegulatoryConsiderations KeyRegulatoryConsiderations[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contingent_liabilities_and_regulatory_risk")
+}
+
+
+model BalanceSheetContingency {
+  id Int @id @default(autoincrement())
+
+  contingentLiabilitiesAndRegulatoryRiskId Int
+  contingentLiabilitiesAndRegulatoryRisk   ContingentLiabilitiesAndRegulatoryRisk @relation(fields: [contingentLiabilitiesAndRegulatoryRiskId], references: [id], onDelete: Cascade)
+
+  item      String
+  amount    String
+  status    String
+  riskLevel String
+  impact    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("balance_sheet_contingency")
+}
+
+model NetContingentPosition {
+  id Int @id @default(autoincrement())
+
+  contingentLiabilitiesAndRegulatoryRiskId Int                                    @unique
+  contingentLiabilitiesAndRegulatoryRisk   ContingentLiabilitiesAndRegulatoryRisk @relation(fields: [contingentLiabilitiesAndRegulatoryRiskId], references: [id], onDelete: Cascade)
+
+  quantifiedAnnualLiabilities String
+  oneTimeCosts                String
+  valuationImpact             String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("net_contingent_position")
+}
+
+model KeyRegulatoryConsiderations {
+  id Int @id @default(autoincrement())
+
+  contingentLiabilitiesAndRegulatoryRiskId Int
+  contingentLiabilitiesAndRegulatoryRisk   ContingentLiabilitiesAndRegulatoryRisk @relation(fields: [contingentLiabilitiesAndRegulatoryRiskId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("key_regulatory_considerations")
+}
+
+// {
+//     sectionTitle: "CONTINGENT LIABILITIES & REGULATORY RISKS";
+//     balanceSheetContingencies: {
+//         item: string;
+//         amount: string;
+//         status: string;
+//         riskLevel: "Low" | "Low-Medium" | "Medium" | "Medium-High" | "High";
+//         impact: string;
+//     }[];
+//     netContingentPosition: {
+//         quantifiedAnnualLiabilities: string;
+//         oneTimeCosts: string;
+//         valuationImpact: string;
+//     };
+//     keyRegulatoryConsiderations: {
+//             title: string;
+//             description: string;
+//         }[];
+// }
+
+model ReportPromptTemplate {
+  id         String   @id @default(uuid())
+  sectionKey String
+  promptKind String
+  version    Int
+  content    String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([sectionKey, promptKind, version])
+  @@index([sectionKey, promptKind, isActive])
+  @@map("report_prompt_template")
+}
+
+model ReportGenerationRun {
+  id                    String   @id @default(uuid())
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id])
+  symbol                String
+  sectionKey            String
+  promptTemplateVersion Int?
+  inputPayloadJson      Json?
+  outputPayloadJson     Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([companyId, sectionKey, createdAt])
+  @@map("report_generation_run")
+}
+
+model ReportEnhancementRun {
+  id                 String   @id @default(uuid())
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id])
+  symbol             String
+  sectionKey         String
+  sectionId          Int
+  beforeText         String
+  afterText          String?
+  userInstruction    String
+  promptContextJson  Json?
+  model              String?
+  providerResponseId String?
+  citationsJson      Json?
+  status             String
+  errorMessage       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([companyId, sectionKey, createdAt])
+  @@index([symbol, sectionKey])
+  @@map("report_enhancement_run")
 }
