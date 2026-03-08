@@ -3,7 +3,6 @@ import { ROLES } from '@/app/generated/prisma/enums';
 import { EXECUTIVE_PROMPT } from '@/lib';
 import prisma from '@/prisma';
 import { ExecutiveSchema, improveSection, requireRBAC } from '@/server';
-import z from 'zod';
 
 export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
   symbol: string,
@@ -12,18 +11,25 @@ export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
   const executiveData = (await prisma.executiveSummary.findFirst({
     where: { report: { company: { symbol } } },
   }))!;
-  const analysis = await improveSection<z.infer<typeof ExecutiveSchema>>({
+  const executiveInfo = await improveSection({
     sectionDetails: ` ${JSON.stringify(executiveData)}`,
     systemPrompt: EXECUTIVE_PROMPT,
     schema: ExecutiveSchema,
     schemaName: 'ExecutiveSchema',
     improvementNeeded,
   });
-  console.log(JSON.stringify(analysis,null,2));
-  
+
   await prisma.executiveSummary.update({
     where: { id: executiveData.id },
-    data: {},
+    data: {
+      analystConsensus: executiveInfo.investmentThesis.analystConsensus,
+      positive: executiveInfo.investmentThesis.positives,
+      risk: executiveInfo.investmentThesis.risks,
+      summary: executiveInfo.executiveSummary,
+      upside: executiveInfo.investmentThesis.upside,
+      dcfFairValue: executiveInfo.investmentThesis.dcfFairValue,
+      currentPrice: executiveInfo.investmentThesis.currentPrice,
+    },
   });
   return {
     okay: true,

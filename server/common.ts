@@ -4,7 +4,7 @@ import { ServerActionResult } from '@/interfaces';
 import { redirect } from 'next/navigation';
 import { getSession } from './auth';
 import { forbiddenMessage, unauthorizedMessage } from '@/lib';
-import { ZodObject, ZodType } from 'zod';
+import z, { ZodObject, ZodRawShape, ZodType } from 'zod';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod.mjs';
 
@@ -68,7 +68,7 @@ export async function fetchSection<T>({
   return JSON.parse(response.output_text);
 }
 
-export async function improveSection<T>({
+export async function improveSection<T extends ZodRawShape>({
   schema,
   schemaName,
   systemPrompt,
@@ -76,11 +76,11 @@ export async function improveSection<T>({
   improvementNeeded,
 }: {
   schemaName: string;
-  schema: ZodObject<any>;
+  schema: ZodObject<T>;
   systemPrompt: string;
   sectionDetails: string;
   improvementNeeded: string;
-}): Promise<T> {
+}): Promise<z.infer<ZodObject<T>>> {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
@@ -100,12 +100,12 @@ export async function improveSection<T>({
       },
       {
         role: 'user',
-        content:`Input data:${sectionDetails}` ,
+        content: `Input data:${sectionDetails}`,
       },
       { role: 'user', content: `Previous prompts: ${systemPrompt}` },
       {
         role: 'user',
-        content: `Improvement needed: ${improvementNeeded}`,
+        content: `Improvement needed: ${improvementNeeded}, Gather more information from internet and enhance the section.`,
       },
     ],
   });
