@@ -10,6 +10,8 @@ import { cn, formatDate } from '@/lib';
 import { enhanceExecutiveSection } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { produce } from 'immer';
+import { getReportDetails } from '@/lib/server-only/repot';
 const FY_ORDER = [
   'FY20',
   'FY21',
@@ -28,17 +30,23 @@ const FY_LABEL: Record<(typeof FY_ORDER)[number], string> = {
   FY25: 'FY25',
   FY25_EST: 'FY25 (est)',
 };
+type ReportDetailsResponse = {
+  data: Awaited<ReturnType<typeof getReportDetails>>;
+};
 function Report({ symbol }: { symbol: string }) {
   const { data: report, isLoading } = useQuery({
     queryKey: ['report', symbol],
     queryFn: async () => {
-      const res = await axios.get(`/api/report?symbol=${symbol}`);
+      const res = await axios.get<ReportDetailsResponse>(
+        `/api/report?symbol=${symbol}`,
+      );
       return res.data;
     },
   });
   const queryClient = useQueryClient();
 
   if (isLoading) return <div>Loading...</div>;
+  if (!report) return <div>Report not found</div>;
 
   return (
     <div className='py-8'>
@@ -56,20 +64,13 @@ function Report({ symbol }: { symbol: string }) {
         onEnhanceSection={async (symbol: string, improvementText: string) => {
           const result = await enhanceExecutiveSection(symbol, improvementText);
           if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: any) => {
-            return {
-              ...oldData,
-              data: {
-                ...oldData.data,
-                report: {
-                  ...oldData.data.report,
-                  executiveSummary: {
-                    ...result.data,
-                  },
-                },
-              },
-            };
-          });
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.executiveSummary = result.data;
+              }),
+          );
         }}
       >
         <Description>
