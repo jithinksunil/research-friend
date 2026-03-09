@@ -389,7 +389,7 @@ ${JSON.stringify(response)}`,
   return analysis;
 }
 
- const CompanyOverviewSchema = z.object({
+ export const CompanyOverviewSchema = z.object({
   metrics: z
     .array(
       z.object({

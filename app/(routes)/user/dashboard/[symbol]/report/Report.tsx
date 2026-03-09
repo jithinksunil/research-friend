@@ -7,7 +7,10 @@ import { Description } from './Description';
 import { List } from './List';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
 import { cn, formatDate } from '@/lib';
-import { enhanceExecutiveSection } from '@/app/actions/user/enhancement.actions';
+import {
+  enhanceCompanyOverviewAndStockMetricsSection,
+  enhanceExecutiveSection,
+} from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { produce } from 'immer';
@@ -88,7 +91,20 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='1. COMPANY OVERVIEW & STOCK METRICS'
         symbol={symbol}
-        onEnhanceSection={enhanceExecutiveSection}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceCompanyOverviewAndStockMetricsSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.overviewAndStockMetrics = result.data;
+              }),
+          );
+        }}
       >
         <SubHeading>Key Statistics</SubHeading>
 
