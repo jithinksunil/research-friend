@@ -19,7 +19,7 @@ export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
     improvementNeeded,
   });
 
-  await prisma.executiveSummary.update({
+  const executiveSummary = await prisma.executiveSummary.update({
     where: { id: executiveData.id },
     data: {
       analystConsensus: executiveInfo.investmentThesis.analystConsensus,
@@ -33,6 +33,6 @@ export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
   });
   return {
     okay: true,
-    data: null,
+    data: executiveSummary,
   };
 });

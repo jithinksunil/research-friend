@@ -8,6 +8,8 @@ import { List } from './List';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
 import { cn, formatDate } from '@/lib';
 import { enhanceExecutiveSection } from '@/app/actions/user/enhancement.actions';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 const FY_ORDER = [
   'FY20',
   'FY21',
@@ -26,7 +28,18 @@ const FY_LABEL: Record<(typeof FY_ORDER)[number], string> = {
   FY25: 'FY25',
   FY25_EST: 'FY25 (est)',
 };
-function Report({ symbol, report }: { symbol: string; report: any }) {
+function Report({ symbol }: { symbol: string }) {
+  const { data: report, isLoading } = useQuery({
+    queryKey: ['report', symbol],
+    queryFn: async () => {
+      const res = await axios.get(`/api/report?symbol=${symbol}`);
+      return res.data;
+    },
+  });
+  const queryClient = useQueryClient();
+
+  if (isLoading) return <div>Loading...</div>;
+
   return (
     <div className='py-8'>
       <Heading className='!text-3xl'>{report.data.companyName}</Heading>
@@ -40,7 +53,24 @@ function Report({ symbol, report }: { symbol: string; report: any }) {
       <SectionWrapper
         heading='EXECUTIVE SUMMARY'
         symbol={symbol}
-        onEnhanceSection={enhanceExecutiveSection}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceExecutiveSection(symbol, improvementText);
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(['report', symbol], (oldData: any) => {
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                report: {
+                  ...oldData.data.report,
+                  executiveSummary: {
+                    ...result.data,
+                  },
+                },
+              },
+            };
+          });
+        }}
       >
         <Description>
           {report.data.report?.executiveSummary?.summary}

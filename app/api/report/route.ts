@@ -1,37 +1,27 @@
-import {
-  fetchAllSections,
-  fetchDummyReportBuffer,
-} from '@/lib/server-only/dashboard';
-import { NextRequest } from 'next/server';
+import { getReportDetails } from '@/lib/server-only/repot';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const symbol = searchParams.get('symbol');
-  const companyName = searchParams.get('companyName');
-  const isDummy = searchParams.get('isDummy') === 'true';
 
-  if (!symbol || !companyName) {
-    return Response.json(
-      { message: 'Missing symbol or companyName parameter' },
+  if (!symbol) {
+    return NextResponse.json(
+      { message: 'Symbol is required' },
       { status: 400 },
     );
   }
-  try {
-    const reportBuffer = isDummy
-      ? await fetchDummyReportBuffer()
-      : await fetchAllSections(
-          companyName,
-          symbol,
-        );
 
-    return new Response(reportBuffer as unknown as BodyInit, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${companyName}_report.pdf"`,
-      },
-    });
+  try {
+    const company = await getReportDetails(symbol);
+    return NextResponse.json({data:company}, { status: 200 });
   } catch (error) {
-    return Response.json({ message: JSON.stringify(error) }, { status: 500 });
+    return NextResponse.json(
+      {
+        message:
+          error instanceof Error ? error.message : 'Internal Server Error',
+      },
+      { status: 500 },
+    );
   }
 }

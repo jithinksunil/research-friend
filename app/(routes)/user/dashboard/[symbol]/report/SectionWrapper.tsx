@@ -6,9 +6,7 @@ import { Tooltip } from '@mui/material';
 import { AutoAwesome } from '@mui/icons-material';
 import { SectionSeparator } from './SectionSeparator';
 import { Heading } from './Heading';
-import type { ServerActionResult } from '@/interfaces';
 import { toastMessage } from '@/lib';
-import { useRouter } from 'next/navigation';
 
 export type SectionFieldName =
   | 'executiveSummary'
@@ -25,10 +23,7 @@ interface SectionWrapperProps {
   heading: string;
   children: ReactNode;
   symbol: string;
-  onEnhanceSection: (
-    symbo: string,
-    improvementNeeded: string,
-  ) => Promise<ServerActionResult<null>>;
+  onEnhanceSection: (symbo: string, improvementNeeded: string) => Promise<void>;
 }
 
 export const SectionWrapper: React.FC<SectionWrapperProps> = ({
@@ -37,10 +32,9 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
   children,
   onEnhanceSection,
 }) => {
-  const router = useRouter();
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [improvementText, setImprovementText] = useState('');
-  const [citations, setCitations] = useState<
+  const [citations] = useState<
     Array<{ title?: string; url: string; claim?: string }>
   >([]);
   const [showSources, setShowSources] = useState(false);
@@ -50,17 +44,10 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
   const onEnhanceClick = async (close: () => void) => {
     setIsEnhancing(true);
     try {
-      const result = await onEnhanceSection(symbol, improvementText);
-
-      if (result.okay) {
-        toastMessage.success('Section enhancement saved');
-        router.refresh();
-        setImprovementText('');
-      } else if (!result.okay) {
-        toastMessage.error(result.error.message);
-      } else {
-        toastMessage.error('Failed to enhance section');
-      }
+      await onEnhanceSection(symbol, improvementText);
+      toastMessage.success('Section enhancement saved');
+      setImprovementText('');
+      close();
     } catch (err) {
       console.error('enhanceSection failed', err);
       toastMessage.error('Enhancement request failed');

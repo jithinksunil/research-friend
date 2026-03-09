@@ -10,13 +10,9 @@ interface PageProps {
 
 async function Page({ params }: PageProps) {
   const { symbol } = await params;
-  const report = await getReport(symbol);
-  if (!report.okay) {
-    throw new Error(report.error.message);
-  }
   return (
     <Suspense fallback={<div>Loading....</div>}>
-      <Report symbol={symbol} report={report} />  
+      <Report symbol={symbol}/>  
     </Suspense>
   );
 }
