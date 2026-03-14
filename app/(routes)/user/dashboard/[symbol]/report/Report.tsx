@@ -17,6 +17,8 @@ import {
   enhanceBusinessSegmentDataSection,
   enhanceInterimResultsAndQuarterlyPerformanceSection,
   enhanceContingentLiabilitiesAndRegulatoryRiskSection,
+  enhanceAgmAndShareholderMattersSection,
+  enhanceConclusionAndRecommendationSection,
 } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -44,6 +46,23 @@ const FY_LABEL: Record<(typeof FY_ORDER)[number], string> = {
 type ReportDetailsResponse = {
   data: Awaited<ReturnType<typeof getReportDetails>>;
 };
+type ReportData = ReportDetailsResponse['data'];
+type ReportModel = NonNullable<ReportData['report']>;
+type EquityValuationAndDcfAnalysis = NonNullable<
+  ReportModel['equityValuationAndDcfAnalysis']
+>;
+type ProjectedFinancialYearRow =
+  EquityValuationAndDcfAnalysis['projectedFinancialYears'][number];
+type ProjectionMetricRow = ProjectedFinancialYearRow['projections'][number];
+type FinancialStatementAnalysis = NonNullable<
+  ReportModel['financialStatementAnalyasis']
+>;
+type IncomeStatementTrendRow =
+  FinancialStatementAnalysis['incomeStatementTrendRows'][number];
+type BalanceSheetStrengthRow =
+  FinancialStatementAnalysis['balanceSheetStrengthRows'][number];
+type CashFlowAnalysisRow =
+  FinancialStatementAnalysis['cashFlowAnalysisRows'][number];
 function Report({ symbol }: { symbol: string }) {
   const { data: report, isLoading } = useQuery({
     queryKey: ['report', symbol],
@@ -408,7 +427,7 @@ function Report({ symbol }: { symbol: string }) {
             const byYear: Record<string, { metric: string; value: string }[]> =
               {};
             pfy.forEach((y) => {
-              byYear[y.financialYear] = (y.projections || []).map((p: any) => ({
+              byYear[y.financialYear] = (y.projections || []).map((p: ProjectionMetricRow) => ({
                 metric: p.metric,
                 value: p.value,
               }));
@@ -582,11 +601,11 @@ function Report({ symbol }: { symbol: string }) {
               report.data.report?.financialStatementAnalyasis
                 ?.incomeStatementTrendRows || [];
             return FY_ORDER.map((fy) =>
-              rows.find((r: any) => r.fiscalYear === fy),
+              rows.find((r) => r.fiscalYear === fy),
             )
-              .filter(Boolean)
+              .filter((r): r is IncomeStatementTrendRow => Boolean(r))
               .slice(0, 6)
-              .map((r: any, idx: number) => [
+              .map((r, idx: number) => [
                 <div
                   className='py-[10px] text-sm text-muted-foreground'
                   key={`ist-fy-${idx}`}
@@ -661,11 +680,11 @@ function Report({ symbol }: { symbol: string }) {
               report.data.report?.financialStatementAnalyasis
                 ?.balanceSheetStrengthRows || [];
             return FY_ORDER.map((fy) =>
-              rows.find((r: any) => r.fiscalYear === fy),
+              rows.find((r) => r.fiscalYear === fy),
             )
-              .filter(Boolean)
+              .filter((r): r is BalanceSheetStrengthRow => Boolean(r))
               .slice(0, 6)
-              .map((r: any, idx: number) => [
+              .map((r, idx: number) => [
                 <div
                   className='py-[10px] text-sm text-muted-foreground'
                   key={`bss-fy-${idx}`}
@@ -741,11 +760,11 @@ function Report({ symbol }: { symbol: string }) {
               report.data.report?.financialStatementAnalyasis
                 ?.cashFlowAnalysisRows || [];
             return FY_ORDER.map((fy) =>
-              rows.find((r: any) => r.fiscalYear === fy),
+              rows.find((r) => r.fiscalYear === fy),
             )
-              .filter(Boolean)
+              .filter((r): r is CashFlowAnalysisRow => Boolean(r))
               .slice(0, 6)
-              .map((r: any, idx: number) => [
+              .map((r, idx: number) => [
                 <div
                   className='py-[10px] text-sm text-muted-foreground'
                   key={`cfa-fy-${idx}`}
@@ -846,10 +865,10 @@ function Report({ symbol }: { symbol: string }) {
                 )),
               ]}
               rows={metricKeys.map((key, mi) => {
-                const row = ratioRows.find((r: any) => r.metric === key);
+                const row = ratioRows.find((r) => r.metric === key);
                 const vByYear: Record<string, string> = {};
                 (row?.values || []).forEach(
-                  (v: any) => (vByYear[v.year] = v.value),
+                  (v) => (vByYear[v.year] = v.value),
                 );
                 return [
                   <div
@@ -911,12 +930,12 @@ function Report({ symbol }: { symbol: string }) {
         }}
       >
         {(() => {
-          const bs = report.data.report?.businessSegmentData as any;
+          const bs = report.data.report?.businessSegmentData;
           if (!bs)
             return <div className='text-sm text-muted-foreground'>No data</div>;
 
           // Revenue Model Breakdown
-          const rmb = (bs.revenueModelBreakdown || []) as any[];
+          const rmb = bs.revenueModelBreakdown || [];
           const rmbRows = rmb.map((row, i) => [
             <div
               className='py-[10px] text-sm text-muted-foreground'
@@ -939,7 +958,7 @@ function Report({ symbol }: { symbol: string }) {
           ]);
 
           // Platform Segments Performance
-          const psp = (bs.platformSegmentPerformance || []) as any[];
+          const psp = bs.platformSegmentPerformance || [];
           const pspRows = psp.map((row, i) => [
             <div
               className='py-[10px] text-sm text-muted-foreground'
@@ -964,9 +983,9 @@ function Report({ symbol }: { symbol: string }) {
             </div>,
           ]);
 
-          const comp = bs.competitivePosition as any;
-          const competitors: any[] = comp?.keyCompetitors || [];
-          const advantages: any[] = comp?.competitiveAdvantage || [];
+          const comp = bs.competitivePosition;
+          const competitors = comp?.keyCompetitors || [];
+          const advantages = comp?.competitiveAdvantage || [];
 
           return (
             <>
@@ -1065,7 +1084,7 @@ function Report({ symbol }: { symbol: string }) {
                   </TertiaryHeading>
                   <List
                     items={competitors.map(
-                      (c: any) =>
+                      (c) =>
                         `<span class='font-semibold'>${c.name}</span> — ${c.description}`,
                     )}
                   />
@@ -1076,7 +1095,7 @@ function Report({ symbol }: { symbol: string }) {
                   <TertiaryHeading>Competitive Advantages</TertiaryHeading>
                   <List
                     items={advantages.map(
-                      (a: any) =>
+                      (a) =>
                         `<span class='font-semibold'>${a.title}</span>: ${a.description}`,
                     )}
                   />
@@ -1332,50 +1351,152 @@ function Report({ symbol }: { symbol: string }) {
         })()}
       </SectionWrapper>
 
-      <SectionWrapper heading='9. RECENT NEWS & CATALYST ANALYSIS'>
-        <SubHeading>Company-Related News</SubHeading>
-        <ol className='mb-8 list-decimal space-y-6 pl-8'>
-          {companyRelatedNews.map((news) => (
-            <li key={news.title}>
-              <strong>{news.title}:</strong>
-              {news.link ? (
-                <div>
-                  <a
-                    className='text-blue-700 underline'
-                    href={news.link}
-                    rel='noreferrer'
-                    target='_blank'
-                  >
-                    {news.link}
-                  </a>
-                </div>
-              ) : null}
-              <p>{news.description}</p>
-            </li>
-          ))}
-        </ol>
+      <SectionWrapper
+        heading='9. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS'
+        symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceAgmAndShareholderMattersSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.agmAndShareholderMatters = result.data;
+              }),
+          );
+        }}
+      >
+        {(() => {
+          const agm = report.data.report?.agmAndShareholderMatters;
+          if (!agm)
+            return <div className='text-sm text-muted-foreground'>No data</div>;
 
-        <SubHeading>Industry News & Catalysts</SubHeading>
-        <ol className='mb-8 list-decimal space-y-6 pl-8'>
-          {industryNewsAndCatalysts.map((catalyst) => (
-            <li key={catalyst.title}>
-              <strong>{catalyst.title}:</strong>
-              <ul className='mt-2 list-disc space-y-1 pl-6'>
-                {catalyst.bullets.map((bullet) => {
-                  const [title, ...rest] = bullet.split(': ');
-                  if (rest.length === 0) {
-                    return <li key={bullet}>{bullet}</li>;
-                  }
-                  return (
-                    <li key={bullet}>
-                      <strong>{title}:</strong> {rest.join(': ')}
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
-        </ol>
+          return (
+            <>
+              <SubHeading>Next AGM Details</SubHeading>
+              <List
+                items={[
+                  `<span style="font-weight: bold">Announced Date</span>: ${agm.announcedDate}`,
+                  `<span style="font-weight: bold">Location</span>: ${agm.location}`,
+                  `<span style="font-weight: bold">Notice Filed</span>: ${agm.noticeFiled}`,
+                ]}
+              />
+
+              <SubHeading className='mt-6'>Expected Voting Agenda</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={[
+                  <div key='agm-r' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Resolution #
+                  </div>,
+                  <div key='agm-t' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Title
+                  </div>,
+                  <div key='agm-ty' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Type
+                  </div>,
+                  <div key='agm-er' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Expected Result
+                  </div>,
+                ]}
+                rows={(agm.expectedVotingAgenda || []).map((row, idx) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`agm-r-${idx}`}>
+                    {row.resolutionNumber}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-t-${idx}`}>
+                    {row.title}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-ty-${idx}`}>
+                    {row.type}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-er-${idx}`}>
+                    {row.expectedResult}
+                  </div>,
+                ])}
+              />
+
+              <SubHeading className='mt-6'>Special Resolutions Expected</SubHeading>
+              <List items={agm.specialResolutionsExpected || []} />
+
+              <SubHeading className='mt-6'>Key Governance Notes</SubHeading>
+              <List items={agm.keyGovernanceNotes || []} />
+            </>
+          );
+        })()}
+      </SectionWrapper>
+
+
+      <SectionWrapper
+        heading='10. CONCLUSION'
+        symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceConclusionAndRecommendationSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.conclusionAndRecommendation = result.data;
+              }),
+          );
+        }}
+      >
+        {(() => {
+          const conclusion = report.data.report?.conclusionAndRecommendation;
+          if (!conclusion)
+            return <div className='text-sm text-muted-foreground'>No data</div>;
+
+          return (
+            <>
+              <Description>{conclusion.summary}</Description>
+              <SubHeading className='mt-6'>Key Strengths</SubHeading>
+              <List items={conclusion.strengths || []} />
+
+              <SubHeading className='mt-6'>Valuation</SubHeading>
+              <List
+                items={[
+                  `<span style="font-weight: bold">Base Case</span>: ${conclusion.valuationSummary}`,
+                  `<span style="font-weight: bold">Analyst Consensus</span>: ${conclusion.analystConsensus}`,
+                ]}
+              />
+
+              <SubHeading className='mt-6'>For Investors</SubHeading>
+              <List items={conclusion.investorFit || []} />
+
+              <SubHeading className='mt-6'>Entry Strategy</SubHeading>
+              <List items={conclusion.entryStrategy || []} />
+
+              <SubHeading className='mt-6'>Key Catalysts for Upside</SubHeading>
+              <List items={conclusion.upsideCatalysts || []} />
+
+              <SubHeading className='mt-6'>Key Catalysts for Downside</SubHeading>
+              <List items={conclusion.downsideCatalysts || []} />
+
+              <SubHeading className='mt-6'>Recommendation</SubHeading>
+              <List
+                items={[
+                  `<span style="font-weight: bold">Recommendation</span>: ${conclusion.recommendation}`,
+                  `<span style="font-weight: bold">Price Target (12-month)</span>: ${conclusion.priceTarget}`,
+                  `<span style="font-weight: bold">Expected Return</span>: ${conclusion.expectedReturn}`,
+                  `<span style="font-weight: bold">Time Horizon</span>: ${conclusion.timeHorizon}`,
+                  `<span style="font-weight: bold">Risk Profile</span>: ${conclusion.riskProfile}`,
+                ]}
+              />
+
+              <div className='mt-8 border-t pt-6'>
+                <Description>
+                  <strong>Disclaimer:</strong> {conclusion.disclaimer}
+                </Description>
+              </div>
+            </>
+          );
+        })()}
       </SectionWrapper>
     </div>
   );

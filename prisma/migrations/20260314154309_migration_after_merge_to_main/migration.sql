@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "expected_voting_agenda_agmAndShareholderMattersId_resolutionN_k" RENAME TO "expected_voting_agenda_agmAndShareholderMattersId_resolutio_key";

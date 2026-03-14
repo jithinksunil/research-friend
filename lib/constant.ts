@@ -577,6 +577,40 @@ STRICT RULES:
    If not provided, generate neutral management-style summary statements.
 `
 
+
+
+export const AGM_AND_SHAREHOLDER_MATTERS_PROMPT=`You are a senior equity research analyst.
+
+Generate Section: "ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS" from ONLY the provided structured input data.
+
+Return strictly valid JSON matching AgmAndShareholderMattersSchema.
+
+Rules:
+1. Do not fabricate specific dates, locations, or vote outcomes unless inferable from input.
+2. Keep wording concise, institutional, and factual.
+3. Agenda rows must include expectedResult as a realistic probability-style statement.
+4. Governance notes should focus on board composition, succession planning, and shareholder communication.
+5. If exact AGM metadata is unavailable, provide clearly marked best-estimate wording.
+6. Output JSON only.
+`
+export const CONCLUSION_AND_RECOMMENDATION_PROMPT=`You are a senior institutional equity research analyst.
+
+Your task is to generate the final section: "CONCLUSION".
+Use ONLY the provided structured input data.
+
+Return strictly valid JSON matching ConclusionAndRecommendationSchema.
+
+Rules:
+1. Do not fabricate exact numbers if unavailable in the input.
+2. Keep tone objective, investment-research style, and concise.
+3. Every bullet should be specific and actionable.
+4. Use market-aware reasoning for catalysts and risk profile.
+5. Recommendation must be one of: "BUY", "HOLD", "SELL".
+6. expectedReturn must include sign and percentage format (example: "+20.5%").
+7. Keep disclaimer to educational / not financial advice wording.
+8. Output JSON only, no markdown.
+`
+
 export const CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT=`You are an institutional equity research analyst specializing in regulatory risk, contingent liabilities, and capital adequacy assessment across global markets.
 
 Your task is to generate Section 8: "CONTINGENT LIABILITIES & REGULATORY RISKS" using ONLY the structured input data provided.
@@ -623,177 +657,3 @@ Strict Rules:
 Do not output explanations. 
 Return only valid JSON matching the schema.
 `
-
-// export const company = {
-//   tickName: 'AAPL',
-//   companyName: 'Apple Inc.',
-//   businessDescription: `Apple Inc. is a preeminent American multinational technology company renowned for its innovative consumer electronics, software, and online services. With a staggering revenue of $274.5 billion in 2020, it stands as the world's most valuable publicly traded company, significantly influencing the global technology sector. Its flagship products—iPhone, iPad, and Mac—continue to define consumer expectations and set industry benchmarks, securing its position as a leader in both the smartphone and personal computer markets. As a key player among the "Big Five" technology firms, Apple remains at the forefront of technological advancements and consumer engagement strategies.`,
-//   overview: [
-//     {
-//       label: 'Market Cap',
-//       value: 1834000000000,
-//       unit: 'USD',
-//       format: 'currencyCompact',
-//       id: 'marketCap',
-//     },
-//     {
-//       label: 'P/E Ratio',
-//       value: 54.23,
-//       unit: null,
-//       format: 'number',
-//       id: 'peRatio',
-//     },
-//     {
-//       label: '52 Week High',
-//       value: 188.65,
-//       unit: 'USD',
-//       format: 'currency',
-//       id: 'week52High',
-//     },
-//     {
-//       label: '52 Week Low',
-//       value: 118.35,
-//       unit: 'USD',
-//       format: 'currency',
-//       id: 'week52Low',
-//     },
-//     {
-//       label: 'Average Volume',
-//       value: 56234890,
-//       unit: 'shares',
-//       format: 'compact',
-//       id: 'avgVolume',
-//     },
-//     {
-//       label: 'Beta',
-//       value: 1.19,
-//       unit: null,
-//       format: 'number',
-//       id: 'beta',
-//     },
-//     {
-//       label: 'EPS (TTM)',
-//       value: 2.9,
-//       unit: 'USD',
-//       format: 'currency',
-//       id: 'epsTTM',
-//     },
-//     {
-//       label: 'YTD Return',
-//       value: 6.73,
-//       unit: '%',
-//       format: 'percentage',
-//       id: 'ytdReturn',
-//     },
-//   ],
-//   fundamentalsMetrics: [
-//     {
-//       id: 'revenueTTM',
-//       label: 'Revenue (TTM)',
-//       value: 574800000000,
-//       unit: 'USD',
-//       format: 'currencyCompact',
-//     },
-//     {
-//       id: 'revenueGrowth',
-//       label: 'Revenue Growth',
-//       value: 12.4,
-//       unit: '%',
-//       format: 'percentage',
-//     },
-//     {
-//       id: 'netIncomeTTM',
-//       label: 'Net Income (TTM)',
-//       value: 30400000000,
-//       unit: 'USD',
-//       format: 'currencyCompact',
-//     },
-//     {
-//       id: 'freeCashFlowTTM',
-//       label: 'Free Cash Flow (TTM)',
-//       value: 35300000000,
-//       unit: 'USD',
-//       format: 'currencyCompact',
-//     },
-//     {
-//       id: 'operatingMargin',
-//       label: 'Operating Margin',
-//       value: 9.1,
-//       unit: '%',
-//       format: 'percentage',
-//     },
-//     {
-//       id: 'debtEquity',
-//       label: 'Debt / Equity',
-//       value: 1.12,
-//       unit: null,
-//       format: 'number',
-//     },
-//     {
-//       id: 'roe',
-//       label: 'ROE',
-//       value: 19.3,
-//       unit: '%',
-//       format: 'percentage',
-//     },
-//     {
-//       id: 'roa',
-//       label: 'ROA',
-//       value: 6.8,
-//       unit: '%',
-//       format: 'percentage',
-//     },
-//   ],
-//   riskMetrics: [
-//     {
-//       id: 'beta',
-//       label: 'Beta',
-//       value: 1.19,
-//       unit: null,
-//       format: 'number',
-//       description:
-//         'Measures how volatile the stock is compared to the overall market. Beta > 1 means higher risk.',
-//     },
-//     {
-//       id: 'volatility1Y',
-//       label: 'Volatility (1Y)',
-//       value: 28.4,
-//       unit: '%',
-//       format: 'percentage',
-//       description:
-//         'Annualized price fluctuation over the past year. Higher volatility means larger price swings.',
-//     },
-//     {
-//       id: 'maxDrawdown1Y',
-//       label: 'Max Drawdown (1Y)',
-//       value: -34.7,
-//       unit: '%',
-//       format: 'percentage',
-//       description:
-//         'Maximum observed loss from peak to trough over the past year.',
-//     },
-//     {
-//       id: 'debtRatio',
-//       label: 'Debt Ratio',
-//       value: 0.61,
-//       unit: null,
-//       format: 'number',
-//       description:
-//         'Proportion of assets financed by debt. Higher values indicate higher financial leverage.',
-//     },
-//   ],
-//   companyProfile: [
-//     {
-//       label: 'Sector',
-//       value: 'Consumer Cyclical',
-//     },
-//     {
-//       label: 'Industry',
-//       value: 'Internet Retail',
-//     },
-//     {
-//       label: 'Country',
-//       value: 'United States',
-//     },
-//   ],
-// };
