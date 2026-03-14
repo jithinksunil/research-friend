@@ -76,3 +76,43 @@ export const formatDate = (
       return isoString.split('T')[0];
   }
 };
+
+
+export function formatValue(
+  value: number | null,
+  format: string,
+  unit?: string | null,
+) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return '—';
+  }
+
+  switch (format) {
+    case 'currencyCompact':
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: unit || 'USD',
+        notation: 'compact',
+        maximumFractionDigits: 2,
+      }).format(value);
+
+    case 'currency':
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: unit || 'USD',
+        maximumFractionDigits: 2,
+      }).format(value);
+
+    case 'compact':
+      return new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 2,
+      }).format(value);
+
+    case 'percentage':
+      return `${value.toFixed(2)}%`;
+
+    default:
+      return value.toFixed(2);
+  }
+}
