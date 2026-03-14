@@ -1,11 +1,9 @@
 'use server';
+
 import { ROLES } from '@/app/generated/prisma/enums';
 import { SearchSuggestion } from '@/interfaces';
 import { convertToErrorInstance } from '@/lib';
 import { requireRBAC } from '@/server';
-import YahooFinance from 'yahoo-finance2';
-
-const yahooFinance = new YahooFinance();
 
 export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(
   async (query: string) => {
@@ -13,40 +11,34 @@ export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(
       const trimmed = query.trim();
       if (!trimmed) return { okay: true, data: [] };
 
-      const results = await yahooFinance.search(trimmed, {
-        quotesCount: 10,
-        newsCount: 0,
-        enableFuzzyQuery: true,
+      const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(
+        trimmed
+      )}&quotesCount=10&newsCount=0`;
+
+      const res = await fetch(url, {
+        next: { revalidate: 3600 }, // optional caching
       });
 
-      const quotes = Array.isArray(results?.quotes) ? results.quotes : [];
+      if (!res.ok) throw new Error('Yahoo search failed');
+
+      const data = await res.json();
+
+      const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
+
       const suggestions: SearchSuggestion[] = quotes
-        .map((quote) => {
-          if (!quote || typeof quote !== 'object') return null;
-
-          const symbol =
-            typeof (quote as { symbol?: unknown }).symbol === 'string'
-              ? (quote as { symbol: string }).symbol.trim()
-              : '';
-
+        .map((quote: any) => {
+          const symbol = quote?.symbol?.trim();
           if (!symbol) return null;
 
           const name =
-            (typeof (quote as { shortname?: unknown }).shortname === 'string'
-              ? (quote as { shortname: string }).shortname.trim()
-              : '') ||
-            (typeof (quote as { longname?: unknown }).longname === 'string'
-              ? (quote as { longname: string }).longname.trim()
-              : '') ||
+            quote?.shortname?.trim() ||
+            quote?.longname?.trim() ||
             symbol;
 
           const region =
-            (typeof (quote as { exchDisp?: unknown }).exchDisp === 'string'
-              ? (quote as { exchDisp: string }).exchDisp.trim()
-              : '') ||
-            (typeof (quote as { exchange?: unknown }).exchange === 'string'
-              ? (quote as { exchange: string }).exchange.trim()
-              : '');
+            quote?.exchDisp?.trim() ||
+            quote?.exchange?.trim() ||
+            '';
 
           return {
             id: `${symbol}-${region || 'unknown'}`,
@@ -55,7 +47,7 @@ export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(
             region,
           };
         })
-        .filter((item): item is SearchSuggestion => Boolean(item));
+        .filter(Boolean);
 
       return { okay: true, data: suggestions };
     } catch (error) {
