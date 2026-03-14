@@ -1,7 +1,15 @@
 import 'server-only';
 
 import prisma from '@/prisma';
-import { getAnalystRecommendationsAboutCompany, getEquityValuationAboutCompany, getExecutiveInformationAboutCompany, getFinancialStatementsAnalysisAboutCompany, getOverviewMetricsAboutCompany, getShareholderStructureAboutCompany } from '@/server';
+import {
+  getAnalystRecommendationsAboutCompany,
+  getBusinessSegmentDataAboutCompany,
+  getEquityValuationAboutCompany,
+  getExecutiveInformationAboutCompany,
+  getFinancialStatementsAnalysisAboutCompany,
+  getOverviewMetricsAboutCompany,
+  getShareholderStructureAboutCompany,
+} from '@/server';
 
 export const getReportDetails = async (symbol: string) => {
   let company = (await prisma.company.upsert({
@@ -60,7 +68,13 @@ export const getReportDetails = async (symbol: string) => {
             select: {
               id: true,
               businessModelDynamics: true,
-              competitivePosition: true,
+              competitivePosition: {
+                select: {
+                  id: true,
+                  keyCompetitors: true,
+                  competitiveAdvantage: true,
+                },
+              },
               platformSegmentPerformance: true,
               revenueModelBreakdown: true,
             },
@@ -88,9 +102,9 @@ export const getReportDetails = async (symbol: string) => {
       companyName: true,
     },
   }))!;
-  if (!company.report?.financialStatementAnalyasis) {
-    const financialStatementAnalysisInfo =
-      await getFinancialStatementsAnalysisAboutCompany(symbol);
+  if (!company.report?.businessSegmentData) {
+    const businessSegmentData =
+      await getBusinessSegmentDataAboutCompany(symbol);
 
     const newInfo = await prisma.company.update({
       where: { symbol },
@@ -141,7 +155,13 @@ export const getReportDetails = async (symbol: string) => {
               select: {
                 id: true,
                 businessModelDynamics: true,
-                competitivePosition: true,
+                competitivePosition: {
+                  select: {
+                    id: true,
+                    keyCompetitors: true,
+                    competitiveAdvantage: true,
+                  },
+                },
                 platformSegmentPerformance: true,
                 revenueModelBreakdown: true,
               },
@@ -165,54 +185,56 @@ export const getReportDetails = async (symbol: string) => {
               },
             },
           },
+          
         },
         companyName: true,
       },
       data: {
         report: {
           update: {
-            financialStatementAnalyasis: {
+            businessSegmentData: {
               create: {
-                keyObservations:
-                  financialStatementAnalysisInfo.incomeStatementTrend
-                    .keyObservations,
-                capitalPositionAnalysis:
-                  financialStatementAnalysisInfo.balanceSheetStrength
-                    .capitalPositionAnalysis,
-                fcfQualityAnalysis:
-                  financialStatementAnalysisInfo.cashFlowAnalysis
-                    .fcfQualityAnalysis,
-                valuationObservations:
-                  financialStatementAnalysisInfo.financialRatiosAndCreditMetrics
-                    .valuationObservations,
-                incomeStatementTrendRows: {
+                businessModelDynamics:
+                  businessSegmentData.businessModelDynamics,
+                revenueModelBreakdown: {
                   createMany: {
-                    //@ts-ignore
-                    data: financialStatementAnalysisInfo.incomeStatementTrend
-                      .table,
-                  },
-                },
-                balanceSheetStrengthRows: {
-                  createMany: {
-                    //@ts-ignore
-                    data: financialStatementAnalysisInfo.balanceSheetStrength
-                      .table,
-                  },
-                },
-                cashFlowAnalysisRows: {
-                  createMany: {
-                    //@ts-ignore
-                    data: financialStatementAnalysisInfo.cashFlowAnalysis.table,
-                  },
-                },
-                financialRatioMetrics: {
-                  createMany: {
-                    data: financialStatementAnalysisInfo.financialRatiosAndCreditMetrics.table.map(
-                      ({ metric, values }) => ({
-                        metric,
-                        values,
+                    data: businessSegmentData.revenueModelBreakdown.map(
+                      (row) => ({
+                        revenueStream: row.revenueStream,
+                        amount: row.amount,
+                        percentOfTotal: row.percentOfTotal,
+                        growth: row.growth,
+                        driver: row.driver,
                       }),
                     ),
+                  },
+                },
+                platformSegmentPerformance: {
+                  createMany: {
+                    data: businessSegmentData.platformSegmentsPerformance.map(
+                      (row) => ({
+                        segment: row.segment,
+                        customers: row.customers,
+                        aua: row.aua,
+                        growth: row.growth,
+                        netInflows: row.netInflows,
+                        comments: row.comments,
+                      }),
+                    ),
+                  },
+                },
+                competitivePosition: {
+                  create: {
+                    keyCompetitors: {
+                      createMany: {
+                        data: businessSegmentData.competitivePosition.keyCompetitors,
+                      },
+                    },
+                    competitiveAdvantage: {
+                      createMany: {
+                        data: businessSegmentData.competitivePosition.competitiveAdvantages,
+                      },
+                    },
                   },
                 },
               },
@@ -234,6 +256,8 @@ export const getReportDetails = async (symbol: string) => {
       await getEquityValuationAboutCompany(symbol);
     const financialStatementAnalysisInfo =
       await getFinancialStatementsAnalysisAboutCompany(symbol);
+          const businessSegmentData =
+      await getBusinessSegmentDataAboutCompany(symbol);
     const newInfo = await prisma.company.update({
       where: { symbol },
       select: {
@@ -288,7 +312,13 @@ export const getReportDetails = async (symbol: string) => {
               select: {
                 id: true,
                 businessModelDynamics: true,
-                competitivePosition: true,
+                competitivePosition: {
+                  select: {
+                    id: true,
+                    keyCompetitors: true,
+                    competitiveAdvantage: true,
+                  },
+                },
                 platformSegmentPerformance: true,
                 revenueModelBreakdown: true,
               },
@@ -497,12 +527,56 @@ export const getReportDetails = async (symbol: string) => {
                 },
               },
             },
+            businessSegmentData: {
+              create: {
+                businessModelDynamics:
+                  businessSegmentData.businessModelDynamics,
+                revenueModelBreakdown: {
+                  createMany: {
+                    data: businessSegmentData.revenueModelBreakdown.map((row) => ({
+                      revenueStream: row.revenueStream,
+                      amount: row.amount,
+                      percentOfTotal: row.percentOfTotal,
+                      growth: row.growth,
+                      driver: row.driver,
+                    })),
+                  },
+                },
+                platformSegmentPerformance: {
+                  createMany: {
+                    data: businessSegmentData.platformSegmentsPerformance.map(
+                      (row) => ({
+                        segment: row.segment,
+                        customers: row.customers,
+                        aua: row.aua,
+                        growth: row.growth,
+                        netInflows: row.netInflows,
+                        comments: row.comments,
+                      }),
+                    ),
+                  },
+                },
+                competitivePosition: {
+                  create: {
+                    keyCompetitors: {
+                      createMany: {
+                        data: businessSegmentData.competitivePosition.keyCompetitors,
+                      },
+                    },
+                    competitiveAdvantage: {
+                      createMany: {
+                        data: businessSegmentData.competitivePosition.competitiveAdvantages,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
     company = { ...newInfo };
-
   }
-  return company
+  return company;
 };

@@ -10,6 +10,10 @@ import { cn, formatDate } from '@/lib';
 import {
   enhanceCompanyOverviewAndStockMetricsSection,
   enhanceExecutiveSection,
+  enhanceShareholderStructureSection,
+  enhanceAnalystRecommendationSection,
+  enhanceEquityValuationAndDcfAnalysisSection,
+  enhanceFinancialStatementAnalysisSection,
 } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -153,6 +157,20 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY'
         symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceShareholderStructureSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.shareHolderStructure = result.data;
+              }),
+          );
+        }}
       >
         <SubHeading>Major Shareholders (Latest Data)</SubHeading>
 
@@ -227,6 +245,20 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='3. ANALYST RECOMMENDATIONS & PRICE TARGETS'
         symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceAnalystRecommendationSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.analystRecommendation = result.data;
+              }),
+          );
+        }}
       >
         <SubHeading>Current Consensus (Last 3 Months: Oct-Dec 2025)</SubHeading>
         <div className='mx-auto max-w-[900px]'>
@@ -304,7 +336,20 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='4. EQUITY VALUATION & DCF ANALYSIS'
         symbol={symbol}
-        onEnhanceSection={enhanceExecutiveSection}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceEquityValuationAndDcfAnalysisSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.equityValuationAndDcfAnalysis = result.data;
+              }),
+          );
+        }}
       >
         <SubHeading>DCF Valuation Model</SubHeading>
         <TertiaryHeading>Key Assumptions</TertiaryHeading>
@@ -491,6 +536,20 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='5. FINANCIAL STATEMENTS ANALYSIS'
         symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceFinancialStatementAnalysisSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.financialStatementAnalyasis = result.data;
+              }),
+          );
+        }}
       >
         {/* Income Statement Trend */}
         <SubHeading>Income Statement Trend (FY20–FY25)</SubHeading>
@@ -832,6 +891,7 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='6. BUSINESS SEGMENTS & COMPETITIVE POSITION'
         symbol={symbol}
+         onEnhanceSection={}
       >
         {(() => {
           const bs = report.data.report?.businessSegmentData as any;
@@ -1012,10 +1072,7 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='7. INTERIM RESULTS & QUARTERLY PERFORMANCE'
         symbol={symbol}
-        sectionId={
-          report.data.report?.interimResultsAndQuarterlyPerformance?.id
-        }
-        onEnhanceSection={enhanceExecutiveSection}
+        //  onEnhanceSection={}
       >
         {JSON.stringify(
           report.data.report?.interimResultsAndQuarterlyPerformance,
