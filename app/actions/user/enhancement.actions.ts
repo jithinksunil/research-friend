@@ -10,6 +10,7 @@ import {
   BUSINESS_SEGMENT_DATA_PROMPT,
   INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+  CONCLUSION_AND_RECOMMENDATION_PROMPT,
 } from '@/lib';
 import prisma from '@/prisma';
 import {
@@ -22,6 +23,7 @@ import {
   BusinessSegmentsCompetitivePositionSchema,
   ContingentLiabilitiesRegulatoryRisksSchema,
   InterimResultsQuarterlyPerformanceSchema,
+  ConclusionAndRecommendationSchema,
   improveSection,
   requireRBAC,
 } from '@/server';
@@ -667,6 +669,46 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
       balanceSheetContingencies: true,
       netContingentPosition: true,
       keyRegulatoryConsiderations: true,
+    },
+  });
+
+  return { okay: true, data: updated };
+});
+
+
+export const enhanceConclusionAndRecommendationSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const conclusionData = (await prisma.conclusionAndRecommendation.findFirst({
+    where: { report: { company: { symbol } } },
+  }))!;
+
+  const conclusionInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(conclusionData)}`,
+    systemPrompt: CONCLUSION_AND_RECOMMENDATION_PROMPT,
+    schema: ConclusionAndRecommendationSchema,
+    schemaName: 'ConclusionAndRecommendationSchema',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.conclusionAndRecommendation.update({
+    where: { id: conclusionData.id },
+    data: {
+      sectionTitle: conclusionInfo.sectionTitle,
+      summary: conclusionInfo.summary,
+      strengths: conclusionInfo.strengths,
+      valuationSummary: conclusionInfo.valuationSummary,
+      analystConsensus: conclusionInfo.analystConsensus,
+      investorFit: conclusionInfo.investorFit,
+      entryStrategy: conclusionInfo.entryStrategy,
+      upsideCatalysts: conclusionInfo.upsideCatalysts,
+      downsideCatalysts: conclusionInfo.downsideCatalysts,
+      recommendation: conclusionInfo.recommendation,
+      priceTarget: conclusionInfo.priceTarget,
+      expectedReturn: conclusionInfo.expectedReturn,
+      timeHorizon: conclusionInfo.timeHorizon,
+      riskProfile: conclusionInfo.riskProfile,
+      disclaimer: conclusionInfo.disclaimer,
     },
   });
 
