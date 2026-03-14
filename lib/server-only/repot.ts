@@ -262,24 +262,63 @@ export const getReportDetails = async (symbol: string) => {
   }
 
   if (!company?.report) {
-    const executiveInfo = await getExecutiveInformationAboutCompany(symbol);
-    const overviewInfo = await getOverviewMetricsAboutCompany(symbol);
-    const shareHolderInfo = await getShareholderStructureAboutCompany(symbol);
-    const analystInfo = await getAnalystRecommendationsAboutCompany(symbol);
-    const equityValuationAndDcfAnalysisInfo =
-      await getEquityValuationAboutCompany(symbol);
-    const financialStatementAnalysisInfo =
-      await getFinancialStatementsAnalysisAboutCompany(symbol);
-    const businessSegmentData =
-      await getBusinessSegmentDataAboutCompany(symbol);
-          const interimResultsAndQuarterlyPerformance =
-      await getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol);
-    const contingentLiabilitiesAndRegulatoryRisk =
-      await getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol);
-    const agmAndShareholderMatters =
-      await getAgmAndShareholderMattersAboutCompany(symbol);
-    const conclusionAndRecommendation =
-      await getConclusionAndRecommendationAboutCompany(symbol);
+    const sectionPromises = [
+      getExecutiveInformationAboutCompany(symbol),
+      getOverviewMetricsAboutCompany(symbol),
+      getShareholderStructureAboutCompany(symbol),
+      getAnalystRecommendationsAboutCompany(symbol),
+      getEquityValuationAboutCompany(symbol),
+      getFinancialStatementsAnalysisAboutCompany(symbol),
+      getBusinessSegmentDataAboutCompany(symbol),
+      getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol),
+      getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol),
+      getAgmAndShareholderMattersAboutCompany(symbol),
+      getConclusionAndRecommendationAboutCompany(symbol),
+    ] as const;
+
+    const [
+      executiveInfoResult,
+      overviewInfoResult,
+      shareHolderInfoResult,
+      analystInfoResult,
+      equityValuationAndDcfAnalysisInfoResult,
+      financialStatementAnalysisInfoResult,
+      businessSegmentDataResult,
+      interimResultsAndQuarterlyPerformanceResult,
+      contingentLiabilitiesAndRegulatoryRiskResult,
+      agmAndShareholderMattersResult,
+      conclusionAndRecommendationResult,
+    ] = await Promise.allSettled(sectionPromises);
+
+    const resolveSettled = <T,>(result: PromiseSettledResult<T>): T => {
+      if (result.status === 'rejected') throw result.reason;
+      return result.value;
+    };
+
+    const executiveInfo = resolveSettled(executiveInfoResult);
+    const overviewInfo = resolveSettled(overviewInfoResult);
+    const shareHolderInfo = resolveSettled(shareHolderInfoResult);
+    const analystInfo = resolveSettled(analystInfoResult);
+    const equityValuationAndDcfAnalysisInfo = resolveSettled(
+      equityValuationAndDcfAnalysisInfoResult,
+    );
+    const financialStatementAnalysisInfo = resolveSettled(
+      financialStatementAnalysisInfoResult,
+    );
+    const businessSegmentData = resolveSettled(businessSegmentDataResult);
+    const interimResultsAndQuarterlyPerformance = resolveSettled(
+      interimResultsAndQuarterlyPerformanceResult,
+    );
+    const contingentLiabilitiesAndRegulatoryRisk = resolveSettled(
+      contingentLiabilitiesAndRegulatoryRiskResult,
+    );
+    const agmAndShareholderMatters = resolveSettled(
+      agmAndShareholderMattersResult,
+    );
+    const conclusionAndRecommendation = resolveSettled(
+      conclusionAndRecommendationResult,
+    );
+
     const newInfo = await prisma.company.update({
       where: { symbol },
       select: {
