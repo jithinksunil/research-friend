@@ -546,8 +546,6 @@ export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(
     schemaName: 'InterimResultsQuarterlyPerformance',
     improvementNeeded,
   });
-  console.log({interimInfo});
-  
 
   const updated = await prisma.interimResultsAndQuarterlyPerformance.update({
     where: { id: interimData.id },

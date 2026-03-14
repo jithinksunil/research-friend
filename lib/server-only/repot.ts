@@ -163,20 +163,68 @@ export const getReportDetails = async (symbol: string) => {
   }))!;
 
   if (!company?.report) {
+    const withSuccessLog = <T>(
+      sectionName: string,
+      sectionPromise: Promise<T>,
+    ): Promise<T> =>
+      sectionPromise.then((data) => {
+        console.info(`[getReportDetails:${symbol}] fetched ${sectionName}`);
+        return data;
+      });
+
     const sectionPromises = [
-      getExecutiveInformationAboutCompany(symbol),
-      getOverviewMetricsAboutCompany(symbol),
-      getShareholderStructureAboutCompany(symbol),
-      getAnalystRecommendationsAboutCompany(symbol),
-      getEquityValuationAboutCompany(symbol),
-      getFinancialStatementsAnalysisAboutCompany(symbol),
-      getBusinessSegmentDataAboutCompany(symbol),
-      getForwardProjectionsAndValuationAboutCompany(symbol),
-      getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol),
-      getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol),
-      getAgmAndShareholderMattersAboutCompany(symbol),
-      getConclusionAndRecommendationAboutCompany(symbol),
-      getDcfValuationRecapAndPriceTargetAboutCompany(symbol),
+      withSuccessLog(
+        'executiveSummary',
+        getExecutiveInformationAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'overviewAndStockMetrics',
+        getOverviewMetricsAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'shareHolderStructure',
+        getShareholderStructureAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'analystRecommendation',
+        getAnalystRecommendationsAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'equityValuationAndDcfAnalysis',
+        getEquityValuationAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'financialStatementAnalyasis',
+        getFinancialStatementsAnalysisAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'businessSegmentData',
+        getBusinessSegmentDataAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'forwardProjectionsAndValuation',
+        getForwardProjectionsAndValuationAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'interimResultsAndQuarterlyPerformance',
+        getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'contingentLiabilitiesAndRegulatoryRisk',
+        getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'agmAndShareholderMatters',
+        getAgmAndShareholderMattersAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'conclusionAndRecommendation',
+        getConclusionAndRecommendationAboutCompany(symbol),
+      ),
+      withSuccessLog(
+        'dcfValuationRecapAndPriceTarget',
+        getDcfValuationRecapAndPriceTargetAboutCompany(symbol),
+      ),
     ] as const;
 
     const [

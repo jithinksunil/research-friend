@@ -96,13 +96,11 @@ async function fetchSection({
 }
 
 export async function fetchAllSections(companyName: string, symbol: string) {
-  console.log({ companyName, symbol });
 
   const company = await prisma.company.findUnique({
     where: { symbol },
     select: { data: true },
   });
-  console.log(Boolean(company));
   if (company?.data) {
     return await createReportBuffer(company.data as Record<string, any>);
   }
