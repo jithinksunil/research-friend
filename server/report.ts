@@ -1827,6 +1827,8 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   symbol: string,
 ) {
   const response = await getInterimResultsData(symbol);
+  console.log({response});
+  
 
   const analysis = await fetchSection<
     z.infer<typeof InterimResultsQuarterlyPerformanceSchema>
@@ -1844,6 +1846,8 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
     schema: InterimResultsQuarterlyPerformanceSchema,
     schemaName: 'InterimResultsQuarterlyPerformance',
   });
+  console.log({analysis});
+  
 
   return analysis;
 }

@@ -7,6 +7,7 @@ import {
   getEquityValuationAboutCompany,
   getExecutiveInformationAboutCompany,
   getFinancialStatementsAnalysisAboutCompany,
+  getInterimResultsAndQuarterlyPerformanceAboutCompany,
   getOverviewMetricsAboutCompany,
   getShareholderStructureAboutCompany,
 } from '@/server';
@@ -82,11 +83,17 @@ export const getReportDetails = async (symbol: string) => {
           interimResultsAndQuarterlyPerformance: {
             select: {
               id: true,
-              forwardGuidance: true,
-              keyNegatives: true,
-              keyPositives: true,
-              recordFinancialPerformance: true,
               title: true,
+              keyPositives: true,
+              keyNegatives: true,
+              recordFinancialPerformance: true,
+              forwardGuidance: {
+                select: {
+                  id: true,
+                  managementCommentary: true,
+                  analystConsensusFY1: true,
+                },
+              },
             },
           },
           contingentLiabilitiesAndRegulatoryRisk: {
@@ -102,9 +109,9 @@ export const getReportDetails = async (symbol: string) => {
       companyName: true,
     },
   }))!;
-  if (!company.report?.businessSegmentData) {
-    const businessSegmentData =
-      await getBusinessSegmentDataAboutCompany(symbol);
+  if (!company.report?.interimResultsAndQuarterlyPerformance) {
+    const interimResultsAndQuarterlyPerformance =
+      await getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol);
 
     const newInfo = await prisma.company.update({
       where: { symbol },
@@ -169,11 +176,17 @@ export const getReportDetails = async (symbol: string) => {
             interimResultsAndQuarterlyPerformance: {
               select: {
                 id: true,
-                forwardGuidance: true,
-                keyNegatives: true,
-                keyPositives: true,
-                recordFinancialPerformance: true,
                 title: true,
+                keyPositives: true,
+                keyNegatives: true,
+                recordFinancialPerformance: true,
+                forwardGuidance: {
+                  select: {
+                    id: true,
+                    managementCommentary: true,
+                    analystConsensusFY1: true,
+                  },
+                },
               },
             },
             contingentLiabilitiesAndRegulatoryRisk: {
@@ -185,54 +198,35 @@ export const getReportDetails = async (symbol: string) => {
               },
             },
           },
-          
         },
         companyName: true,
       },
       data: {
         report: {
           update: {
-            businessSegmentData: {
+            interimResultsAndQuarterlyPerformance: {
               create: {
-                businessModelDynamics:
-                  businessSegmentData.businessModelDynamics,
-                revenueModelBreakdown: {
+                title: interimResultsAndQuarterlyPerformance.title,
+                keyPositives: interimResultsAndQuarterlyPerformance.keyPositives,
+                keyNegatives: interimResultsAndQuarterlyPerformance.keyNegatives,
+                recordFinancialPerformance: {
                   createMany: {
-                    data: businessSegmentData.revenueModelBreakdown.map(
-                      (row) => ({
-                        revenueStream: row.revenueStream,
-                        amount: row.amount,
-                        percentOfTotal: row.percentOfTotal,
-                        growth: row.growth,
-                        driver: row.driver,
-                      }),
-                    ),
+                    data: interimResultsAndQuarterlyPerformance.recordFinancialPerformance,
                   },
                 },
-                platformSegmentPerformance: {
-                  createMany: {
-                    data: businessSegmentData.platformSegmentsPerformance.map(
-                      (row) => ({
-                        segment: row.segment,
-                        customers: row.customers,
-                        aua: row.aua,
-                        growth: row.growth,
-                        netInflows: row.netInflows,
-                        comments: row.comments,
-                      }),
-                    ),
-                  },
-                },
-                competitivePosition: {
+                forwardGuidance: {
                   create: {
-                    keyCompetitors: {
-                      createMany: {
-                        data: businessSegmentData.competitivePosition.keyCompetitors,
+                    managementCommentary: {
+                      create: {
+                        ceoName:
+                          interimResultsAndQuarterlyPerformance.forwardGuidance.managementCommentary.ceoName,
+                        quotes:
+                          interimResultsAndQuarterlyPerformance.forwardGuidance.managementCommentary.quotes,
                       },
                     },
-                    competitiveAdvantage: {
+                    analystConsensusFY1: {
                       createMany: {
-                        data: businessSegmentData.competitivePosition.competitiveAdvantages,
+                        data: interimResultsAndQuarterlyPerformance.forwardGuidance.analystConsensusFY1,
                       },
                     },
                   },
@@ -256,8 +250,10 @@ export const getReportDetails = async (symbol: string) => {
       await getEquityValuationAboutCompany(symbol);
     const financialStatementAnalysisInfo =
       await getFinancialStatementsAnalysisAboutCompany(symbol);
-          const businessSegmentData =
+    const businessSegmentData =
       await getBusinessSegmentDataAboutCompany(symbol);
+          const interimResultsAndQuarterlyPerformance =
+      await getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol);
     const newInfo = await prisma.company.update({
       where: { symbol },
       select: {
@@ -326,11 +322,17 @@ export const getReportDetails = async (symbol: string) => {
             interimResultsAndQuarterlyPerformance: {
               select: {
                 id: true,
-                forwardGuidance: true,
-                keyNegatives: true,
-                keyPositives: true,
-                recordFinancialPerformance: true,
                 title: true,
+                keyPositives: true,
+                keyNegatives: true,
+                recordFinancialPerformance: true,
+                forwardGuidance: {
+                  select: {
+                    id: true,
+                    managementCommentary: true,
+                    analystConsensusFY1: true,
+                  },
+                },
               },
             },
             contingentLiabilitiesAndRegulatoryRisk: {
@@ -533,13 +535,15 @@ export const getReportDetails = async (symbol: string) => {
                   businessSegmentData.businessModelDynamics,
                 revenueModelBreakdown: {
                   createMany: {
-                    data: businessSegmentData.revenueModelBreakdown.map((row) => ({
-                      revenueStream: row.revenueStream,
-                      amount: row.amount,
-                      percentOfTotal: row.percentOfTotal,
-                      growth: row.growth,
-                      driver: row.driver,
-                    })),
+                    data: businessSegmentData.revenueModelBreakdown.map(
+                      (row) => ({
+                        revenueStream: row.revenueStream,
+                        amount: row.amount,
+                        percentOfTotal: row.percentOfTotal,
+                        growth: row.growth,
+                        driver: row.driver,
+                      }),
+                    ),
                   },
                 },
                 platformSegmentPerformance: {
@@ -560,12 +564,43 @@ export const getReportDetails = async (symbol: string) => {
                   create: {
                     keyCompetitors: {
                       createMany: {
-                        data: businessSegmentData.competitivePosition.keyCompetitors,
+                        data: businessSegmentData.competitivePosition
+                          .keyCompetitors,
                       },
                     },
                     competitiveAdvantage: {
                       createMany: {
-                        data: businessSegmentData.competitivePosition.competitiveAdvantages,
+                        data: businessSegmentData.competitivePosition
+                          .competitiveAdvantages,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            interimResultsAndQuarterlyPerformance: {
+              create: {
+                title: interimResultsAndQuarterlyPerformance.title,
+                keyPositives: interimResultsAndQuarterlyPerformance.keyPositives,
+                keyNegatives: interimResultsAndQuarterlyPerformance.keyNegatives,
+                recordFinancialPerformance: {
+                  createMany: {
+                    data: interimResultsAndQuarterlyPerformance.recordFinancialPerformance,
+                  },
+                },
+                forwardGuidance: {
+                  create: {
+                    managementCommentary: {
+                      create: {
+                        ceoName:
+                          interimResultsAndQuarterlyPerformance.forwardGuidance.managementCommentary.ceoName,
+                        quotes:
+                          interimResultsAndQuarterlyPerformance.forwardGuidance.managementCommentary.quotes,
+                      },
+                    },
+                    analystConsensusFY1: {
+                      createMany: {
+                        data: interimResultsAndQuarterlyPerformance.forwardGuidance.analystConsensusFY1,
                       },
                     },
                   },

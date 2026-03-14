@@ -1086,7 +1086,7 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='7. INTERIM RESULTS & QUARTERLY PERFORMANCE'
         symbol={symbol}
-        //  onEnhanceSection={}
+         onEnhanceSection={}
       >
         {JSON.stringify(
           report.data.report?.interimResultsAndQuarterlyPerformance,
