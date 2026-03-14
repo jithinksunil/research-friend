@@ -87,6 +87,7 @@ model Report {
   businessSegmentData                    BusinessSegmentData?
   interimResultsAndQuarterlyPerformance  InterimResultsAndQuarterlyPerformance?
   contingentLiabilitiesAndRegulatoryRisk ContingentLiabilitiesAndRegulatoryRisk?
+  conclusionAndRecommendation            ConclusionAndRecommendation?
 
   @@map("report")
 }
@@ -754,6 +755,41 @@ model KeyRegulatoryConsiderations {
   updatedAt DateTime @updatedAt
 
   @@map("key_regulatory_considerations")
+}
+
+enum RecommendationType {
+  BUY
+  HOLD
+  SELL
+
+  @@map("recommendation_type")
+}
+
+model ConclusionAndRecommendation {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  sectionTitle            String
+  summary                 String
+  strengths               String[]
+  valuationSummary        String
+  analystConsensus        String
+  investorFit             String[]
+  entryStrategy           String[]
+  upsideCatalysts         String[]
+  downsideCatalysts       String[]
+  recommendation          RecommendationType
+  priceTarget             String
+  expectedReturn          String
+  timeHorizon             String
+  riskProfile             String
+  disclaimer              String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("conclusion_and_recommendation")
 }
 
 // {

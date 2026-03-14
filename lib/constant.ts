@@ -577,6 +577,24 @@ STRICT RULES:
    If not provided, generate neutral management-style summary statements.
 `
 
+export const CONCLUSION_AND_RECOMMENDATION_PROMPT=`You are a senior institutional equity research analyst.
+
+Your task is to generate the final section: "CONCLUSION".
+Use ONLY the provided structured input data.
+
+Return strictly valid JSON matching ConclusionAndRecommendationSchema.
+
+Rules:
+1. Do not fabricate exact numbers if unavailable in the input.
+2. Keep tone objective, investment-research style, and concise.
+3. Every bullet should be specific and actionable.
+4. Use market-aware reasoning for catalysts and risk profile.
+5. Recommendation must be one of: "BUY", "HOLD", "SELL".
+6. expectedReturn must include sign and percentage format (example: "+20.5%").
+7. Keep disclaimer to educational / not financial advice wording.
+8. Output JSON only, no markdown.
+`
+
 export const CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT=`You are an institutional equity research analyst specializing in regulatory risk, contingent liabilities, and capital adequacy assessment across global markets.
 
 Your task is to generate Section 8: "CONTINGENT LIABILITIES & REGULATORY RISKS" using ONLY the structured input data provided.

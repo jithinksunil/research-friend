@@ -5,6 +5,7 @@ import {
   getAnalystRecommendationsAboutCompany,
   getBusinessSegmentDataAboutCompany,
   getContingentLiabilitiesAndRegulatoryRiskAboutCompany,
+  getConclusionAndRecommendationAboutCompany,
   getEquityValuationAboutCompany,
   getExecutiveInformationAboutCompany,
   getFinancialStatementsAnalysisAboutCompany,
@@ -13,7 +14,7 @@ import {
   getShareholderStructureAboutCompany,
 } from '@/server';
 
-export const getReportDetails = async (symbol: string) => {
+export const getReportDetails = async (symbol: string) => {  
   let company = (await prisma.company.upsert({
     where: { symbol },
     create: { symbol },
@@ -105,147 +106,16 @@ export const getReportDetails = async (symbol: string) => {
               netContingentPosition: true,
             },
           },
+          conclusionAndRecommendation: true,
         },
       },
       companyName: true,
     },
   }))!;
-  if (!company.report?.interimResultsAndQuarterlyPerformance) {
-    const interimResultsAndQuarterlyPerformance =
-      await getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol);
 
-    const newInfo = await prisma.company.update({
-      where: { symbol },
-      select: {
-        report: {
-          select: {
-            executiveSummary: true,
-            overviewAndStockMetrics: {
-              select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
-            },
-            shareHolderStructure: {
-              select: {
-                majorShareholders: true,
-                keyInsiderObservations: true,
-                shareCapitalNotes: true,
-                totalShares: true,
-              },
-            },
-            analystRecommendation: {
-              select: {
-                consensusDetails: true,
-                currentConsensus: true,
-                recentAnalystViews: true,
-              },
-            },
-            equityValuationAndDcfAnalysis: {
-              select: {
-                keyAssumptions: true,
-                dcfValuationBuildup: true,
-                keyTakeAway: true,
-                projectedFinancialYears: { include: { projections: true } },
-                valuationSensitivities: { include: { values: true } },
-              },
-            },
-            financialStatementAnalyasis: {
-              select: {
-                keyObservations: true,
-                capitalPositionAnalysis: true,
-                fcfQualityAnalysis: true,
-                valuationObservations: true,
-                incomeStatementTrendRows: true,
-                balanceSheetStrengthRows: true,
-                cashFlowAnalysisRows: true,
-                financialRatioMetrics: { include: { values: true } },
-              },
-            },
-            businessSegmentData: {
-              select: {
-                id: true,
-                businessModelDynamics: true,
-                competitivePosition: {
-                  select: {
-                    id: true,
-                    keyCompetitors: true,
-                    competitiveAdvantage: true,
-                  },
-                },
-                platformSegmentPerformance: true,
-                revenueModelBreakdown: true,
-              },
-            },
-            interimResultsAndQuarterlyPerformance: {
-              select: {
-                id: true,
-                title: true,
-                keyPositives: true,
-                keyNegatives: true,
-                recordFinancialPerformance: true,
-                forwardGuidance: {
-                  select: {
-                    id: true,
-                    managementCommentary: true,
-                    analystConsensusFY1: true,
-                  },
-                },
-              },
-            },
-            contingentLiabilitiesAndRegulatoryRisk: {
-              select: {
-                id: true,
-                balanceSheetContingencies: true,
-                keyRegulatoryConsiderations: true,
-                netContingentPosition: true,
-              },
-            },
-          },
-        },
-        companyName: true,
-      },
-      data: {
-        report: {
-          update: {
-            interimResultsAndQuarterlyPerformance: {
-              create: {
-                title: interimResultsAndQuarterlyPerformance.title,
-                keyPositives: interimResultsAndQuarterlyPerformance.keyPositives,
-                keyNegatives: interimResultsAndQuarterlyPerformance.keyNegatives,
-                recordFinancialPerformance: {
-                  createMany: {
-                    data: interimResultsAndQuarterlyPerformance.recordFinancialPerformance,
-                  },
-                },
-                forwardGuidance: {
-                  create: {
-                    managementCommentary: {
-                      create: {
-                        ceoName:
-                          interimResultsAndQuarterlyPerformance.forwardGuidance.managementCommentary.ceoName,
-                        quotes:
-                          interimResultsAndQuarterlyPerformance.forwardGuidance.managementCommentary.quotes,
-                      },
-                    },
-                    analystConsensusFY1: {
-                      createMany: {
-                        data: interimResultsAndQuarterlyPerformance.forwardGuidance.analystConsensusFY1,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    //@ts-ignore
-    company = { ...newInfo };
-  }
-
-  if (!company.report?.contingentLiabilitiesAndRegulatoryRisk) {
-    const contingentLiabilitiesAndRegulatoryRisk =
-      await getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol);
+  if (!company.report?.conclusionAndRecommendation) {
+    const conclusionAndRecommendation =
+      await getConclusionAndRecommendationAboutCompany(symbol);
 
     const newInfo = await prisma.company.update({
       where: { symbol },
@@ -332,6 +202,7 @@ export const getReportDetails = async (symbol: string) => {
                 netContingentPosition: true,
               },
             },
+            conclusionAndRecommendation: true,
           },
         },
         companyName: true,
@@ -339,32 +210,18 @@ export const getReportDetails = async (symbol: string) => {
       data: {
         report: {
           update: {
-            contingentLiabilitiesAndRegulatoryRisk: {
-              create: {
-                sectionTitle: contingentLiabilitiesAndRegulatoryRisk.sectionTitle,
-                balanceSheetContingencies: {
-                  createMany: {
-                    data: contingentLiabilitiesAndRegulatoryRisk.balanceSheetContingencies,
-                  },
-                },
-                netContingentPosition: {
-                  create: contingentLiabilitiesAndRegulatoryRisk.netContingentPosition,
-                },
-                keyRegulatoryConsiderations: {
-                  createMany: {
-                    data: contingentLiabilitiesAndRegulatoryRisk.regulatoryEnvironment.keyRegulatoryConsiderations,
-                  },
-                },
-              },
+            conclusionAndRecommendation: {
+              create: conclusionAndRecommendation,
             },
           },
         },
       },
     });
 
-    //@ts-ignore
+    // @ts-ignore
     company = { ...newInfo };
   }
+
   if (!company?.report) {
     const executiveInfo = await getExecutiveInformationAboutCompany(symbol);
     const overviewInfo = await getOverviewMetricsAboutCompany(symbol);
@@ -380,6 +237,8 @@ export const getReportDetails = async (symbol: string) => {
       await getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol);
     const contingentLiabilitiesAndRegulatoryRisk =
       await getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol);
+    const conclusionAndRecommendation =
+      await getConclusionAndRecommendationAboutCompany(symbol);
     const newInfo = await prisma.company.update({
       where: { symbol },
       select: {
@@ -469,6 +328,7 @@ export const getReportDetails = async (symbol: string) => {
                 netContingentPosition: true,
               },
             },
+            conclusionAndRecommendation: true,
           },
         },
         companyName: true,
@@ -647,7 +507,7 @@ export const getReportDetails = async (symbol: string) => {
                 financialRatioMetrics: {
                   createMany: {
                     data: financialStatementAnalysisInfo.financialRatiosAndCreditMetrics.table.map(
-                      ({ metric, values }) => ({
+                      ({ metric }) => ({
                         metric,
                       }),
                     ),
@@ -750,6 +610,9 @@ export const getReportDetails = async (symbol: string) => {
                   },
                 },
               },
+            },
+            conclusionAndRecommendation: {
+              create: conclusionAndRecommendation,
             },
           },
         },
