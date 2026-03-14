@@ -891,7 +891,7 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='6. BUSINESS SEGMENTS & COMPETITIVE POSITION'
         symbol={symbol}
-         onEnhanceSection={}
+        //  onEnhanceSection={}
       >
         {(() => {
           const bs = report.data.report?.businessSegmentData as any;
