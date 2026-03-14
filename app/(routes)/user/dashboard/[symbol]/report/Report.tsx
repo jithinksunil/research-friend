@@ -14,6 +14,7 @@ import {
   enhanceAnalystRecommendationSection,
   enhanceEquityValuationAndDcfAnalysisSection,
   enhanceFinancialStatementAnalysisSection,
+  enhanceBusinessSegmentDataSection,
 } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -891,7 +892,20 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='6. BUSINESS SEGMENTS & COMPETITIVE POSITION'
         symbol={symbol}
-        //  onEnhanceSection={}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceBusinessSegmentDataSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.businessSegmentData = result.data;
+              }),
+          );
+        }}
       >
         {(() => {
           const bs = report.data.report?.businessSegmentData as any;

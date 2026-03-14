@@ -7,6 +7,7 @@ import {
   ANALYST_RECOMMENDATION_PROMPT,
   EQUITY_VALUATION_PROMPT,
   FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
+  BUSINESS_SEGMENT_DATA_PROMPT,
 } from '@/lib';
 import prisma from '@/prisma';
 import {
@@ -16,6 +17,7 @@ import {
   AnalystRecommendationsSchema,
   EquityValuationDcfSchema,
   FinancialStatementsAnalysisSchema,
+  BusinessSegmentsCompetitivePositionSchema,
   improveSection,
   requireRBAC,
 } from '@/server';
@@ -186,6 +188,96 @@ export const enhanceAnalystRecommendationSection = requireRBAC(
       recentAnalystViews: true,
       currentConsensus: true,
       consensusDetails: true,
+    },
+  });
+
+  return {
+    okay: true,
+    data: updated,
+  };
+});
+
+export const enhanceBusinessSegmentDataSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const businessSegmentData = (await prisma.businessSegmentData.findFirst({
+    where: { report: { company: { symbol } } },
+    include: {
+      revenueModelBreakdown: true,
+      platformSegmentPerformance: true,
+      competitivePosition: {
+        include: { keyCompetitors: true, competitiveAdvantage: true },
+      },
+    },
+  }))!;
+
+  const businessSegmentInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(businessSegmentData)}`,
+    systemPrompt: BUSINESS_SEGMENT_DATA_PROMPT,
+    schema: BusinessSegmentsCompetitivePositionSchema,
+    schemaName: 'BusinessSegmentsCompetitivePosition',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.businessSegmentData.update({
+    where: { id: businessSegmentData.id },
+    data: {
+      businessModelDynamics: businessSegmentInfo.businessModelDynamics,
+      revenueModelBreakdown: {
+        deleteMany: {},
+        createMany: {
+          data: businessSegmentInfo.revenueModelBreakdown,
+        },
+      },
+      platformSegmentPerformance: {
+        deleteMany: {},
+        createMany: {
+          data: businessSegmentInfo.platformSegmentsPerformance,
+        },
+      },
+      competitivePosition: {
+        upsert: {
+          create: {
+            keyCompetitors: {
+              createMany: {
+                data: businessSegmentInfo.competitivePosition.keyCompetitors,
+              },
+            },
+            competitiveAdvantage: {
+              createMany: {
+                data: businessSegmentInfo.competitivePosition.competitiveAdvantages,
+              },
+            },
+          },
+          update: {
+            keyCompetitors: {
+              deleteMany: {},
+              createMany: {
+                data: businessSegmentInfo.competitivePosition.keyCompetitors,
+              },
+            },
+            competitiveAdvantage: {
+              deleteMany: {},
+              createMany: {
+                data: businessSegmentInfo.competitivePosition.competitiveAdvantages,
+              },
+            },
+          },
+        },
+      },
+    },
+    select: {
+      id: true,
+      businessModelDynamics: true,
+      competitivePosition: {
+        select: {
+          id: true,
+          keyCompetitors: true,
+          competitiveAdvantage: true,
+        },
+      },
+      platformSegmentPerformance: true,
+      revenueModelBreakdown: true,
     },
   });
 
