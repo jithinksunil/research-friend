@@ -63,11 +63,91 @@ interface StockResearchData {
   currency: string;
 }
 
-const yahooFinance = new YahooFinance();
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+
+type LegacyIncomeStatement = {
+  endDate: string;
+  totalRevenue: number | null;
+  operatingIncome: number | null;
+  netIncome: number | null;
+};
+
+type LegacyBalanceSheetStatement = {
+  endDate: string;
+  cash: number | null;
+  totalAssets: number | null;
+  totalDebt: number | null;
+  totalStockholderEquity: number | null;
+  totalLiab: number | null;
+};
+
+type LegacyCashflowStatement = {
+  endDate: string;
+  totalCashFromOperatingActivities: number | null;
+  capitalExpenditures: number | null;
+  dividendsPaid: number | null;
+  repurchasesOfStock: number | null;
+};
+
+async function getAnnualFinancialStatements(symbol: string, years = 8) {
+  const period1 = new Date(
+    Date.now() - years * 365.25 * 24 * 60 * 60 * 1000,
+  )
+    .toISOString()
+    .slice(0, 10);
+
+  const timeSeries = await yahooFinance.fundamentalsTimeSeries(symbol, {
+    module: 'all',
+    type: 'annual',
+    period1,
+    period2: new Date().toISOString().slice(0, 10),
+  });
+
+  const sortedSeries = [...timeSeries].sort(
+    (a, b) => b.date.getTime() - a.date.getTime(),
+  );
+
+  const incomeStatements: LegacyIncomeStatement[] = sortedSeries.map((item) => ({
+    endDate: item.date.toISOString(),
+    totalRevenue: item.totalRevenue ?? null,
+    operatingIncome: item.operatingIncome ?? null,
+    netIncome: item.netIncome ?? null,
+  }));
+
+  const balanceSheetStatements: LegacyBalanceSheetStatement[] = sortedSeries.map(
+    (item) => ({
+      endDate: item.date.toISOString(),
+      cash: item.cashAndCashEquivalents ?? null,
+      totalAssets: item.totalAssets ?? null,
+      totalDebt: item.totalDebt ?? null,
+      totalStockholderEquity: item.totalEquityGrossMinorityInterest ?? null,
+      totalLiab: item.totalLiabilitiesNetMinorityInterest ?? null,
+    }),
+  );
+
+  const cashflowStatements: LegacyCashflowStatement[] = sortedSeries.map(
+    (item) => ({
+      endDate: item.date.toISOString(),
+      totalCashFromOperatingActivities: item.operatingCashFlow ?? null,
+      capitalExpenditures: item.capitalExpenditure
+        ? -Math.abs(item.capitalExpenditure)
+        : null,
+      dividendsPaid: item.cashDividendsPaid
+        ? -Math.abs(item.cashDividendsPaid)
+        : null,
+      repurchasesOfStock: item.repurchaseOfCapitalStock
+        ? -Math.abs(item.repurchaseOfCapitalStock)
+        : null,
+    }),
+  );
+
+  return { incomeStatements, balanceSheetStatements, cashflowStatements };
+}
 export async function getTrimmedExecutiveData(
   symbol: string,
 ): Promise<StockResearchData> {
-  const [summary, chart] = await Promise.all([
+  const [{ incomeStatements }, summary, chart] = await Promise.all([
+    getAnnualFinancialStatements(symbol),
     yahooFinance.quoteSummary(symbol, {
       modules: [
         'assetProfile',
@@ -75,7 +155,6 @@ export async function getTrimmedExecutiveData(
         'summaryDetail',
         'financialData',
         'defaultKeyStatistics',
-        'incomeStatementHistory',
         'earningsTrend',
       ],
     }),
@@ -92,9 +171,8 @@ export async function getTrimmedExecutiveData(
   const safe = (v: any) => v ?? null;
 
   // ---- Financials ----
-  const income = summary.incomeStatementHistory?.incomeStatementHistory || [];
-  const latest = income[0];
-  const previous = income[1];
+  const latest = incomeStatements[0];
+  const previous = incomeStatements[1];
 
   const revenueTTM = latest?.totalRevenue ?? null;
   const netIncomeTTM = latest?.netIncome ?? null;
@@ -792,13 +870,10 @@ export async function getTrimmedEquityValuationData(
   } = options || {};
 
   const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'price',
-      'financialData',
-      'defaultKeyStatistics',
-      'incomeStatementHistory',
-    ],
+    modules: ['price', 'financialData', 'defaultKeyStatistics'],
   });
+
+  const { incomeStatements } = await getAnnualFinancialStatements(symbol);
 
   // -----------------------------
   // Context
@@ -820,12 +895,9 @@ export async function getTrimmedEquityValuationData(
 
   const netDebt = totalDebt - totalCash;
 
-  const latestRevenue =
-    summary.incomeStatementHistory?.incomeStatementHistory?.[0]?.totalRevenue ??
-    0;
+  const latestRevenue = incomeStatements[0]?.totalRevenue ?? 0;
 
-  const latestNetIncome =
-    summary.incomeStatementHistory?.incomeStatementHistory?.[0]?.netIncome ?? 0;
+  const latestNetIncome = incomeStatements[0]?.netIncome ?? 0;
 
   const netMargin = latestRevenue > 0 ? latestNetIncome / latestRevenue : 0;
 
@@ -1077,26 +1149,21 @@ export async function getTrimmedFinancialStatementsAnalysisData(
   symbol: string,
   reportingStandard: 'UK' | 'US' | 'India' | 'Global' = 'Global',
 ): Promise<FinancialStatementsAnalysisData> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'price',
-      'incomeStatementHistory',
-      'balanceSheetHistory',
-      'cashflowStatementHistory',
-      'defaultKeyStatistics',
-      'financialData',
-    ],
-  });
+  const [summary, annualStatements] = await Promise.all([
+    yahooFinance.quoteSummary(symbol, {
+      modules: ['price', 'defaultKeyStatistics', 'financialData'],
+    }),
+    getAnnualFinancialStatements(symbol),
+  ]);
 
   const currency = summary.price?.currency ?? null;
 
-  const incomeStatements =
-    summary.incomeStatementHistory?.incomeStatementHistory ?? [];
+  const { incomeStatements, balanceSheetStatements, cashflowStatements } =
+    annualStatements;
 
-  const balanceSheets =
-    summary.balanceSheetHistory?.balanceSheetStatements ?? [];
+  const balanceSheets = balanceSheetStatements;
 
-  const cashFlows = summary.cashflowStatementHistory?.cashflowStatements ?? [];
+  const cashFlows = cashflowStatements;
 
   // Take latest 6 fiscal years
   const latestIncome = incomeStatements.slice(0, 6);
@@ -1366,28 +1433,20 @@ export async function getTrimmedBusinessSegmentsData(
   symbol: string,
   marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
 ): Promise<BusinessSegmentsData> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'price',
-      'assetProfile',
-      'financialData',
-      'defaultKeyStatistics',
-      'incomeStatementHistory',
-      'balanceSheetHistory',
-    ],
-  });
+  const [summary, annualStatements] = await Promise.all([
+    yahooFinance.quoteSummary(symbol, {
+      modules: ['price', 'assetProfile', 'financialData', 'defaultKeyStatistics'],
+    }),
+    getAnnualFinancialStatements(symbol),
+  ]);
 
   const currency = summary.price?.currency ?? null;
 
-  const incomeStatements =
-    summary.incomeStatementHistory?.incomeStatementHistory ?? [];
+  const { incomeStatements, balanceSheetStatements } = annualStatements;
 
   const latestIncome = incomeStatements[0] ?? null;
 
-  const balanceSheets =
-    summary.balanceSheetHistory?.balanceSheetStatements ?? [];
-
-  const latestBalance = balanceSheets[0] ?? null;
+  const latestBalance = balanceSheetStatements[0] ?? null;
 
   // 3Y revenue volatility (growth consistency proxy)
   const revenues = incomeStatements
@@ -1633,24 +1692,24 @@ export async function getInterimResultsData(
   symbol: string,
   marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
 ): Promise<InterimResultsData> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'price',
-      'incomeStatementHistory',
-      'cashflowStatementHistory',
-      'financialData',
-      'defaultKeyStatistics',
-      'earningsTrend',
-      'summaryDetail',
-    ],
-  });
+  const [summary, annualStatements] = await Promise.all([
+    yahooFinance.quoteSummary(symbol, {
+      modules: [
+        'price',
+        'financialData',
+        'defaultKeyStatistics',
+        'earningsTrend',
+        'summaryDetail',
+      ],
+    }),
+    getAnnualFinancialStatements(symbol),
+  ]);
 
   const currency = summary.price?.currency ?? null;
 
-  const incomeStatements =
-    summary.incomeStatementHistory?.incomeStatementHistory ?? [];
+  const { incomeStatements, cashflowStatements } = annualStatements;
 
-  const cashFlows = summary.cashflowStatementHistory?.cashflowStatements ?? [];
+  const cashFlows = cashflowStatements;
 
   const latestIncome = incomeStatements[0];
   const previousIncome = incomeStatements[1];
@@ -1938,15 +1997,12 @@ export async function getContingentLiabilitiesData(
   symbol: string,
   marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
 ): Promise<ContingentLiabilitiesRegulatoryRiskData> {
-  const [summary, chart] = await Promise.all([
+  const [summary, chart, annualStatements] = await Promise.all([
     yahooFinance.quoteSummary(symbol, {
       modules: [
         'price',
         'assetProfile',
         'financialData',
-        'balanceSheetHistory',
-        'cashflowStatementHistory',
-        'incomeStatementHistory',
         'defaultKeyStatistics',
         'summaryDetail',
       ],
@@ -1958,6 +2014,7 @@ export async function getContingentLiabilitiesData(
       period2: new Date().toISOString().slice(0, 10),
       interval: '1mo',
     }),
+    getAnnualFinancialStatements(symbol),
   ]);
 
   /* ============================= */
@@ -1983,8 +2040,7 @@ export async function getContingentLiabilitiesData(
   /* Balance Sheet                 */
   /* ============================= */
 
-  const balanceStatements =
-    summary.balanceSheetHistory?.balanceSheetStatements ?? [];
+  const balanceStatements = annualStatements.balanceSheetStatements;
 
   const latestBalance = balanceStatements[0] as
     | ExtendedBalanceSheet
@@ -2004,7 +2060,7 @@ export async function getContingentLiabilitiesData(
   /* Cash Flow                     */
   /* ============================= */
 
-  const cashFlows = summary.cashflowStatementHistory?.cashflowStatements ?? [];
+  const cashFlows = annualStatements.cashflowStatements;
 
   const latestCF = cashFlows[0] as ExtendedCashFlow | undefined;
 
@@ -2017,8 +2073,7 @@ export async function getContingentLiabilitiesData(
   /* Income                        */
   /* ============================= */
 
-  const incomeStatements =
-    summary.incomeStatementHistory?.incomeStatementHistory ?? [];
+  const incomeStatements = annualStatements.incomeStatements;
 
   const latestIncome = incomeStatements[0] as
     | ExtendedIncomeStatement

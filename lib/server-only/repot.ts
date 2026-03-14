@@ -205,10 +205,10 @@ export const getReportDetails = async (symbol: string) => {
         'forwardProjectionsAndValuation',
         getForwardProjectionsAndValuationAboutCompany(symbol),
       ),
-      withSuccessLog(
-        'interimResultsAndQuarterlyPerformance',
-        getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol),
-      ),
+      // withSuccessLog(
+      //   'interimResultsAndQuarterlyPerformance',
+      //   getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol),
+      // ),
       withSuccessLog(
         'contingentLiabilitiesAndRegulatoryRisk',
         getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol),
@@ -236,7 +236,7 @@ export const getReportDetails = async (symbol: string) => {
       financialStatementAnalysisInfoResult,
       businessSegmentDataResult,
       forwardProjectionsAndValuationResult,
-      interimResultsAndQuarterlyPerformanceResult,
+      // interimResultsAndQuarterlyPerformanceResult,
       contingentLiabilitiesAndRegulatoryRiskResult,
       agmAndShareholderMattersResult,
       conclusionAndRecommendationResult,
@@ -262,9 +262,9 @@ export const getReportDetails = async (symbol: string) => {
     const forwardProjectionsAndValuation = resolveSettled(
       forwardProjectionsAndValuationResult,
     );
-    const interimResultsAndQuarterlyPerformance = resolveSettled(
-      interimResultsAndQuarterlyPerformanceResult,
-    );
+    // const interimResultsAndQuarterlyPerformance = resolveSettled(
+    //   interimResultsAndQuarterlyPerformanceResult,
+    // );
     const contingentLiabilitiesAndRegulatoryRisk = resolveSettled(
       contingentLiabilitiesAndRegulatoryRiskResult,
     );
@@ -649,40 +649,40 @@ export const getReportDetails = async (symbol: string) => {
                 },
               },
             },
-            interimResultsAndQuarterlyPerformance: {
-              create: {
-                title: interimResultsAndQuarterlyPerformance.title,
-                keyPositives:
-                  interimResultsAndQuarterlyPerformance.keyPositives,
-                keyNegatives:
-                  interimResultsAndQuarterlyPerformance.keyNegatives,
-                recordFinancialPerformance: {
-                  createMany: {
-                    data: interimResultsAndQuarterlyPerformance.recordFinancialPerformance,
-                  },
-                },
-                forwardGuidance: {
-                  create: {
-                    managementCommentary: {
-                      create: {
-                        ceoName:
-                          interimResultsAndQuarterlyPerformance.forwardGuidance
-                            .managementCommentary.ceoName,
-                        quotes:
-                          interimResultsAndQuarterlyPerformance.forwardGuidance
-                            .managementCommentary.quotes,
-                      },
-                    },
-                    analystConsensusFY1: {
-                      createMany: {
-                        data: interimResultsAndQuarterlyPerformance
-                          .forwardGuidance.analystConsensusFY1,
-                      },
-                    },
-                  },
-                },
-              },
-            },
+            // interimResultsAndQuarterlyPerformance: {
+            //   create: {
+            //     title: interimResultsAndQuarterlyPerformance.title,
+            //     keyPositives:
+            //       interimResultsAndQuarterlyPerformance.keyPositives,
+            //     keyNegatives:
+            //       interimResultsAndQuarterlyPerformance.keyNegatives,
+            //     recordFinancialPerformance: {
+            //       createMany: {
+            //         data: interimResultsAndQuarterlyPerformance.recordFinancialPerformance,
+            //       },
+            //     },
+            //     forwardGuidance: {
+            //       create: {
+            //         managementCommentary: {
+            //           create: {
+            //             ceoName:
+            //               interimResultsAndQuarterlyPerformance.forwardGuidance
+            //                 .managementCommentary.ceoName,
+            //             quotes:
+            //               interimResultsAndQuarterlyPerformance.forwardGuidance
+            //                 .managementCommentary.quotes,
+            //           },
+            //         },
+            //         analystConsensusFY1: {
+            //           createMany: {
+            //             data: interimResultsAndQuarterlyPerformance
+            //               .forwardGuidance.analystConsensusFY1,
+            //           },
+            //         },
+            //       },
+            //     },
+            //   },
+            // },
             contingentLiabilitiesAndRegulatoryRisk: {
               create: {
                 sectionTitle:
