@@ -6,6 +6,7 @@ import { SectionWrapper } from './SectionWrapper';
 import { Description } from './Description';
 import { List } from './List';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
+import { FullScreenLoader } from '@/components/common';
 import { cn, formatDate } from '@/lib';
 import {
   enhanceCompanyOverviewAndStockMetricsSection,
@@ -76,7 +77,7 @@ function Report({ symbol }: { symbol: string }) {
   });
   const queryClient = useQueryClient();
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <FullScreenLoader />;
   if (!report) return <div>Report not found</div>;
 
   return (
