@@ -5,6 +5,9 @@ import {
   getAnalystRecommendationsAboutCompany,
   getBusinessSegmentDataAboutCompany,
   getContingentLiabilitiesAndRegulatoryRiskAboutCompany,
+  getDcfValuationRecapAndPriceTargetAboutCompany,
+  getAgmAndShareholderMattersAboutCompany,
+  getConclusionAndRecommendationAboutCompany,
   getEquityValuationAboutCompany,
   getExecutiveInformationAboutCompany,
   getFinancialStatementsAnalysisAboutCompany,
@@ -105,6 +108,40 @@ export const getReportDetails = async (symbol: string) => {
               netContingentPosition: true,
             },
           },
+          dcfValuationRecapAndPriceTarget: {
+            select: {
+              id: true,
+              sectionTitle: true,
+              valuationSummaryTitle: true,
+              baseCaseAssumption: true,
+              pvOfFcf: true,
+              pvOfTerminalValue: true,
+              enterpriseValue: true,
+              netDebt: true,
+              equityValue: true,
+              sharesDiluted: true,
+              fairValuePerShare: true,
+              currentPrice: true,
+              upside: true,
+              recommendation: true,
+              twelveMonthPriceTarget: true,
+              rationaleForPriceTarget: true,
+              sensitivityAnalysisRecap: true,
+            },
+          },
+          agmAndShareholderMatters: {
+            select: {
+              id: true,
+              sectionTitle: true,
+              announcedDate: true,
+              location: true,
+              noticeFiled: true,
+              specialResolutionsExpected: true,
+              keyGovernanceNotes: true,
+              expectedVotingAgenda: true,
+            },
+          },
+          conclusionAndRecommendation: true,
         },
       },
       companyName: true,
@@ -196,6 +233,39 @@ export const getReportDetails = async (symbol: string) => {
                 balanceSheetContingencies: true,
                 keyRegulatoryConsiderations: true,
                 netContingentPosition: true,
+              },
+            },
+            dcfValuationRecapAndPriceTarget: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                valuationSummaryTitle: true,
+                baseCaseAssumption: true,
+                pvOfFcf: true,
+                pvOfTerminalValue: true,
+                enterpriseValue: true,
+                netDebt: true,
+                equityValue: true,
+                sharesDiluted: true,
+                fairValuePerShare: true,
+                currentPrice: true,
+                upside: true,
+                recommendation: true,
+                twelveMonthPriceTarget: true,
+                rationaleForPriceTarget: true,
+                sensitivityAnalysisRecap: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
               },
             },
           },
@@ -332,6 +402,39 @@ export const getReportDetails = async (symbol: string) => {
                 netContingentPosition: true,
               },
             },
+            dcfValuationRecapAndPriceTarget: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                valuationSummaryTitle: true,
+                baseCaseAssumption: true,
+                pvOfFcf: true,
+                pvOfTerminalValue: true,
+                enterpriseValue: true,
+                netDebt: true,
+                equityValue: true,
+                sharesDiluted: true,
+                fairValuePerShare: true,
+                currentPrice: true,
+                upside: true,
+                recommendation: true,
+                twelveMonthPriceTarget: true,
+                rationaleForPriceTarget: true,
+                sensitivityAnalysisRecap: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
           },
         },
         companyName: true,
@@ -365,6 +468,480 @@ export const getReportDetails = async (symbol: string) => {
     //@ts-ignore
     company = { ...newInfo };
   }
+
+  if (!company.report?.dcfValuationRecapAndPriceTarget) {
+    const dcfValuationRecapAndPriceTarget =
+      await getDcfValuationRecapAndPriceTargetAboutCompany(symbol);
+
+    const newInfo = await prisma.company.update({
+      where: { symbol },
+      select: {
+        report: {
+          select: {
+            id: true,
+            executiveSummary: true,
+            overviewAndStockMetrics: {
+              select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
+            },
+            shareHolderStructure: {
+              select: {
+                majorShareholders: true,
+                keyInsiderObservations: true,
+                shareCapitalNotes: true,
+                totalShares: true,
+              },
+            },
+            analystRecommendation: {
+              select: {
+                consensusDetails: true,
+                currentConsensus: true,
+                recentAnalystViews: true,
+              },
+            },
+            equityValuationAndDcfAnalysis: {
+              select: {
+                keyAssumptions: true,
+                dcfValuationBuildup: true,
+                keyTakeAway: true,
+                projectedFinancialYears: { include: { projections: true } },
+                valuationSensitivities: { include: { values: true } },
+              },
+            },
+            financialStatementAnalyasis: {
+              select: {
+                keyObservations: true,
+                capitalPositionAnalysis: true,
+                fcfQualityAnalysis: true,
+                valuationObservations: true,
+                incomeStatementTrendRows: true,
+                balanceSheetStrengthRows: true,
+                cashFlowAnalysisRows: true,
+                financialRatioMetrics: { include: { values: true } },
+              },
+            },
+            businessSegmentData: {
+              select: {
+                id: true,
+                businessModelDynamics: true,
+                competitivePosition: {
+                  select: {
+                    id: true,
+                    keyCompetitors: true,
+                    competitiveAdvantage: true,
+                  },
+                },
+                platformSegmentPerformance: true,
+                revenueModelBreakdown: true,
+              },
+            },
+            interimResultsAndQuarterlyPerformance: {
+              select: {
+                id: true,
+                title: true,
+                keyPositives: true,
+                keyNegatives: true,
+                recordFinancialPerformance: true,
+                forwardGuidance: {
+                  select: {
+                    id: true,
+                    managementCommentary: true,
+                    analystConsensusFY1: true,
+                  },
+                },
+              },
+            },
+            contingentLiabilitiesAndRegulatoryRisk: {
+              select: {
+                id: true,
+                balanceSheetContingencies: true,
+                keyRegulatoryConsiderations: true,
+                netContingentPosition: true,
+              },
+            },
+            dcfValuationRecapAndPriceTarget: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                valuationSummaryTitle: true,
+                baseCaseAssumption: true,
+                pvOfFcf: true,
+                pvOfTerminalValue: true,
+                enterpriseValue: true,
+                netDebt: true,
+                equityValue: true,
+                sharesDiluted: true,
+                fairValuePerShare: true,
+                currentPrice: true,
+                upside: true,
+                recommendation: true,
+                twelveMonthPriceTarget: true,
+                rationaleForPriceTarget: true,
+                sensitivityAnalysisRecap: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
+            conclusionAndRecommendation: true,
+          },
+        },
+        companyName: true,
+      },
+      data: {
+        report: {
+          update: {
+            dcfValuationRecapAndPriceTarget: {
+              create: {
+                sectionTitle: dcfValuationRecapAndPriceTarget.sectionTitle,
+                valuationSummaryTitle:
+                  dcfValuationRecapAndPriceTarget.valuationSummaryTitle,
+                baseCaseAssumption:
+                  dcfValuationRecapAndPriceTarget.baseCaseAssumption,
+                pvOfFcf: dcfValuationRecapAndPriceTarget.valuationBuildUp.pvOfFcf,
+                pvOfTerminalValue:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.pvOfTerminalValue,
+                enterpriseValue:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.enterpriseValue,
+                netDebt: dcfValuationRecapAndPriceTarget.valuationBuildUp.netDebt,
+                equityValue:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.equityValue,
+                sharesDiluted:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.sharesDiluted,
+                fairValuePerShare:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.fairValuePerShare,
+                currentPrice:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.currentPrice,
+                upside: dcfValuationRecapAndPriceTarget.valuationBuildUp.upside,
+                recommendation:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.recommendation,
+                twelveMonthPriceTarget:
+                  dcfValuationRecapAndPriceTarget.twelveMonthPriceTarget,
+                rationaleForPriceTarget:
+                  dcfValuationRecapAndPriceTarget.rationaleForPriceTarget,
+                sensitivityAnalysisRecap: {
+                  createMany: {
+                    data: dcfValuationRecapAndPriceTarget.sensitivityAnalysisRecap,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // @ts-ignore
+    company = { ...newInfo };
+  }
+
+
+  if (!company.report?.agmAndShareholderMatters) {
+    const agmAndShareholderMatters =
+      await getAgmAndShareholderMattersAboutCompany(symbol);
+
+    const newInfo = await prisma.company.update({
+      where: { symbol },
+      select: {
+        report: {
+          select: {
+            id: true,
+            executiveSummary: true,
+            overviewAndStockMetrics: {
+              select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
+            },
+            shareHolderStructure: {
+              select: {
+                majorShareholders: true,
+                keyInsiderObservations: true,
+                shareCapitalNotes: true,
+                totalShares: true,
+              },
+            },
+            analystRecommendation: {
+              select: {
+                consensusDetails: true,
+                currentConsensus: true,
+                recentAnalystViews: true,
+              },
+            },
+            equityValuationAndDcfAnalysis: {
+              select: {
+                keyAssumptions: true,
+                dcfValuationBuildup: true,
+                keyTakeAway: true,
+                projectedFinancialYears: { include: { projections: true } },
+                valuationSensitivities: { include: { values: true } },
+              },
+            },
+            financialStatementAnalyasis: {
+              select: {
+                keyObservations: true,
+                capitalPositionAnalysis: true,
+                fcfQualityAnalysis: true,
+                valuationObservations: true,
+                incomeStatementTrendRows: true,
+                balanceSheetStrengthRows: true,
+                cashFlowAnalysisRows: true,
+                financialRatioMetrics: { include: { values: true } },
+              },
+            },
+            businessSegmentData: {
+              select: {
+                id: true,
+                businessModelDynamics: true,
+                competitivePosition: {
+                  select: {
+                    id: true,
+                    keyCompetitors: true,
+                    competitiveAdvantage: true,
+                  },
+                },
+                platformSegmentPerformance: true,
+                revenueModelBreakdown: true,
+              },
+            },
+            interimResultsAndQuarterlyPerformance: {
+              select: {
+                id: true,
+                title: true,
+                keyPositives: true,
+                keyNegatives: true,
+                recordFinancialPerformance: true,
+                forwardGuidance: {
+                  select: {
+                    id: true,
+                    managementCommentary: true,
+                    analystConsensusFY1: true,
+                  },
+                },
+              },
+            },
+            contingentLiabilitiesAndRegulatoryRisk: {
+              select: {
+                id: true,
+                balanceSheetContingencies: true,
+                keyRegulatoryConsiderations: true,
+                netContingentPosition: true,
+              },
+            },
+            dcfValuationRecapAndPriceTarget: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                valuationSummaryTitle: true,
+                baseCaseAssumption: true,
+                pvOfFcf: true,
+                pvOfTerminalValue: true,
+                enterpriseValue: true,
+                netDebt: true,
+                equityValue: true,
+                sharesDiluted: true,
+                fairValuePerShare: true,
+                currentPrice: true,
+                upside: true,
+                recommendation: true,
+                twelveMonthPriceTarget: true,
+                rationaleForPriceTarget: true,
+                sensitivityAnalysisRecap: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
+            conclusionAndRecommendation: true,
+          },
+        },
+        companyName: true,
+      },
+      data: {
+        report: {
+          update: {
+            agmAndShareholderMatters: {
+              create: {
+                sectionTitle: agmAndShareholderMatters.sectionTitle,
+                announcedDate: agmAndShareholderMatters.nextAgmDetails.announcedDate,
+                location: agmAndShareholderMatters.nextAgmDetails.location,
+                noticeFiled: agmAndShareholderMatters.nextAgmDetails.noticeFiled,
+                specialResolutionsExpected:
+                  agmAndShareholderMatters.specialResolutionsExpected,
+                keyGovernanceNotes: agmAndShareholderMatters.keyGovernanceNotes,
+                expectedVotingAgenda: {
+                  createMany: {
+                    data: agmAndShareholderMatters.expectedVotingAgenda,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // @ts-ignore
+    company = { ...newInfo };
+  }
+
+
+  if (!company.report?.conclusionAndRecommendation) {
+    const conclusionAndRecommendation =
+      await getConclusionAndRecommendationAboutCompany(symbol);
+
+    const newInfo = await prisma.company.update({
+      where: { symbol },
+      select: {
+        report: {
+          select: {
+            id: true,
+            executiveSummary: true,
+            overviewAndStockMetrics: {
+              select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
+            },
+            shareHolderStructure: {
+              select: {
+                majorShareholders: true,
+                keyInsiderObservations: true,
+                shareCapitalNotes: true,
+                totalShares: true,
+              },
+            },
+            analystRecommendation: {
+              select: {
+                consensusDetails: true,
+                currentConsensus: true,
+                recentAnalystViews: true,
+              },
+            },
+            equityValuationAndDcfAnalysis: {
+              select: {
+                keyAssumptions: true,
+                dcfValuationBuildup: true,
+                keyTakeAway: true,
+                projectedFinancialYears: { include: { projections: true } },
+                valuationSensitivities: { include: { values: true } },
+              },
+            },
+            financialStatementAnalyasis: {
+              select: {
+                keyObservations: true,
+                capitalPositionAnalysis: true,
+                fcfQualityAnalysis: true,
+                valuationObservations: true,
+                incomeStatementTrendRows: true,
+                balanceSheetStrengthRows: true,
+                cashFlowAnalysisRows: true,
+                financialRatioMetrics: { include: { values: true } },
+              },
+            },
+            businessSegmentData: {
+              select: {
+                id: true,
+                businessModelDynamics: true,
+                competitivePosition: {
+                  select: {
+                    id: true,
+                    keyCompetitors: true,
+                    competitiveAdvantage: true,
+                  },
+                },
+                platformSegmentPerformance: true,
+                revenueModelBreakdown: true,
+              },
+            },
+            interimResultsAndQuarterlyPerformance: {
+              select: {
+                id: true,
+                title: true,
+                keyPositives: true,
+                keyNegatives: true,
+                recordFinancialPerformance: true,
+                forwardGuidance: {
+                  select: {
+                    id: true,
+                    managementCommentary: true,
+                    analystConsensusFY1: true,
+                  },
+                },
+              },
+            },
+            contingentLiabilitiesAndRegulatoryRisk: {
+              select: {
+                id: true,
+                balanceSheetContingencies: true,
+                keyRegulatoryConsiderations: true,
+                netContingentPosition: true,
+              },
+            },
+            dcfValuationRecapAndPriceTarget: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                valuationSummaryTitle: true,
+                baseCaseAssumption: true,
+                pvOfFcf: true,
+                pvOfTerminalValue: true,
+                enterpriseValue: true,
+                netDebt: true,
+                equityValue: true,
+                sharesDiluted: true,
+                fairValuePerShare: true,
+                currentPrice: true,
+                upside: true,
+                recommendation: true,
+                twelveMonthPriceTarget: true,
+                rationaleForPriceTarget: true,
+                sensitivityAnalysisRecap: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
+            conclusionAndRecommendation: true,
+          },
+        },
+        companyName: true,
+      },
+      data: {
+        report: {
+          update: {
+            conclusionAndRecommendation: {
+              create: conclusionAndRecommendation,
+            },
+          },
+        },
+      },
+    });
+
+    // @ts-ignore
+    company = { ...newInfo };
+  }
+
   if (!company?.report) {
     const executiveInfo = await getExecutiveInformationAboutCompany(symbol);
     const overviewInfo = await getOverviewMetricsAboutCompany(symbol);
@@ -380,6 +957,12 @@ export const getReportDetails = async (symbol: string) => {
       await getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol);
     const contingentLiabilitiesAndRegulatoryRisk =
       await getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol);
+    const dcfValuationRecapAndPriceTarget =
+      await getDcfValuationRecapAndPriceTargetAboutCompany(symbol);
+    const agmAndShareholderMatters =
+      await getAgmAndShareholderMattersAboutCompany(symbol);
+    const conclusionAndRecommendation =
+      await getConclusionAndRecommendationAboutCompany(symbol);
     const newInfo = await prisma.company.update({
       where: { symbol },
       select: {
@@ -469,6 +1052,40 @@ export const getReportDetails = async (symbol: string) => {
                 netContingentPosition: true,
               },
             },
+            dcfValuationRecapAndPriceTarget: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                valuationSummaryTitle: true,
+                baseCaseAssumption: true,
+                pvOfFcf: true,
+                pvOfTerminalValue: true,
+                enterpriseValue: true,
+                netDebt: true,
+                equityValue: true,
+                sharesDiluted: true,
+                fairValuePerShare: true,
+                currentPrice: true,
+                upside: true,
+                recommendation: true,
+                twelveMonthPriceTarget: true,
+                rationaleForPriceTarget: true,
+                sensitivityAnalysisRecap: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
+            conclusionAndRecommendation: true,
           },
         },
         companyName: true,
@@ -647,7 +1264,7 @@ export const getReportDetails = async (symbol: string) => {
                 financialRatioMetrics: {
                   createMany: {
                     data: financialStatementAnalysisInfo.financialRatiosAndCreditMetrics.table.map(
-                      ({ metric, values }) => ({
+                      ({ metric }) => ({
                         metric,
                       }),
                     ),
@@ -750,6 +1367,60 @@ export const getReportDetails = async (symbol: string) => {
                   },
                 },
               },
+            },
+            dcfValuationRecapAndPriceTarget: {
+              create: {
+                sectionTitle: dcfValuationRecapAndPriceTarget.sectionTitle,
+                valuationSummaryTitle:
+                  dcfValuationRecapAndPriceTarget.valuationSummaryTitle,
+                baseCaseAssumption:
+                  dcfValuationRecapAndPriceTarget.baseCaseAssumption,
+                pvOfFcf: dcfValuationRecapAndPriceTarget.valuationBuildUp.pvOfFcf,
+                pvOfTerminalValue:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.pvOfTerminalValue,
+                enterpriseValue:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.enterpriseValue,
+                netDebt: dcfValuationRecapAndPriceTarget.valuationBuildUp.netDebt,
+                equityValue:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.equityValue,
+                sharesDiluted:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.sharesDiluted,
+                fairValuePerShare:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.fairValuePerShare,
+                currentPrice:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.currentPrice,
+                upside: dcfValuationRecapAndPriceTarget.valuationBuildUp.upside,
+                recommendation:
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.recommendation,
+                twelveMonthPriceTarget:
+                  dcfValuationRecapAndPriceTarget.twelveMonthPriceTarget,
+                rationaleForPriceTarget:
+                  dcfValuationRecapAndPriceTarget.rationaleForPriceTarget,
+                sensitivityAnalysisRecap: {
+                  createMany: {
+                    data: dcfValuationRecapAndPriceTarget.sensitivityAnalysisRecap,
+                  },
+                },
+              },
+            },
+            agmAndShareholderMatters: {
+              create: {
+                sectionTitle: agmAndShareholderMatters.sectionTitle,
+                announcedDate: agmAndShareholderMatters.nextAgmDetails.announcedDate,
+                location: agmAndShareholderMatters.nextAgmDetails.location,
+                noticeFiled: agmAndShareholderMatters.nextAgmDetails.noticeFiled,
+                specialResolutionsExpected:
+                  agmAndShareholderMatters.specialResolutionsExpected,
+                keyGovernanceNotes: agmAndShareholderMatters.keyGovernanceNotes,
+                expectedVotingAgenda: {
+                  createMany: {
+                    data: agmAndShareholderMatters.expectedVotingAgenda,
+                  },
+                },
+              },
+            },
+            conclusionAndRecommendation: {
+              create: conclusionAndRecommendation,
             },
           },
         },

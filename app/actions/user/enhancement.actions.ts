@@ -10,6 +10,9 @@ import {
   BUSINESS_SEGMENT_DATA_PROMPT,
   INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+  DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
+  AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
+  CONCLUSION_AND_RECOMMENDATION_PROMPT,
 } from '@/lib';
 import prisma from '@/prisma';
 import {
@@ -22,6 +25,9 @@ import {
   BusinessSegmentsCompetitivePositionSchema,
   ContingentLiabilitiesRegulatoryRisksSchema,
   InterimResultsQuarterlyPerformanceSchema,
+  DcfValuationRecapAndPriceTargetSchema,
+  AgmAndShareholderMattersSchema,
+  ConclusionAndRecommendationSchema,
   improveSection,
   requireRBAC,
 } from '@/server';
@@ -667,6 +673,161 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
       balanceSheetContingencies: true,
       netContingentPosition: true,
       keyRegulatoryConsiderations: true,
+    },
+  });
+
+  return { okay: true, data: updated };
+});
+
+
+
+
+
+
+export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const dcfRecapData = (await prisma.dcfValuationRecapAndPriceTarget.findFirst({
+    where: { report: { company: { symbol } } },
+    include: { sensitivityAnalysisRecap: true },
+  }))!;
+
+  const dcfRecapInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(dcfRecapData)}`,
+    systemPrompt: DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
+    schema: DcfValuationRecapAndPriceTargetSchema,
+    schemaName: 'DcfValuationRecapAndPriceTargetSchema',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.dcfValuationRecapAndPriceTarget.update({
+    where: { id: dcfRecapData.id },
+    data: {
+      sectionTitle: dcfRecapInfo.sectionTitle,
+      valuationSummaryTitle: dcfRecapInfo.valuationSummaryTitle,
+      baseCaseAssumption: dcfRecapInfo.baseCaseAssumption,
+      pvOfFcf: dcfRecapInfo.valuationBuildUp.pvOfFcf,
+      pvOfTerminalValue: dcfRecapInfo.valuationBuildUp.pvOfTerminalValue,
+      enterpriseValue: dcfRecapInfo.valuationBuildUp.enterpriseValue,
+      netDebt: dcfRecapInfo.valuationBuildUp.netDebt,
+      equityValue: dcfRecapInfo.valuationBuildUp.equityValue,
+      sharesDiluted: dcfRecapInfo.valuationBuildUp.sharesDiluted,
+      fairValuePerShare: dcfRecapInfo.valuationBuildUp.fairValuePerShare,
+      currentPrice: dcfRecapInfo.valuationBuildUp.currentPrice,
+      upside: dcfRecapInfo.valuationBuildUp.upside,
+      recommendation: dcfRecapInfo.valuationBuildUp.recommendation,
+      twelveMonthPriceTarget: dcfRecapInfo.twelveMonthPriceTarget,
+      rationaleForPriceTarget: dcfRecapInfo.rationaleForPriceTarget,
+      sensitivityAnalysisRecap: {
+        deleteMany: {},
+        createMany: {
+          data: dcfRecapInfo.sensitivityAnalysisRecap,
+        },
+      },
+    },
+    select: {
+      id: true,
+      sectionTitle: true,
+      valuationSummaryTitle: true,
+      baseCaseAssumption: true,
+      pvOfFcf: true,
+      pvOfTerminalValue: true,
+      enterpriseValue: true,
+      netDebt: true,
+      equityValue: true,
+      sharesDiluted: true,
+      fairValuePerShare: true,
+      currentPrice: true,
+      upside: true,
+      recommendation: true,
+      twelveMonthPriceTarget: true,
+      rationaleForPriceTarget: true,
+      sensitivityAnalysisRecap: true,
+    },
+  });
+
+  return { okay: true, data: updated };
+});
+
+export const enhanceAgmAndShareholderMattersSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const agmData = (await prisma.agmAndShareholderMatters.findFirst({
+    where: { report: { company: { symbol } } },
+    include: { expectedVotingAgenda: true },
+  }))!;
+
+  const agmInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(agmData)}`,
+    systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
+    schema: AgmAndShareholderMattersSchema,
+    schemaName: 'AgmAndShareholderMattersSchema',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.agmAndShareholderMatters.update({
+    where: { id: agmData.id },
+    data: {
+      sectionTitle: agmInfo.sectionTitle,
+      announcedDate: agmInfo.nextAgmDetails.announcedDate,
+      location: agmInfo.nextAgmDetails.location,
+      noticeFiled: agmInfo.nextAgmDetails.noticeFiled,
+      specialResolutionsExpected: agmInfo.specialResolutionsExpected,
+      keyGovernanceNotes: agmInfo.keyGovernanceNotes,
+      expectedVotingAgenda: {
+        deleteMany: {},
+        createMany: {
+          data: agmInfo.expectedVotingAgenda,
+        },
+      },
+    },
+    select: {
+      id: true,
+      sectionTitle: true,
+      announcedDate: true,
+      location: true,
+      noticeFiled: true,
+      specialResolutionsExpected: true,
+      keyGovernanceNotes: true,
+      expectedVotingAgenda: true,
+    },
+  });
+
+  return { okay: true, data: updated };
+});
+export const enhanceConclusionAndRecommendationSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const conclusionData = (await prisma.conclusionAndRecommendation.findFirst({
+    where: { report: { company: { symbol } } },
+  }))!;
+
+  const conclusionInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(conclusionData)}`,
+    systemPrompt: CONCLUSION_AND_RECOMMENDATION_PROMPT,
+    schema: ConclusionAndRecommendationSchema,
+    schemaName: 'ConclusionAndRecommendationSchema',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.conclusionAndRecommendation.update({
+    where: { id: conclusionData.id },
+    data: {
+      sectionTitle: conclusionInfo.sectionTitle,
+      summary: conclusionInfo.summary,
+      strengths: conclusionInfo.strengths,
+      valuationSummary: conclusionInfo.valuationSummary,
+      analystConsensus: conclusionInfo.analystConsensus,
+      investorFit: conclusionInfo.investorFit,
+      entryStrategy: conclusionInfo.entryStrategy,
+      upsideCatalysts: conclusionInfo.upsideCatalysts,
+      downsideCatalysts: conclusionInfo.downsideCatalysts,
+      recommendation: conclusionInfo.recommendation,
+      priceTarget: conclusionInfo.priceTarget,
+      expectedReturn: conclusionInfo.expectedReturn,
+      timeHorizon: conclusionInfo.timeHorizon,
+      riskProfile: conclusionInfo.riskProfile,
+      disclaimer: conclusionInfo.disclaimer,
     },
   });
 
