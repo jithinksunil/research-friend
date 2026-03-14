@@ -87,6 +87,8 @@ model Report {
   businessSegmentData                    BusinessSegmentData?
   interimResultsAndQuarterlyPerformance  InterimResultsAndQuarterlyPerformance?
   contingentLiabilitiesAndRegulatoryRisk ContingentLiabilitiesAndRegulatoryRisk?
+  agmAndShareholderMatters              AgmAndShareholderMatters?
+  conclusionAndRecommendation            ConclusionAndRecommendation?
 
   @@map("report")
 }
@@ -754,6 +756,80 @@ model KeyRegulatoryConsiderations {
   updatedAt DateTime @updatedAt
 
   @@map("key_regulatory_considerations")
+}
+
+enum RecommendationType {
+  BUY
+  HOLD
+  SELL
+
+  @@map("recommendation_type")
+}
+
+
+
+model AgmAndShareholderMatters {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  sectionTitle String
+  announcedDate String
+  location      String
+  noticeFiled   String
+
+  expectedVotingAgenda       ExpectedVotingAgenda[]
+  specialResolutionsExpected String[]
+  keyGovernanceNotes         String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("agm_and_shareholder_matters")
+}
+
+model ExpectedVotingAgenda {
+  id Int @id @default(autoincrement())
+
+  agmAndShareholderMattersId Int
+  agmAndShareholderMatters   AgmAndShareholderMatters @relation(fields: [agmAndShareholderMattersId], references: [id], onDelete: Cascade)
+
+  resolutionNumber Int
+  title            String
+  type             String
+  expectedResult   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agmAndShareholderMattersId, resolutionNumber])
+  @@map("expected_voting_agenda")
+}
+model ConclusionAndRecommendation {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  sectionTitle            String
+  summary                 String
+  strengths               String[]
+  valuationSummary        String
+  analystConsensus        String
+  investorFit             String[]
+  entryStrategy           String[]
+  upsideCatalysts         String[]
+  downsideCatalysts       String[]
+  recommendation          RecommendationType
+  priceTarget             String
+  expectedReturn          String
+  timeHorizon             String
+  riskProfile             String
+  disclaimer              String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("conclusion_and_recommendation")
 }
 
 // {

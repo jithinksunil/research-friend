@@ -6,6 +6,8 @@ import {
   ANALYST_RECOMMENDATION_PROMPT,
   BUSINESS_SEGMENT_DATA_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+  AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
+  CONCLUSION_AND_RECOMMENDATION_PROMPT,
   EQUITY_VALUATION_PROMPT,
   EXECUTIVE_PROMPT,
   FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
@@ -2230,112 +2232,282 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
   return analysis;
 }
 
-export async function getRecentNewsCatalystData(symbol: string) {
-  const [quoteSummary, quote, news, recommendations, priceHistory] =
-    await Promise.all([
-      yahooFinance.quoteSummary(symbol, {
-        modules: [
-          'price',
-          'summaryProfile',
-          'financialData',
-          'defaultKeyStatistics',
-          'calendarEvents',
-          'earnings',
-          'summaryDetail',
-        ],
-      }),
-      yahooFinance.quote(symbol),
-      yahooFinance.search(symbol),
-      yahooFinance.recommendationsBySymbol(symbol).catch(() => null),
-      yahooFinance.chart(symbol, {
-        period1: new Date(Date.now() - 1 * 90 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
-        period2: new Date().toISOString().slice(0, 10),
-        interval: '1d',
-      }),
-    ]);
 
-  const priceData = quoteSummary.price ?? {};
-  const profile = quoteSummary.summaryProfile ?? {};
-  const financialData = quoteSummary.financialData ?? {};
-  const statistics = quoteSummary.defaultKeyStatistics ?? {};
-  const calendar = quoteSummary.calendarEvents ?? {};
-  const earnings = quoteSummary.earnings ?? {};
+interface AgmAndShareholderMattersData {
+  company: {
+    name: string | null;
+    marketType: 'UK' | 'US' | 'India' | 'Global';
+    currency: string | null;
+  };
+  agm: {
+    expectedDate: string | null;
+    location: string | null;
+    noticeFiledDate: string | null;
+  };
+  governance: {
+    auditRisk: number | null;
+    boardRisk: number | null;
+    compensationRisk: number | null;
+    shareholderRightsRisk: number | null;
+    overallRisk: number | null;
+  };
+  valuationSignals: {
+    marketCap: number | null;
+    recommendationKey: string | null;
+    targetMeanPrice: number | null;
+  };
+}
 
-  const recentNews =
-    news?.news?.slice(0, 10).map((item) => ({
-      title: item.title,
-      publisher: item.publisher,
-      link: item.link,
-      publishedAt: item.providerPublishTime,
-      type: item.type,
-    })) ?? [];
+export async function getAgmAndShareholderMattersData(
+  symbol: string,
+): Promise<AgmAndShareholderMattersData> {
+  const summary = await yahooFinance.quoteSummary(symbol, {
+    modules: [
+      'price',
+      'calendarEvents',
+      'financialData',
+      'defaultKeyStatistics',
+      'assetProfile',
+      'summaryDetail',
+    ],
+  });
 
-  const priceTrend =
-    priceHistory?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+  const country = summary.assetProfile?.country?.toLowerCase() ?? '';
+  const marketType: AgmAndShareholderMattersData['company']['marketType'] =
+    country.includes('india')
+      ? 'India'
+      : country.includes('united kingdom') || country.includes('uk')
+        ? 'UK'
+        : country.includes('united states') || country.includes('usa')
+          ? 'US'
+          : 'Global';
 
-  const priceChange3M =
-    priceTrend.length > 1
-      ? ((priceTrend.at(-1)! - priceTrend[0]) / priceTrend[0]) * 100
-      : null;
+  const asNumber = (value: unknown): number | null =>
+    typeof value === 'number' ? value : null;
 
-  const analystSentiment =
-    recommendations?.trend?.map((r) => ({
-      period: r.period,
-      strongBuy: r.strongBuy,
-      buy: r.buy,
-      hold: r.hold,
-      sell: r.sell,
-      strongSell: r.strongSell,
-    })) ?? [];
+  const exDividendTimestamp = asNumber(summary.calendarEvents?.exDividendDate);
+  const exDividendDate = exDividendTimestamp
+    ? new Date(exDividendTimestamp * 1000).toISOString()
+    : null;
 
   return {
     company: {
-      symbol,
-      name: priceData.longName,
-      sector: profile.sector,
-      industry: profile.industry,
-      country: profile.country,
-      website: profile.website,
+      name: summary.price?.longName ?? null,
+      marketType,
+      currency: summary.price?.currency ?? null,
     },
-
-    marketData: {
-      currentPrice: quote.regularMarketPrice,
-      marketCap: priceData.marketCap,
-      currency: priceData.currency,
-      exchange: priceData.exchangeName,
-      fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh,
-      fiftyTwoWeekLow: quote.fiftyTwoWeekLow,
-      priceChange3M,
+    agm: {
+      expectedDate: exDividendDate,
+      location: summary.assetProfile?.address1 ?? null,
+      noticeFiledDate: exDividendDate,
     },
-
-    financialHighlights: {
-      revenue: financialData.totalRevenue,
-      ebitda: financialData.ebitda,
-      netIncome: financialData.netIncomeToCommon,
-      eps: statistics.trailingEps,
-      peRatio: quote.trailingPE,
+    governance: {
+      auditRisk: asNumber(summary.defaultKeyStatistics?.auditRisk),
+      boardRisk: asNumber(summary.defaultKeyStatistics?.boardRisk),
+      compensationRisk: asNumber(summary.defaultKeyStatistics?.compensationRisk),
+      shareholderRightsRisk:
+        asNumber(summary.defaultKeyStatistics?.shareHolderRightsRisk),
+      overallRisk: asNumber(summary.defaultKeyStatistics?.overallRisk),
     },
-
-    corporateEvents: {
-      earningsDate: calendar.earnings?.earningsDate,
-      dividendDate: calendar.dividendDate,
-      exDividendDate: calendar.exDividendDate,
-    },
-
-    earningsSummary: {
-      earningsQuarterly: earnings?.earningsChart?.quarterly ?? [],
-      earningsTrend: earnings?.earningsTrend?.trend ?? [],
-    },
-
-    analystSentiment,
-
-    recentNews,
-
-    competitiveContext: {
-      sector: profile.sector,
-      industry: profile.industry,
+    valuationSignals: {
+      marketCap: summary.price?.marketCap ?? null,
+      recommendationKey: summary.financialData?.recommendationKey ?? null,
+      targetMeanPrice: summary.financialData?.targetMeanPrice ?? null,
     },
   };
+}
+
+export const AgmAndShareholderMattersSchema = z.object({
+  sectionTitle: z.literal('ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS'),
+  nextAgmDetails: z.object({
+    announcedDate: z.string(),
+    location: z.string(),
+    noticeFiled: z.string(),
+  }),
+  expectedVotingAgenda: z.array(
+    z.object({
+      resolutionNumber: z.number(),
+      title: z.string(),
+      type: z.enum(['Ordinary', 'Advisory', 'Special']),
+      expectedResult: z.string(),
+    }),
+  ).min(5),
+  specialResolutionsExpected: z.array(z.string()).min(1),
+  keyGovernanceNotes: z.array(z.string()).min(2),
+});
+
+export async function getAgmAndShareholderMattersAboutCompany(symbol: string) {
+  const response = await getAgmAndShareholderMattersData(symbol);
+
+  const analysis = await fetchSection<z.infer<typeof AgmAndShareholderMattersSchema>>({
+    userPrompt: `
+Generate section for ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS.
+Input Data: ${JSON.stringify(response)}
+
+Requirements:
+1. Include nextAgmDetails, expectedVotingAgenda, specialResolutionsExpected, keyGovernanceNotes.
+2. Keep agenda realistic for listed companies.
+3. Tailor tone to market type: ${response.company.marketType}.
+4. Return valid JSON only.
+`,
+    systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
+    schema: AgmAndShareholderMattersSchema,
+    schemaName: 'AgmAndShareholderMattersSchema',
+  });
+
+  return analysis;
+}
+
+interface ConclusionRecommendationData {
+  company: {
+    name: string | null;
+    sector: string | null;
+    industry: string | null;
+    marketType: 'UK' | 'US' | 'India' | 'Global';
+    currency: string | null;
+  };
+  valuation: {
+    currentPrice: number | null;
+    targetMeanPrice: number | null;
+    targetHighPrice: number | null;
+    targetLowPrice: number | null;
+    recommendationKey: string | null;
+    trailingPE: number | null;
+    forwardPE: number | null;
+    marketCap: number | null;
+    fiftyTwoWeekHigh: number | null;
+    fiftyTwoWeekLow: number | null;
+    oneYearReturnPercent: number | null;
+  };
+  fundamentals: {
+    revenueGrowth: number | null;
+    earningsGrowth: number | null;
+    returnOnEquity: number | null;
+    operatingMargin: number | null;
+    profitMargin: number | null;
+    totalDebt: number | null;
+    totalCash: number | null;
+    freeCashFlow: number | null;
+  };
+}
+
+export async function getConclusionRecommendationData(
+  symbol: string,
+): Promise<ConclusionRecommendationData> {
+  const [summary, chart] = await Promise.all([
+    yahooFinance.quoteSummary(symbol, {
+      modules: [
+        'assetProfile',
+        'price',
+        'summaryDetail',
+        'financialData',
+        'defaultKeyStatistics',
+      ],
+    }),
+    yahooFinance.chart(symbol, {
+      period1: new Date(Date.now() - 365.25 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10),
+      period2: new Date().toISOString().slice(0, 10),
+      interval: '1mo',
+    }),
+  ]);
+
+  const profile = summary.assetProfile;
+  const currency = summary.price?.currency ?? null;
+  const country = profile?.country?.toLowerCase() ?? '';
+  const marketType: ConclusionRecommendationData['company']['marketType'] =
+    country.includes('india')
+      ? 'India'
+      : country.includes('united kingdom') || country.includes('uk')
+        ? 'UK'
+        : country.includes('united states') || country.includes('usa')
+          ? 'US'
+          : 'Global';
+
+  const quotes = chart.quotes ?? [];
+  const firstClose = quotes[0]?.adjclose ?? null;
+  const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
+  const oneYearReturnPercent =
+    firstClose && lastClose
+      ? ((lastClose - firstClose) / firstClose) * 100
+      : null;
+
+  return {
+    company: {
+      name: summary.price?.longName ?? null,
+      sector: profile?.sector ?? null,
+      industry: profile?.industry ?? null,
+      marketType,
+      currency,
+    },
+    valuation: {
+      currentPrice: summary.price?.regularMarketPrice ?? null,
+      targetMeanPrice: summary.financialData?.targetMeanPrice ?? null,
+      targetHighPrice: summary.financialData?.targetHighPrice ?? null,
+      targetLowPrice: summary.financialData?.targetLowPrice ?? null,
+      recommendationKey: summary.financialData?.recommendationKey ?? null,
+      trailingPE: summary.summaryDetail?.trailingPE ?? null,
+      forwardPE: summary.summaryDetail?.forwardPE ?? null,
+      marketCap: summary.price?.marketCap ?? null,
+      fiftyTwoWeekHigh: summary.summaryDetail?.fiftyTwoWeekHigh ?? null,
+      fiftyTwoWeekLow: summary.summaryDetail?.fiftyTwoWeekLow ?? null,
+      oneYearReturnPercent,
+    },
+    fundamentals: {
+      revenueGrowth: summary.financialData?.revenueGrowth ?? null,
+      earningsGrowth: summary.financialData?.earningsGrowth ?? null,
+      returnOnEquity: summary.financialData?.returnOnEquity ?? null,
+      operatingMargin: summary.financialData?.operatingMargins ?? null,
+      profitMargin: summary.financialData?.profitMargins ?? null,
+      totalDebt: summary.financialData?.totalDebt ?? null,
+      totalCash: summary.financialData?.totalCash ?? null,
+      freeCashFlow: summary.financialData?.freeCashflow ?? null,
+    },
+  };
+}
+
+export const ConclusionAndRecommendationSchema = z.object({
+  sectionTitle: z.literal('CONCLUSION'),
+  summary: z.string(),
+  strengths: z.array(z.string()).min(3),
+  valuationSummary: z.string(),
+  analystConsensus: z.string(),
+  investorFit: z.array(z.string()).min(2),
+  entryStrategy: z.array(z.string()).min(2),
+  upsideCatalysts: z.array(z.string()).min(3),
+  downsideCatalysts: z.array(z.string()).min(3),
+  recommendation: z.enum(['BUY', 'HOLD', 'SELL']),
+  priceTarget: z.string(),
+  expectedReturn: z.string(),
+  timeHorizon: z.string(),
+  riskProfile: z.string(),
+  disclaimer: z.string(),
+});
+
+export async function getConclusionAndRecommendationAboutCompany(
+  symbol: string,
+) {
+
+  const response = await getConclusionRecommendationData(symbol);
+
+  const analysis = await fetchSection<
+    z.infer<typeof ConclusionAndRecommendationSchema>
+  >({
+    userPrompt: `
+Generate final Section 9: CONCLUSION.
+Input Data: ${JSON.stringify(response)}
+
+Requirements:
+1. Focus on investment conclusion for institutional / advanced retail investors.
+2. Use specific valuation context from current price and target metrics.
+3. Include clear risk-reward framing and recommendation.
+4. Output only valid JSON for ConclusionAndRecommendationSchema.
+`,
+    systemPrompt: CONCLUSION_AND_RECOMMENDATION_PROMPT,
+    schema: ConclusionAndRecommendationSchema,
+    schemaName: 'ConclusionAndRecommendationSchema',
+  });
+
+  return analysis;
 }
