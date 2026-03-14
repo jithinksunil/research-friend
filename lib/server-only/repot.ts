@@ -5,6 +5,7 @@ import {
   getAnalystRecommendationsAboutCompany,
   getBusinessSegmentDataAboutCompany,
   getContingentLiabilitiesAndRegulatoryRiskAboutCompany,
+  getAgmAndShareholderMattersAboutCompany,
   getConclusionAndRecommendationAboutCompany,
   getEquityValuationAboutCompany,
   getExecutiveInformationAboutCompany,
@@ -106,12 +107,160 @@ export const getReportDetails = async (symbol: string) => {
               netContingentPosition: true,
             },
           },
+          agmAndShareholderMatters: {
+            select: {
+              id: true,
+              sectionTitle: true,
+              announcedDate: true,
+              location: true,
+              noticeFiled: true,
+              specialResolutionsExpected: true,
+              keyGovernanceNotes: true,
+              expectedVotingAgenda: true,
+            },
+          },
           conclusionAndRecommendation: true,
         },
       },
       companyName: true,
     },
   }))!;
+
+
+  if (!company.report?.agmAndShareholderMatters) {
+    const agmAndShareholderMatters =
+      await getAgmAndShareholderMattersAboutCompany(symbol);
+
+    const newInfo = await prisma.company.update({
+      where: { symbol },
+      select: {
+        report: {
+          select: {
+            id: true,
+            executiveSummary: true,
+            overviewAndStockMetrics: {
+              select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
+            },
+            shareHolderStructure: {
+              select: {
+                majorShareholders: true,
+                keyInsiderObservations: true,
+                shareCapitalNotes: true,
+                totalShares: true,
+              },
+            },
+            analystRecommendation: {
+              select: {
+                consensusDetails: true,
+                currentConsensus: true,
+                recentAnalystViews: true,
+              },
+            },
+            equityValuationAndDcfAnalysis: {
+              select: {
+                keyAssumptions: true,
+                dcfValuationBuildup: true,
+                keyTakeAway: true,
+                projectedFinancialYears: { include: { projections: true } },
+                valuationSensitivities: { include: { values: true } },
+              },
+            },
+            financialStatementAnalyasis: {
+              select: {
+                keyObservations: true,
+                capitalPositionAnalysis: true,
+                fcfQualityAnalysis: true,
+                valuationObservations: true,
+                incomeStatementTrendRows: true,
+                balanceSheetStrengthRows: true,
+                cashFlowAnalysisRows: true,
+                financialRatioMetrics: { include: { values: true } },
+              },
+            },
+            businessSegmentData: {
+              select: {
+                id: true,
+                businessModelDynamics: true,
+                competitivePosition: {
+                  select: {
+                    id: true,
+                    keyCompetitors: true,
+                    competitiveAdvantage: true,
+                  },
+                },
+                platformSegmentPerformance: true,
+                revenueModelBreakdown: true,
+              },
+            },
+            interimResultsAndQuarterlyPerformance: {
+              select: {
+                id: true,
+                title: true,
+                keyPositives: true,
+                keyNegatives: true,
+                recordFinancialPerformance: true,
+                forwardGuidance: {
+                  select: {
+                    id: true,
+                    managementCommentary: true,
+                    analystConsensusFY1: true,
+                  },
+                },
+              },
+            },
+            contingentLiabilitiesAndRegulatoryRisk: {
+              select: {
+                id: true,
+                balanceSheetContingencies: true,
+                keyRegulatoryConsiderations: true,
+                netContingentPosition: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
+            conclusionAndRecommendation: true,
+          },
+        },
+        companyName: true,
+      },
+      data: {
+        report: {
+          update: {
+            agmAndShareholderMatters: {
+              create: {
+                sectionTitle: agmAndShareholderMatters.sectionTitle,
+                announcedDate: agmAndShareholderMatters.nextAgmDetails.announcedDate,
+                location: agmAndShareholderMatters.nextAgmDetails.location,
+                noticeFiled: agmAndShareholderMatters.nextAgmDetails.noticeFiled,
+                specialResolutionsExpected:
+                  agmAndShareholderMatters.specialResolutionsExpected,
+                keyGovernanceNotes: agmAndShareholderMatters.keyGovernanceNotes,
+                expectedVotingAgenda: {
+                  createMany: {
+                    data: agmAndShareholderMatters.expectedVotingAgenda,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // @ts-ignore
+    company = { ...newInfo };
+  }
+
 
   if (!company.report?.conclusionAndRecommendation) {
     const conclusionAndRecommendation =
@@ -202,6 +351,18 @@ export const getReportDetails = async (symbol: string) => {
                 netContingentPosition: true,
               },
             },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
             conclusionAndRecommendation: true,
           },
         },
@@ -237,6 +398,8 @@ export const getReportDetails = async (symbol: string) => {
       await getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol);
     const contingentLiabilitiesAndRegulatoryRisk =
       await getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol);
+    const agmAndShareholderMatters =
+      await getAgmAndShareholderMattersAboutCompany(symbol);
     const conclusionAndRecommendation =
       await getConclusionAndRecommendationAboutCompany(symbol);
     const newInfo = await prisma.company.update({
@@ -326,6 +489,18 @@ export const getReportDetails = async (symbol: string) => {
                 balanceSheetContingencies: true,
                 keyRegulatoryConsiderations: true,
                 netContingentPosition: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
               },
             },
             conclusionAndRecommendation: true,
@@ -607,6 +782,22 @@ export const getReportDetails = async (symbol: string) => {
                 keyRegulatoryConsiderations: {
                   createMany: {
                     data: contingentLiabilitiesAndRegulatoryRisk.regulatoryEnvironment.keyRegulatoryConsiderations,
+                  },
+                },
+              },
+            },
+            agmAndShareholderMatters: {
+              create: {
+                sectionTitle: agmAndShareholderMatters.sectionTitle,
+                announcedDate: agmAndShareholderMatters.nextAgmDetails.announcedDate,
+                location: agmAndShareholderMatters.nextAgmDetails.location,
+                noticeFiled: agmAndShareholderMatters.nextAgmDetails.noticeFiled,
+                specialResolutionsExpected:
+                  agmAndShareholderMatters.specialResolutionsExpected,
+                keyGovernanceNotes: agmAndShareholderMatters.keyGovernanceNotes,
+                expectedVotingAgenda: {
+                  createMany: {
+                    data: agmAndShareholderMatters.expectedVotingAgenda,
                   },
                 },
               },

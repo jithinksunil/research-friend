@@ -17,6 +17,7 @@ import {
   enhanceBusinessSegmentDataSection,
   enhanceInterimResultsAndQuarterlyPerformanceSection,
   enhanceContingentLiabilitiesAndRegulatoryRiskSection,
+  enhanceAgmAndShareholderMattersSection,
   enhanceConclusionAndRecommendationSection,
 } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -1350,7 +1351,85 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
 
       <SectionWrapper
-        heading='9. CONCLUSION'
+        heading='9. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS'
+        symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceAgmAndShareholderMattersSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.agmAndShareholderMatters = result.data;
+              }),
+          );
+        }}
+      >
+        {(() => {
+          const agm = report.data.report?.agmAndShareholderMatters;
+          if (!agm)
+            return <div className='text-sm text-muted-foreground'>No data</div>;
+
+          return (
+            <>
+              <SubHeading>Next AGM Details</SubHeading>
+              <List
+                items={[
+                  `<span style="font-weight: bold">Announced Date</span>: ${agm.announcedDate}`,
+                  `<span style="font-weight: bold">Location</span>: ${agm.location}`,
+                  `<span style="font-weight: bold">Notice Filed</span>: ${agm.noticeFiled}`,
+                ]}
+              />
+
+              <SubHeading className='mt-6'>Expected Voting Agenda</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={[
+                  <div key='agm-r' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Resolution #
+                  </div>,
+                  <div key='agm-t' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Title
+                  </div>,
+                  <div key='agm-ty' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Type
+                  </div>,
+                  <div key='agm-er' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Expected Result
+                  </div>,
+                ]}
+                rows={(agm.expectedVotingAgenda || []).map((row, idx) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`agm-r-${idx}`}>
+                    {row.resolutionNumber}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-t-${idx}`}>
+                    {row.title}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-ty-${idx}`}>
+                    {row.type}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-er-${idx}`}>
+                    {row.expectedResult}
+                  </div>,
+                ])}
+              />
+
+              <SubHeading className='mt-6'>Special Resolutions Expected</SubHeading>
+              <List items={agm.specialResolutionsExpected || []} />
+
+              <SubHeading className='mt-6'>Key Governance Notes</SubHeading>
+              <List items={agm.keyGovernanceNotes || []} />
+            </>
+          );
+        })()}
+      </SectionWrapper>
+
+
+      <SectionWrapper
+        heading='10. CONCLUSION'
         symbol={symbol}
         onEnhanceSection={async (symbol: string, improvementText: string) => {
           const result = await enhanceConclusionAndRecommendationSection(

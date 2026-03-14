@@ -6,6 +6,7 @@ import {
   ANALYST_RECOMMENDATION_PROMPT,
   BUSINESS_SEGMENT_DATA_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+  AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
   CONCLUSION_AND_RECOMMENDATION_PROMPT,
   EQUITY_VALUATION_PROMPT,
   EXECUTIVE_PROMPT,
@@ -2225,6 +2226,133 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
     systemPrompt: CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
     schema: ContingentLiabilitiesRegulatoryRisksSchema,
     schemaName: 'ContingentLiabilitiesRegulatoryRisks',
+  });
+
+  return analysis;
+}
+
+
+
+interface AgmAndShareholderMattersData {
+  company: {
+    name: string | null;
+    marketType: 'UK' | 'US' | 'India' | 'Global';
+    currency: string | null;
+  };
+  agm: {
+    expectedDate: string | null;
+    location: string | null;
+    noticeFiledDate: string | null;
+  };
+  governance: {
+    auditRisk: number | null;
+    boardRisk: number | null;
+    compensationRisk: number | null;
+    shareholderRightsRisk: number | null;
+    overallRisk: number | null;
+  };
+  valuationSignals: {
+    marketCap: number | null;
+    recommendationKey: string | null;
+    targetMeanPrice: number | null;
+  };
+}
+
+export async function getAgmAndShareholderMattersData(
+  symbol: string,
+): Promise<AgmAndShareholderMattersData> {
+  const summary = await yahooFinance.quoteSummary(symbol, {
+    modules: [
+      'price',
+      'calendarEvents',
+      'financialData',
+      'defaultKeyStatistics',
+      'assetProfile',
+      'summaryDetail',
+    ],
+  });
+
+  const country = summary.assetProfile?.country?.toLowerCase() ?? '';
+  const marketType: AgmAndShareholderMattersData['company']['marketType'] =
+    country.includes('india')
+      ? 'India'
+      : country.includes('united kingdom') || country.includes('uk')
+        ? 'UK'
+        : country.includes('united states') || country.includes('usa')
+          ? 'US'
+          : 'Global';
+
+  const asNumber = (value: unknown): number | null =>
+    typeof value === 'number' ? value : null;
+
+  const exDividendTimestamp = asNumber(summary.calendarEvents?.exDividendDate);
+  const exDividendDate = exDividendTimestamp
+    ? new Date(exDividendTimestamp * 1000).toISOString()
+    : null;
+
+  return {
+    company: {
+      name: summary.price?.longName ?? null,
+      marketType,
+      currency: summary.price?.currency ?? null,
+    },
+    agm: {
+      expectedDate: exDividendDate,
+      location: summary.assetProfile?.address1 ?? null,
+      noticeFiledDate: exDividendDate,
+    },
+    governance: {
+      auditRisk: asNumber(summary.defaultKeyStatistics?.auditRisk),
+      boardRisk: asNumber(summary.defaultKeyStatistics?.boardRisk),
+      compensationRisk: asNumber(summary.defaultKeyStatistics?.compensationRisk),
+      shareholderRightsRisk:
+        asNumber(summary.defaultKeyStatistics?.shareHolderRightsRisk),
+      overallRisk: asNumber(summary.defaultKeyStatistics?.overallRisk),
+    },
+    valuationSignals: {
+      marketCap: summary.price?.marketCap ?? null,
+      recommendationKey: summary.financialData?.recommendationKey ?? null,
+      targetMeanPrice: summary.financialData?.targetMeanPrice ?? null,
+    },
+  };
+}
+
+export const AgmAndShareholderMattersSchema = z.object({
+  sectionTitle: z.literal('ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS'),
+  nextAgmDetails: z.object({
+    announcedDate: z.string(),
+    location: z.string(),
+    noticeFiled: z.string(),
+  }),
+  expectedVotingAgenda: z.array(
+    z.object({
+      resolutionNumber: z.number(),
+      title: z.string(),
+      type: z.enum(['Ordinary', 'Advisory', 'Special']),
+      expectedResult: z.string(),
+    }),
+  ).min(5),
+  specialResolutionsExpected: z.array(z.string()).min(1),
+  keyGovernanceNotes: z.array(z.string()).min(2),
+});
+
+export async function getAgmAndShareholderMattersAboutCompany(symbol: string) {
+  const response = await getAgmAndShareholderMattersData(symbol);
+
+  const analysis = await fetchSection<z.infer<typeof AgmAndShareholderMattersSchema>>({
+    userPrompt: `
+Generate section for ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS.
+Input Data: ${JSON.stringify(response)}
+
+Requirements:
+1. Include nextAgmDetails, expectedVotingAgenda, specialResolutionsExpected, keyGovernanceNotes.
+2. Keep agenda realistic for listed companies.
+3. Tailor tone to market type: ${response.company.marketType}.
+4. Return valid JSON only.
+`,
+    systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
+    schema: AgmAndShareholderMattersSchema,
+    schemaName: 'AgmAndShareholderMattersSchema',
   });
 
   return analysis;

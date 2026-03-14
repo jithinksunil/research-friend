@@ -577,6 +577,22 @@ STRICT RULES:
    If not provided, generate neutral management-style summary statements.
 `
 
+
+
+export const AGM_AND_SHAREHOLDER_MATTERS_PROMPT=`You are a senior equity research analyst.
+
+Generate Section: "ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS" from ONLY the provided structured input data.
+
+Return strictly valid JSON matching AgmAndShareholderMattersSchema.
+
+Rules:
+1. Do not fabricate specific dates, locations, or vote outcomes unless inferable from input.
+2. Keep wording concise, institutional, and factual.
+3. Agenda rows must include expectedResult as a realistic probability-style statement.
+4. Governance notes should focus on board composition, succession planning, and shareholder communication.
+5. If exact AGM metadata is unavailable, provide clearly marked best-estimate wording.
+6. Output JSON only.
+`
 export const CONCLUSION_AND_RECOMMENDATION_PROMPT=`You are a senior institutional equity research analyst.
 
 Your task is to generate the final section: "CONCLUSION".

@@ -10,6 +10,7 @@ import {
   BUSINESS_SEGMENT_DATA_PROMPT,
   INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+  AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
   CONCLUSION_AND_RECOMMENDATION_PROMPT,
 } from '@/lib';
 import prisma from '@/prisma';
@@ -23,6 +24,7 @@ import {
   BusinessSegmentsCompetitivePositionSchema,
   ContingentLiabilitiesRegulatoryRisksSchema,
   InterimResultsQuarterlyPerformanceSchema,
+  AgmAndShareholderMattersSchema,
   ConclusionAndRecommendationSchema,
   improveSection,
   requireRBAC,
@@ -676,6 +678,54 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
 });
 
 
+
+
+export const enhanceAgmAndShareholderMattersSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const agmData = (await prisma.agmAndShareholderMatters.findFirst({
+    where: { report: { company: { symbol } } },
+    include: { expectedVotingAgenda: true },
+  }))!;
+
+  const agmInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(agmData)}`,
+    systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
+    schema: AgmAndShareholderMattersSchema,
+    schemaName: 'AgmAndShareholderMattersSchema',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.agmAndShareholderMatters.update({
+    where: { id: agmData.id },
+    data: {
+      sectionTitle: agmInfo.sectionTitle,
+      announcedDate: agmInfo.nextAgmDetails.announcedDate,
+      location: agmInfo.nextAgmDetails.location,
+      noticeFiled: agmInfo.nextAgmDetails.noticeFiled,
+      specialResolutionsExpected: agmInfo.specialResolutionsExpected,
+      keyGovernanceNotes: agmInfo.keyGovernanceNotes,
+      expectedVotingAgenda: {
+        deleteMany: {},
+        createMany: {
+          data: agmInfo.expectedVotingAgenda,
+        },
+      },
+    },
+    select: {
+      id: true,
+      sectionTitle: true,
+      announcedDate: true,
+      location: true,
+      noticeFiled: true,
+      specialResolutionsExpected: true,
+      keyGovernanceNotes: true,
+      expectedVotingAgenda: true,
+    },
+  });
+
+  return { okay: true, data: updated };
+});
 export const enhanceConclusionAndRecommendationSection = requireRBAC(
   ROLES.USER,
 )(async (symbol: string, improvementNeeded) => {

@@ -87,6 +87,7 @@ model Report {
   businessSegmentData                    BusinessSegmentData?
   interimResultsAndQuarterlyPerformance  InterimResultsAndQuarterlyPerformance?
   contingentLiabilitiesAndRegulatoryRisk ContingentLiabilitiesAndRegulatoryRisk?
+  agmAndShareholderMatters              AgmAndShareholderMatters?
   conclusionAndRecommendation            ConclusionAndRecommendation?
 
   @@map("report")
@@ -765,6 +766,45 @@ enum RecommendationType {
   @@map("recommendation_type")
 }
 
+
+
+model AgmAndShareholderMatters {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  sectionTitle String
+  announcedDate String
+  location      String
+  noticeFiled   String
+
+  expectedVotingAgenda       ExpectedVotingAgenda[]
+  specialResolutionsExpected String[]
+  keyGovernanceNotes         String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("agm_and_shareholder_matters")
+}
+
+model ExpectedVotingAgenda {
+  id Int @id @default(autoincrement())
+
+  agmAndShareholderMattersId Int
+  agmAndShareholderMatters   AgmAndShareholderMatters @relation(fields: [agmAndShareholderMattersId], references: [id], onDelete: Cascade)
+
+  resolutionNumber Int
+  title            String
+  type             String
+  expectedResult   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([agmAndShareholderMattersId, resolutionNumber])
+  @@map("expected_voting_agenda")
+}
 model ConclusionAndRecommendation {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
