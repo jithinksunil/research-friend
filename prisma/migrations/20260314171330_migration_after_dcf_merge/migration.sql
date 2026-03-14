@@ -1,0 +1,2 @@
+-- RenameForeignKey
+ALTER TABLE "dcf_sensitivity_analysis_recap" RENAME CONSTRAINT "dcf_sensitivity_analysis_recap_dcfValuationRecapAndPriceTar_fke" TO "dcf_sensitivity_analysis_recap_dcfValuationRecapAndPriceTa_fkey";

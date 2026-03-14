@@ -4,7 +4,7 @@ import { ServerActionResult } from '@/interfaces';
 import { redirect } from 'next/navigation';
 import { getSession } from './auth';
 import { forbiddenMessage, unauthorizedMessage } from '@/lib';
-import z, { ZodObject, ZodRawShape, ZodType } from 'zod';
+import z, { ZodObject, ZodRawShape } from 'zod';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod.mjs';
 

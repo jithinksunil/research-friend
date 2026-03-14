@@ -46,6 +46,23 @@ const FY_LABEL: Record<(typeof FY_ORDER)[number], string> = {
 type ReportDetailsResponse = {
   data: Awaited<ReturnType<typeof getReportDetails>>;
 };
+type ReportData = ReportDetailsResponse['data'];
+type ReportModel = NonNullable<ReportData['report']>;
+type EquityValuationAndDcfAnalysis = NonNullable<
+  ReportModel['equityValuationAndDcfAnalysis']
+>;
+type ProjectedFinancialYearRow =
+  EquityValuationAndDcfAnalysis['projectedFinancialYears'][number];
+type ProjectionMetricRow = ProjectedFinancialYearRow['projections'][number];
+type FinancialStatementAnalysis = NonNullable<
+  ReportModel['financialStatementAnalyasis']
+>;
+type IncomeStatementTrendRow =
+  FinancialStatementAnalysis['incomeStatementTrendRows'][number];
+type BalanceSheetStrengthRow =
+  FinancialStatementAnalysis['balanceSheetStrengthRows'][number];
+type CashFlowAnalysisRow =
+  FinancialStatementAnalysis['cashFlowAnalysisRows'][number];
 function Report({ symbol }: { symbol: string }) {
   const { data: report, isLoading } = useQuery({
     queryKey: ['report', symbol],
@@ -410,7 +427,7 @@ function Report({ symbol }: { symbol: string }) {
             const byYear: Record<string, { metric: string; value: string }[]> =
               {};
             pfy.forEach((y) => {
-              byYear[y.financialYear] = (y.projections || []).map((p: any) => ({
+              byYear[y.financialYear] = (y.projections || []).map((p: ProjectionMetricRow) => ({
                 metric: p.metric,
                 value: p.value,
               }));
@@ -584,11 +601,11 @@ function Report({ symbol }: { symbol: string }) {
               report.data.report?.financialStatementAnalyasis
                 ?.incomeStatementTrendRows || [];
             return FY_ORDER.map((fy) =>
-              rows.find((r: any) => r.fiscalYear === fy),
+              rows.find((r) => r.fiscalYear === fy),
             )
-              .filter(Boolean)
+              .filter((r): r is IncomeStatementTrendRow => Boolean(r))
               .slice(0, 6)
-              .map((r: any, idx: number) => [
+              .map((r, idx: number) => [
                 <div
                   className='py-[10px] text-sm text-muted-foreground'
                   key={`ist-fy-${idx}`}
@@ -663,11 +680,11 @@ function Report({ symbol }: { symbol: string }) {
               report.data.report?.financialStatementAnalyasis
                 ?.balanceSheetStrengthRows || [];
             return FY_ORDER.map((fy) =>
-              rows.find((r: any) => r.fiscalYear === fy),
+              rows.find((r) => r.fiscalYear === fy),
             )
-              .filter(Boolean)
+              .filter((r): r is BalanceSheetStrengthRow => Boolean(r))
               .slice(0, 6)
-              .map((r: any, idx: number) => [
+              .map((r, idx: number) => [
                 <div
                   className='py-[10px] text-sm text-muted-foreground'
                   key={`bss-fy-${idx}`}
@@ -743,11 +760,11 @@ function Report({ symbol }: { symbol: string }) {
               report.data.report?.financialStatementAnalyasis
                 ?.cashFlowAnalysisRows || [];
             return FY_ORDER.map((fy) =>
-              rows.find((r: any) => r.fiscalYear === fy),
+              rows.find((r) => r.fiscalYear === fy),
             )
-              .filter(Boolean)
+              .filter((r): r is CashFlowAnalysisRow => Boolean(r))
               .slice(0, 6)
-              .map((r: any, idx: number) => [
+              .map((r, idx: number) => [
                 <div
                   className='py-[10px] text-sm text-muted-foreground'
                   key={`cfa-fy-${idx}`}
@@ -848,10 +865,10 @@ function Report({ symbol }: { symbol: string }) {
                 )),
               ]}
               rows={metricKeys.map((key, mi) => {
-                const row = ratioRows.find((r: any) => r.metric === key);
+                const row = ratioRows.find((r) => r.metric === key);
                 const vByYear: Record<string, string> = {};
                 (row?.values || []).forEach(
-                  (v: any) => (vByYear[v.year] = v.value),
+                  (v) => (vByYear[v.year] = v.value),
                 );
                 return [
                   <div
@@ -913,12 +930,12 @@ function Report({ symbol }: { symbol: string }) {
         }}
       >
         {(() => {
-          const bs = report.data.report?.businessSegmentData as any;
+          const bs = report.data.report?.businessSegmentData;
           if (!bs)
             return <div className='text-sm text-muted-foreground'>No data</div>;
 
           // Revenue Model Breakdown
-          const rmb = (bs.revenueModelBreakdown || []) as any[];
+          const rmb = bs.revenueModelBreakdown || [];
           const rmbRows = rmb.map((row, i) => [
             <div
               className='py-[10px] text-sm text-muted-foreground'
@@ -941,7 +958,7 @@ function Report({ symbol }: { symbol: string }) {
           ]);
 
           // Platform Segments Performance
-          const psp = (bs.platformSegmentPerformance || []) as any[];
+          const psp = bs.platformSegmentPerformance || [];
           const pspRows = psp.map((row, i) => [
             <div
               className='py-[10px] text-sm text-muted-foreground'
@@ -966,9 +983,9 @@ function Report({ symbol }: { symbol: string }) {
             </div>,
           ]);
 
-          const comp = bs.competitivePosition as any;
-          const competitors: any[] = comp?.keyCompetitors || [];
-          const advantages: any[] = comp?.competitiveAdvantage || [];
+          const comp = bs.competitivePosition;
+          const competitors = comp?.keyCompetitors || [];
+          const advantages = comp?.competitiveAdvantage || [];
 
           return (
             <>
@@ -1067,7 +1084,7 @@ function Report({ symbol }: { symbol: string }) {
                   </TertiaryHeading>
                   <List
                     items={competitors.map(
-                      (c: any) =>
+                      (c) =>
                         `<span class='font-semibold'>${c.name}</span> — ${c.description}`,
                     )}
                   />
@@ -1078,7 +1095,7 @@ function Report({ symbol }: { symbol: string }) {
                   <TertiaryHeading>Competitive Advantages</TertiaryHeading>
                   <List
                     items={advantages.map(
-                      (a: any) =>
+                      (a) =>
                         `<span class='font-semibold'>${a.title}</span>: ${a.description}`,
                     )}
                   />

@@ -392,7 +392,7 @@ ${JSON.stringify(response)}`,
   return analysis;
 }
 
- export const CompanyOverviewSchema = z.object({
+export const CompanyOverviewSchema = z.object({
   metrics: z
     .array(
       z.object({
@@ -959,7 +959,13 @@ export const EquityValuationDcfSchema = z.object({
   projectedFinanacialNext5Years: z
     .array(
       z.object({
-        financialYear: z.enum(['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030']),
+        financialYear: z.enum([
+          'FY_2026',
+          'FY_2027',
+          'FY_2028',
+          'FY_2029',
+          'FY_2030',
+        ]),
         projections: z
           .array(
             z.object({
@@ -1830,8 +1836,7 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   symbol: string,
 ) {
   const response = await getInterimResultsData(symbol);
-  console.log({response});
-  
+  console.log({ response });
 
   const analysis = await fetchSection<
     z.infer<typeof InterimResultsQuarterlyPerformanceSchema>
@@ -1849,8 +1854,7 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
     schema: InterimResultsQuarterlyPerformanceSchema,
     schemaName: 'InterimResultsQuarterlyPerformance',
   });
-  console.log({analysis});
-  
+  console.log({ analysis });
 
   return analysis;
 }
@@ -2621,6 +2625,7 @@ export const ConclusionAndRecommendationSchema = z.object({
 export async function getConclusionAndRecommendationAboutCompany(
   symbol: string,
 ) {
+
   const response = await getConclusionRecommendationData(symbol);
 
   const analysis = await fetchSection<
