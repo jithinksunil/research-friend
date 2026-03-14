@@ -8,6 +8,7 @@ import {
   EQUITY_VALUATION_PROMPT,
   FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
   BUSINESS_SEGMENT_DATA_PROMPT,
+  INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
 } from '@/lib';
 import prisma from '@/prisma';
 import {
@@ -18,6 +19,7 @@ import {
   EquityValuationDcfSchema,
   FinancialStatementsAnalysisSchema,
   BusinessSegmentsCompetitivePositionSchema,
+  InterimResultsQuarterlyPerformanceSchema,
   improveSection,
   requireRBAC,
 } from '@/server';
@@ -516,4 +518,101 @@ export const enhanceFinancialStatementAnalysisSection = requireRBAC(ROLES.USER)(
 
 export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(
   ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {});
+)(async (symbol: string, improvementNeeded) => {
+  const interimData = (await prisma.interimResultsAndQuarterlyPerformance.findFirst({
+    where: { report: { company: { symbol } } },
+    include: {
+      recordFinancialPerformance: true,
+      forwardGuidance: {
+        include: { managementCommentary: true, analystConsensusFY1: true },
+      },
+    },
+  }))!;
+
+  const interimInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(interimData)}`,
+    systemPrompt: INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
+    schema: InterimResultsQuarterlyPerformanceSchema,
+    schemaName: 'InterimResultsQuarterlyPerformance',
+    improvementNeeded,
+  });
+  console.log({interimInfo});
+  
+
+  const updated = await prisma.interimResultsAndQuarterlyPerformance.update({
+    where: { id: interimData.id },
+    data: {
+      title: interimInfo.title,
+      keyPositives: interimInfo.keyPositives,
+      keyNegatives: interimInfo.keyNegatives,
+      recordFinancialPerformance: {
+        deleteMany: {},
+        createMany: {
+          data: interimInfo.recordFinancialPerformance,
+        },
+      },
+      forwardGuidance: {
+        upsert: {
+          create: {
+            managementCommentary: {
+              create: {
+                ceoName:
+                  interimInfo.forwardGuidance.managementCommentary.ceoName,
+                quotes:
+                  interimInfo.forwardGuidance.managementCommentary.quotes,
+              },
+            },
+            analystConsensusFY1: {
+              createMany: {
+                data: interimInfo.forwardGuidance.analystConsensusFY1,
+              },
+            },
+          },
+          update: {
+            managementCommentary: {
+              upsert: {
+                create: {
+                  ceoName:
+                    interimInfo.forwardGuidance.managementCommentary.ceoName,
+                  quotes:
+                    interimInfo.forwardGuidance.managementCommentary.quotes,
+                },
+                update: {
+                  ceoName:
+                    interimInfo.forwardGuidance.managementCommentary.ceoName,
+                  quotes:
+                    interimInfo.forwardGuidance.managementCommentary.quotes,
+                },
+              },
+            },
+            analystConsensusFY1: {
+              deleteMany: {},
+              createMany: {
+                data: interimInfo.forwardGuidance.analystConsensusFY1,
+              },
+            },
+          },
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      keyPositives: true,
+      keyNegatives: true,
+      recordFinancialPerformance: true,
+      forwardGuidance: {
+        select: {
+          id: true,
+          managementCommentary: true,
+          analystConsensusFY1: true,
+        },
+      },
+    },
+  });
+
+  return {
+    okay: true,
+    data: updated,
+  };
+});

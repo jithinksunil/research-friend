@@ -15,6 +15,7 @@ import {
   enhanceEquityValuationAndDcfAnalysisSection,
   enhanceFinancialStatementAnalysisSection,
   enhanceBusinessSegmentDataSection,
+  enhanceInterimResultsAndQuarterlyPerformanceSection,
 } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -1086,11 +1087,129 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper
         heading='7. INTERIM RESULTS & QUARTERLY PERFORMANCE'
         symbol={symbol}
-         onEnhanceSection={}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceInterimResultsAndQuarterlyPerformanceSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.interimResultsAndQuarterlyPerformance =
+                  result.data;
+              }),
+          );
+        }}
       >
-        {JSON.stringify(
-          report.data.report?.interimResultsAndQuarterlyPerformance,
-        )}
+        {(() => {
+          const interim =
+            report.data.report?.interimResultsAndQuarterlyPerformance;
+          if (!interim) return <div className='text-sm text-muted-foreground'>No data</div>;
+
+          return (
+            <>
+              <TertiaryHeading>{interim.title}</TertiaryHeading>
+
+              <TertiaryHeading>Record Financial Performance</TertiaryHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={[
+                  <div
+                    key='irfp-metric'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Metric
+                  </div>,
+                  <div
+                    key='irfp-curr'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Current Year
+                  </div>,
+                  <div
+                    key='irfp-prev'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Previous Year
+                  </div>,
+                  <div
+                    key='irfp-change'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Change
+                  </div>,
+                  <div
+                    key='irfp-margin'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Margin
+                  </div>,
+                ]}
+                rows={
+                  interim.recordFinancialPerformance?.map((row, idx) => [
+                    <div
+                      className='py-[10px] text-sm text-muted-foreground'
+                      key={`irfp-metric-${idx}`}
+                    >
+                      {row.metric}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`irfp-curr-${idx}`}
+                    >
+                      {row.currentYearValue}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`irfp-prev-${idx}`}
+                    >
+                      {row.previousYearValue}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`irfp-change-${idx}`}
+                    >
+                      {row.change}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`irfp-margin-${idx}`}
+                    >
+                      {row.margin}
+                    </div>,
+                  ]) || []
+                }
+              />
+
+              <TertiaryHeading className='mt-8'>Key Positives</TertiaryHeading>
+              <List items={interim.keyPositives || []} />
+
+              <TertiaryHeading className='mt-8'>Key Negatives</TertiaryHeading>
+              <List items={interim.keyNegatives || []} />
+
+              <TertiaryHeading className='mt-8'>Forward Guidance & Assumptions</TertiaryHeading>
+              <SubHeading>
+                Management Commentary ({interim.forwardGuidance?.managementCommentary?.ceoName})
+              </SubHeading>
+              <List
+                items={
+                  interim.forwardGuidance?.managementCommentary?.quotes || []
+                }
+              />
+
+              <SubHeading className='mt-4'>Analyst Consensus FY1</SubHeading>
+              <List
+                items={
+                  interim.forwardGuidance?.analystConsensusFY1?.map((row) =>
+                    `<span style="font-weight: bold">${row.metric}</span>: ${row.forecastValue} (${row.growth}) — ${row.commentary}`,
+                  ) || []
+                }
+              />
+            </>
+          );
+        })()}
       </SectionWrapper>
     </div>
   );
