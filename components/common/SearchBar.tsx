@@ -17,7 +17,7 @@ interface SearchBarProps {
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
-  placeholder = 'Search...',
+  placeholder = 'Search for your favorite companies',
   suggestions = [],
   onSearch,
   onSuggestionSelect,
@@ -45,6 +45,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     return suggestions.filter(
       (suggestion) =>
         suggestion.name.toLowerCase().includes(queryLower) ||
+        suggestion.symbol.toLowerCase().includes(queryLower) ||
         suggestion.region?.toLowerCase().includes(queryLower),
     );
   }, [query, suggestions]);
@@ -209,6 +210,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     <div className='flex items-center gap-2'>
                       <SearchIcon className='text-gray-400 text-sm' />
                       <span className='text-sm text-gray-900 truncate'>{suggestion.name}</span>
+                      <span className='text-xs font-semibold text-gray-500 shrink-0'>
+                        {suggestion.symbol}
+                      </span>
                     </div>
                     {suggestion.region && (
                       <div className='text-xs text-gray-500 mt-1 ml-6 truncate'>

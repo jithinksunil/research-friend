@@ -1,9 +1,7 @@
-import React from 'react'
+import { FullScreenLoader } from '@/components/common';
 
 function loading() {
-  return (
-    <div>loading</div>
-  )
+  return <FullScreenLoader />;
 }
 
-export default loading
+export default loading;
