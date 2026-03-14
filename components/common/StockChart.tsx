@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useMemo, useRef } from 'react';
 import {
   createChart,
@@ -7,47 +8,69 @@ import {
   IChartApi,
   AreaSeries,
   HistogramSeries,
+  UTCTimestamp,
 } from 'lightweight-charts';
 import { brandingColors } from '@/lib';
-import type { UTCTimestamp } from 'lightweight-charts';
 
-function toLineSeriesData(data: any[]) {
-  return data.map((d) => ({
-    time: d.date.toISOString().split('T')[0],
+type Candle = {
+  date: string | Date;
+  open: number;
+  close: number;
+  volume: number;
+};
+
+function normalizeData(data: Candle[]) {
+  const map = new Map<number, Candle>();
+
+  for (const d of data) {
+    const time = Math.floor(new Date(d.date).getTime() / 1000);
+
+    map.set(time, {
+      ...d,
+      date: new Date(time * 1000),
+    });
+  }
+
+  const sorted = [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, value]) => value);
+
+  const lineData = sorted.map((d) => ({
+    time: Math.floor(new Date(d.date).getTime() / 1000) as UTCTimestamp,
     value: Math.floor(d.close * 10) / 10,
   }));
-}
 
-export function toVolumeSeries(data: any[]) {
-  return data
+  const volumeData = sorted
     .filter((d) => d.volume && d.open && d.close)
     .map((d) => ({
       time: Math.floor(new Date(d.date).getTime() / 1000) as UTCTimestamp,
       value: d.volume,
-      color: d.close >= d.open ? 'rgba(34,197,94,0.8)' : 'rgba(239,68,68,0.8)',
+      color:
+        d.close >= d.open
+          ? 'rgba(34,197,94,0.8)'
+          : 'rgba(239,68,68,0.8)',
     }));
+
+  return { lineData, volumeData };
 }
 
-export default function StockChart({ stock }: { stock: any }) {
+export default function StockChart({ stock }: { stock: Candle[] }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+
   const tooltipRef = useRef<HTMLDivElement>(null);
   const tooltipTimeRef = useRef<HTMLDivElement>(null);
   const tooltipPriceRef = useRef<HTMLSpanElement>(null);
   const tooltipVolumeRef = useRef<HTMLSpanElement>(null);
+
   const { lineData, volumeData } = useMemo(() => {
-    if (!stock) {
-      return { lineData: [], volumeData: [] };
-    }
-    const line = toLineSeriesData(stock);
-    const volume = toVolumeSeries(stock);
-    return { lineData: line, volumeData: volume };
+    if (!stock) return { lineData: [], volumeData: [] };
+    return normalizeData(stock);
   }, [stock]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // Create chart
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 400,
@@ -80,6 +103,7 @@ export default function StockChart({ stock }: { stock: any }) {
       topColor: brandingColors.background,
       bottomColor: brandingColors.background,
     });
+
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
@@ -88,19 +112,23 @@ export default function StockChart({ stock }: { stock: any }) {
 
     priceSeries.setData(lineData);
     volumeSeries.setData(volumeData);
+
     chart.priceScale('right').applyOptions({
       scaleMargins: {
         top: 0.1,
         bottom: 0.4,
       },
     });
+
     chart.priceScale('volume').applyOptions({
       autoScale: true,
       scaleMargins: {
-        top: 0.92, // price takes top 80%
+        top: 0.92,
         bottom: 0,
       },
     });
+
+    chart.timeScale().fitContent();
 
     chart.subscribeCrosshairMove(({ seriesData, time, point }) => {
       const tooltip = tooltipRef.current;
@@ -111,22 +139,22 @@ export default function StockChart({ stock }: { stock: any }) {
         return;
       }
 
-      const price = seriesData.get(priceSeries);
-      const volumeData = seriesData.get(volumeSeries);
+      const price = seriesData.get(priceSeries) as any;
+      const volume = seriesData.get(volumeSeries) as any;
 
       if (tooltipTimeRef.current) {
         tooltipTimeRef.current.textContent = new Date(
-          time as string,
-        ).toLocaleString();
+          (time as number) * 1000
+        ).toLocaleDateString();
       }
 
       if (tooltipPriceRef.current) {
-        tooltipPriceRef.current.textContent = `$${(price as any)?.value ?? '—'}`;
+        tooltipPriceRef.current.textContent = `$${price?.value ?? '—'}`;
       }
 
       if (tooltipVolumeRef.current) {
-        tooltipVolumeRef.current.textContent = volumeData
-          ? Number((volumeData as any)?.value).toLocaleString()
+        tooltipVolumeRef.current.textContent = volume
+          ? Number(volume.value).toLocaleString()
           : '—';
       }
 
@@ -134,7 +162,6 @@ export default function StockChart({ stock }: { stock: any }) {
       tooltip.style.left = point.x + 400 + 'px';
       tooltip.style.top = point.y + 'px';
     });
-    chart.timeScale().fitContent();
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -162,31 +189,32 @@ export default function StockChart({ stock }: { stock: any }) {
           backgroundColor: '#0b0f14',
         }}
       />
+
       <div
         ref={tooltipRef}
-        className='pointer-events-none z-[999] absolute hidden min-w-[180px] rounded-xl bg-black/85 backdrop-blur-md px-4 py-3 text-sm text-white shadow-2xl'
+        className="pointer-events-none z-[999] absolute hidden min-w-[180px] rounded-xl bg-black/85 backdrop-blur-md px-4 py-3 text-sm text-white shadow-2xl"
       >
-        {/* Time */}
-        <div ref={tooltipTimeRef} className='mb-2 text-xs text-gray-400'></div>
+        <div
+          ref={tooltipTimeRef}
+          className="mb-2 text-xs text-gray-400"
+        ></div>
 
-        {/* Price row */}
-        <div className='mt-1 flex items-center justify-between'>
-          <div className='flex items-center gap-2'>
-            <span className='h-4 w-1 rounded bg-purple-400'></span>
-            <span className='text-gray-300'>Price</span>
+        <div className="mt-1 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-4 w-1 rounded bg-purple-400"></span>
+            <span className="text-gray-300">Price</span>
           </div>
-          <span ref={tooltipPriceRef} className='font-semibold'></span>
+          <span ref={tooltipPriceRef} className="font-semibold"></span>
         </div>
 
-        {/* Volume row */}
-        <div className='mt-2 flex items-center justify-between'>
-          <div className='flex items-center gap-2'>
-            <span className='h-4 w-1 rounded bg-blue-400'></span>
-            <span className='text-gray-300'>Volume</span>
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-4 w-1 rounded bg-blue-400"></span>
+            <span className="text-gray-300">Volume</span>
           </div>
           <span
             ref={tooltipVolumeRef}
-            className='font-semibold text-gray-300'
+            className="font-semibold text-gray-300"
           ></span>
         </div>
       </div>
