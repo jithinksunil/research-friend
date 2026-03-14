@@ -22,8 +22,8 @@ export type SectionFieldName =
 interface SectionWrapperProps {
   heading: string;
   children: ReactNode;
-  symbol: string;
-  onEnhanceSection: (symbo: string, improvementNeeded: string) => Promise<void>;
+  symbol?: string;
+  onEnhanceSection?: (symbol: string, improvementNeeded: string) => Promise<void>;
 }
 
 export const SectionWrapper: React.FC<SectionWrapperProps> = ({
@@ -39,11 +39,12 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
   >([]);
   const [showSources, setShowSources] = useState(false);
   const hasInput = improvementText.trim().length > 0;
-  const canEnhance = Boolean(symbol);
+  const canEnhance = Boolean(symbol && onEnhanceSection);
 
   const onEnhanceClick = async (close: () => void) => {
     setIsEnhancing(true);
     try {
+      if (!symbol || !onEnhanceSection) return;
       await onEnhanceSection(symbol, improvementText);
       toastMessage.success('Section enhancement saved');
       setImprovementText('');

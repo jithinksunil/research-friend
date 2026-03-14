@@ -6,7 +6,7 @@ import {
   CompanyOverview,
   StockDashboardData,
 } from '@/interfaces';
-import { convertToErrorInstance, unauthorizedMessage } from '@/lib';
+import { convertToErrorInstance } from '@/lib';
 import prisma from '@/prisma';
 import {
   getHistory,

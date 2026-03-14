@@ -5,17 +5,14 @@ interface PropTypes {
   size?: number;
 }
 
-export function Loader(props: PropTypes) {
+export function Loader({ color, size }: PropTypes) {
   const style = useMemo(
-    () =>
-      props.color
-        ? {
-            borderTopColor: 'var(--primary)',
-            height: props.size,
-            width: props.size,
-          }
-        : { borderTopColor: '#fff', height: props.size, width: props.size },
-    [props.color]
+    () => ({
+      borderTopColor: color ? 'var(--primary)' : '#fff',
+      height: size,
+      width: size,
+    }),
+    [color, size],
   );
 
   return (

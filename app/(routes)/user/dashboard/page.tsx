@@ -7,7 +7,6 @@ import { DownloadReportButton } from '@/components/dashbord';
 export function formatValue(
   value: number | null,
   format: string,
-  unit?: string | null,
 ) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return '—';
@@ -46,7 +45,6 @@ export function formatValue(
 export function formatMetricValue(
   value: number | null,
   format: string,
-  unit?: string | null,
 ) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return '—';

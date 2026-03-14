@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import { SigninForm } from '@/components/auth/SigninForm';
 import { AuthLayout } from '@/components/layouts';
 import { productName } from '@/lib';
-import Image from 'next/image';
 
 export default function Home() {
   return (

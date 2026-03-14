@@ -22,6 +22,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { produce } from 'immer';
 import { getReportDetails } from '@/lib/server-only/repot';
+import { companyRelatedNews, industryNewsAndCatalysts } from './recentNewsData';
 const FY_ORDER = [
   'FY20',
   'FY21',
@@ -1334,159 +1335,46 @@ function Report({ symbol }: { symbol: string }) {
       <SectionWrapper heading='9. RECENT NEWS & CATALYST ANALYSIS'>
         <SubHeading>Company-Related News</SubHeading>
         <ol className='mb-8 list-decimal space-y-6 pl-8'>
-          <li>
-            <strong>FY25 Final Results (Dec 3, 2025):</strong>
-            <div>
-              <a
-                className='text-blue-700 underline'
-                href='https://www.ajbell.co.uk/group/sites/ajbell.co.uk/files/accounts/FY25-results-announcement.pdf'
-                rel='noreferrer'
-                target='_blank'
-              >
-                https://www.ajbell.co.uk/group/sites/ajbell.co.uk/files/accounts/FY25-results-announcement.pdf
-              </a>
-            </div>
-            <p>
-              Record revenue £317.8m (+18%), PBT £137.8m (+22%), DPS 14.25p
-              (+14%). Market reaction: -7% on margin guidance and ISA cost
-              concerns.
-            </p>
-          </li>
-          <li>
-            <strong>Platinum SIPP/SSAS Sale Completion (Nov 3, 2025):</strong>
-            <p>
-              Sold to InvestAcc Group for up to £25m (£18.5m upfront + £6.5m
-              deferred). Simplifies business model; enables focus on core
-              platform. Strategic positive.
-            </p>
-          </li>
-          <li>
-            <strong>AGM & £50m Buyback Announcement (Dec 2025):</strong>
-            <div>
-              <a
-                className='text-blue-700 underline'
-                href='https://www.ajbell.co.uk/group/investor-relations/market-announcements/notice-agm-2'
-                rel='noreferrer'
-                target='_blank'
-              >
-                https://www.ajbell.co.uk/group/investor-relations/market-announcements/notice-agm-2
-              </a>
-            </div>
-            <p>
-              AGM scheduled Feb 4, 2026. New buyback authorization reflects
-              confidence and strong capital position. Shareholder-friendly
-              capital allocation policy.
-            </p>
-          </li>
-          <li>
-            <strong>Board Changes (Dec 2025):</strong>
-            <p>
-              Evelyn Bourke (Senior Independent Director) stepping down Feb 4,
-              2026. Fiona Fry appointed as new SID. Succession planning
-              underway; stable governance expected.
-            </p>
-          </li>
-          <li>
-            <strong>Gilt MPS Range Expansion (Recent):</strong>
-            <p>
-              Launched Gilt MPS 4 portfolio; AJ Bell Investcentre trusts for IHT
-              planning. Product innovation ongoing; demonstrates response to
-              customer needs.
-            </p>
-          </li>
+          {companyRelatedNews.map((news) => (
+            <li key={news.title}>
+              <strong>{news.title}:</strong>
+              {news.link ? (
+                <div>
+                  <a
+                    className='text-blue-700 underline'
+                    href={news.link}
+                    rel='noreferrer'
+                    target='_blank'
+                  >
+                    {news.link}
+                  </a>
+                </div>
+              ) : null}
+              <p>{news.description}</p>
+            </li>
+          ))}
         </ol>
 
         <SubHeading>Industry News & Catalysts</SubHeading>
         <ol className='mb-8 list-decimal space-y-6 pl-8'>
-          <li>
-            <strong>UK ISA Reforms (Announced Oct 2024, Effective April 2027):</strong>
-            <ul className='mt-2 list-disc space-y-1 pl-6'>
-              <li>Cash ISA cap £12,000 for under-65s (from unlimited)</li>
-              <li>
-                Stocks & Shares ISA: HMRC cash charge planned (mechanism
-                unclear)
-              </li>
-              <li>
-                Likely to reduce retail investing volumes 5-10% near-term; AJ
-                Bell exposed to D2C ISA portion (~40% of D2C assets)
-              </li>
-              <li>
-                <strong>Management Response:</strong> Advocating for
-                simplification; confidence in ability to navigate complexity
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Pension Tax Uncertainty (Ongoing):</strong>
-            <ul className='mt-2 list-disc space-y-1 pl-6'>
-              <li>
-                Lump sum entitlement changes under pressure; April 2027 IHT rule
-                change imminent
-              </li>
-              <li>
-                Elevated pension withdrawals in FY25 (hedging against policy
-                changes) likely to normalize FY26
-              </li>
-              <li>
-                <strong>AJ Bell Exposure:</strong> Advised segment (£62.4bn AUA)
-                concentrated in pension pots; sensitive to tax policy
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Platform Market Growth (Structural):</strong>
-            <ul className='mt-2 list-disc space-y-1 pl-6'>
-              <li>
-                UK platform AUA estimated £700bn+ (FCA data); TAM £3.7tn (~2/3
-                off-platform)
-              </li>
-              <li>Annual inflows to platforms: £30-40bn; compound growth ~15% CAGR</li>
-              <li>
-                <strong>Opportunity:</strong> AJ Bell at 2.5-3% market share;
-                potential to reach 4-5% by FY30
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Competitive Dynamics:</strong>
-            <ul className='mt-2 list-disc space-y-1 pl-6'>
-              <li>
-                Interactive Investor (largest competitor) has maintained scale;
-                recent margin pressure
-              </li>
-              <li>
-                Hargreaves Lansdown (legacy platform) facing technology debt;
-                slower growth
-              </li>
-              <li>
-                Emerging fintech (Freetrade, Trading 212) gaining volume but low
-                profitability
-              </li>
-              <li>
-                <strong>AJ Bell Positioning:</strong> Differentiated via
-                dual-channel + brand; less price-competitive than emergents but
-                higher-quality service
-              </li>
-            </ul>
-          </li>
-          <li>
-            <strong>Macro/Market Sentiment (2026 Outlook):</strong>
-            <ul className='mt-2 list-disc space-y-1 pl-6'>
-              <li>
-                Bank of England likely to maintain 4.75% base rate into H2 2026;
-                some easing expected H2
-              </li>
-              <li>
-                Stock market volatility expected; political uncertainty (next UK
-                election likely 2025-26); retail investor sentiment mixed
-              </li>
-              <li>
-                <strong>Tailwind:</strong> Gilt yields (4-5%+) make equities
-                attractive relative to cash; potential boost to equity platform
-                flows
-              </li>
-            </ul>
-          </li>
+          {industryNewsAndCatalysts.map((catalyst) => (
+            <li key={catalyst.title}>
+              <strong>{catalyst.title}:</strong>
+              <ul className='mt-2 list-disc space-y-1 pl-6'>
+                {catalyst.bullets.map((bullet) => {
+                  const [title, ...rest] = bullet.split(': ');
+                  if (rest.length === 0) {
+                    return <li key={bullet}>{bullet}</li>;
+                  }
+                  return (
+                    <li key={bullet}>
+                      <strong>{title}:</strong> {rest.join(': ')}
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
         </ol>
       </SectionWrapper>
     </div>

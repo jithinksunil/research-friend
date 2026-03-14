@@ -14,7 +14,7 @@ export function convertToErrorInstance(
     if (typeof unknownError === 'object' && unknownError !== null)
       return new Error(JSON.stringify(unknownError));
     return new Error(fallbackMessage);
-  } catch (error) {
+  } catch {
     return new Error(fallbackMessage);
   }
 }
