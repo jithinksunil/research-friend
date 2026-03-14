@@ -16,6 +16,7 @@ import {
   enhanceFinancialStatementAnalysisSection,
   enhanceBusinessSegmentDataSection,
   enhanceInterimResultsAndQuarterlyPerformanceSection,
+  enhanceContingentLiabilitiesAndRegulatoryRiskSection,
 } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -1204,6 +1205,124 @@ function Report({ symbol }: { symbol: string }) {
                 items={
                   interim.forwardGuidance?.analystConsensusFY1?.map((row) =>
                     `<span style="font-weight: bold">${row.metric}</span>: ${row.forecastValue} (${row.growth}) — ${row.commentary}`,
+                  ) || []
+                }
+              />
+            </>
+          );
+        })()}
+      </SectionWrapper>
+
+      <SectionWrapper
+        heading='8. CONTINGENT LIABILITIES & REGULATORY RISKS'
+        symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceContingentLiabilitiesAndRegulatoryRiskSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.contingentLiabilitiesAndRegulatoryRisk =
+                  result.data;
+              }),
+          );
+        }}
+      >
+        {(() => {
+          const contingent =
+            report.data.report?.contingentLiabilitiesAndRegulatoryRisk;
+          if (!contingent)
+            return <div className='text-sm text-muted-foreground'>No data</div>;
+
+          return (
+            <>
+              <SubHeading>Balance Sheet Contingencies</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={[
+                  <div
+                    key='bsc-item'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Item
+                  </div>,
+                  <div
+                    key='bsc-amount'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Amount
+                  </div>,
+                  <div
+                    key='bsc-status'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Status
+                  </div>,
+                  <div
+                    key='bsc-risk'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Risk Level
+                  </div>,
+                  <div
+                    key='bsc-impact'
+                    className={cn('px-[26px] py-[10px] font-medium')}
+                  >
+                    Impact
+                  </div>,
+                ]}
+                rows={
+                  contingent.balanceSheetContingencies?.map((row, idx) => [
+                    <div
+                      className='py-[10px] text-sm text-muted-foreground'
+                      key={`bsc-item-${idx}`}
+                    >
+                      {row.item}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`bsc-amount-${idx}`}
+                    >
+                      {row.amount}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`bsc-status-${idx}`}
+                    >
+                      {row.status}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`bsc-risk-${idx}`}
+                    >
+                      {row.riskLevel}
+                    </div>,
+                    <div
+                      className={cn('py-[10px] font-medium')}
+                      key={`bsc-impact-${idx}`}
+                    >
+                      {row.impact}
+                    </div>,
+                  ]) || []
+                }
+              />
+
+              <Description>
+                <strong>Net Contingent Position:</strong>{' '}
+                {contingent.netContingentPosition?.quantifiedAnnualLiabilities}{' '}
+                {contingent.netContingentPosition?.oneTimeCosts} —{' '}
+                {contingent.netContingentPosition?.valuationImpact}
+              </Description>
+
+              <SubHeading className='mt-8'>Regulatory Environment</SubHeading>
+              <List
+                items={
+                  contingent.keyRegulatoryConsiderations?.map((row) =>
+                    `<span style="font-weight: bold">${row.title}</span>: ${row.description}`,
                   ) || []
                 }
               />

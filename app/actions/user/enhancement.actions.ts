@@ -9,6 +9,7 @@ import {
   FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
   BUSINESS_SEGMENT_DATA_PROMPT,
   INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
+  CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
 } from '@/lib';
 import prisma from '@/prisma';
 import {
@@ -19,6 +20,7 @@ import {
   EquityValuationDcfSchema,
   FinancialStatementsAnalysisSchema,
   BusinessSegmentsCompetitivePositionSchema,
+  ContingentLiabilitiesRegulatoryRisksSchema,
   InterimResultsQuarterlyPerformanceSchema,
   improveSection,
   requireRBAC,
@@ -615,4 +617,58 @@ export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(
     okay: true,
     data: updated,
   };
+});
+
+export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const contingentData = (await prisma.contingentLiabilitiesAndRegulatoryRisk.findFirst({
+    where: { report: { company: { symbol } } },
+    include: {
+      balanceSheetContingencies: true,
+      netContingentPosition: true,
+      keyRegulatoryConsiderations: true,
+    },
+  }))!;
+
+  const contingentInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(contingentData)}`,
+    systemPrompt: CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+    schema: ContingentLiabilitiesRegulatoryRisksSchema,
+    schemaName: 'ContingentLiabilitiesRegulatoryRisks',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.contingentLiabilitiesAndRegulatoryRisk.update({
+    where: { id: contingentData.id },
+    data: {
+      sectionTitle: contingentInfo.sectionTitle,
+      balanceSheetContingencies: {
+        deleteMany: {},
+        createMany: { data: contingentInfo.balanceSheetContingencies },
+      },
+      netContingentPosition: {
+        upsert: {
+          create: contingentInfo.netContingentPosition,
+          update: contingentInfo.netContingentPosition,
+        },
+      },
+      keyRegulatoryConsiderations: {
+        deleteMany: {},
+        createMany: {
+          data:
+            contingentInfo.regulatoryEnvironment.keyRegulatoryConsiderations,
+        },
+      },
+    },
+    select: {
+      id: true,
+      sectionTitle: true,
+      balanceSheetContingencies: true,
+      netContingentPosition: true,
+      keyRegulatoryConsiderations: true,
+    },
+  });
+
+  return { okay: true, data: updated };
 });
