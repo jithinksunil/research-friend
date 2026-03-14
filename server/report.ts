@@ -389,7 +389,7 @@ ${JSON.stringify(response)}`,
   return analysis;
 }
 
- export const CompanyOverviewSchema = z.object({
+export const CompanyOverviewSchema = z.object({
   metrics: z
     .array(
       z.object({
@@ -956,7 +956,13 @@ export const EquityValuationDcfSchema = z.object({
   projectedFinanacialNext5Years: z
     .array(
       z.object({
-        financialYear: z.enum(['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030']),
+        financialYear: z.enum([
+          'FY_2026',
+          'FY_2027',
+          'FY_2028',
+          'FY_2029',
+          'FY_2030',
+        ]),
         projections: z
           .array(
             z.object({
@@ -1827,8 +1833,7 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   symbol: string,
 ) {
   const response = await getInterimResultsData(symbol);
-  console.log({response});
-  
+  console.log({ response });
 
   const analysis = await fetchSection<
     z.infer<typeof InterimResultsQuarterlyPerformanceSchema>
@@ -1846,8 +1851,7 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
     schema: InterimResultsQuarterlyPerformanceSchema,
     schemaName: 'InterimResultsQuarterlyPerformance',
   });
-  console.log({analysis});
-  
+  console.log({ analysis });
 
   return analysis;
 }
@@ -2224,4 +2228,114 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
   });
 
   return analysis;
+}
+
+export async function getRecentNewsCatalystData(symbol: string) {
+  const [quoteSummary, quote, news, recommendations, priceHistory] =
+    await Promise.all([
+      yahooFinance.quoteSummary(symbol, {
+        modules: [
+          'price',
+          'summaryProfile',
+          'financialData',
+          'defaultKeyStatistics',
+          'calendarEvents',
+          'earnings',
+          'summaryDetail',
+        ],
+      }),
+      yahooFinance.quote(symbol),
+      yahooFinance.search(symbol),
+      yahooFinance.recommendationsBySymbol(symbol).catch(() => null),
+      yahooFinance.chart(symbol, {
+        period1: new Date(Date.now() - 1 * 90 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10),
+        period2: new Date().toISOString().slice(0, 10),
+        interval: '1d',
+      }),
+    ]);
+
+  const priceData = quoteSummary.price ?? {};
+  const profile = quoteSummary.summaryProfile ?? {};
+  const financialData = quoteSummary.financialData ?? {};
+  const statistics = quoteSummary.defaultKeyStatistics ?? {};
+  const calendar = quoteSummary.calendarEvents ?? {};
+  const earnings = quoteSummary.earnings ?? {};
+
+  const recentNews =
+    news?.news?.slice(0, 10).map((item) => ({
+      title: item.title,
+      publisher: item.publisher,
+      link: item.link,
+      publishedAt: item.providerPublishTime,
+      type: item.type,
+    })) ?? [];
+
+  const priceTrend =
+    priceHistory?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+
+  const priceChange3M =
+    priceTrend.length > 1
+      ? ((priceTrend.at(-1)! - priceTrend[0]) / priceTrend[0]) * 100
+      : null;
+
+  const analystSentiment =
+    recommendations?.trend?.map((r) => ({
+      period: r.period,
+      strongBuy: r.strongBuy,
+      buy: r.buy,
+      hold: r.hold,
+      sell: r.sell,
+      strongSell: r.strongSell,
+    })) ?? [];
+
+  return {
+    company: {
+      symbol,
+      name: priceData.longName,
+      sector: profile.sector,
+      industry: profile.industry,
+      country: profile.country,
+      website: profile.website,
+    },
+
+    marketData: {
+      currentPrice: quote.regularMarketPrice,
+      marketCap: priceData.marketCap,
+      currency: priceData.currency,
+      exchange: priceData.exchangeName,
+      fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh,
+      fiftyTwoWeekLow: quote.fiftyTwoWeekLow,
+      priceChange3M,
+    },
+
+    financialHighlights: {
+      revenue: financialData.totalRevenue,
+      ebitda: financialData.ebitda,
+      netIncome: financialData.netIncomeToCommon,
+      eps: statistics.trailingEps,
+      peRatio: quote.trailingPE,
+    },
+
+    corporateEvents: {
+      earningsDate: calendar.earnings?.earningsDate,
+      dividendDate: calendar.dividendDate,
+      exDividendDate: calendar.exDividendDate,
+    },
+
+    earningsSummary: {
+      earningsQuarterly: earnings?.earningsChart?.quarterly ?? [],
+      earningsTrend: earnings?.earningsTrend?.trend ?? [],
+    },
+
+    analystSentiment,
+
+    recentNews,
+
+    competitiveContext: {
+      sector: profile.sector,
+      industry: profile.industry,
+    },
+  };
 }
