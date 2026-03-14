@@ -1,0 +1,14 @@
+-- RenameForeignKey
+ALTER TABLE "forward_income_statement_row" RENAME CONSTRAINT "forward_income_statement_row_forwardProjectionsAndValuationId_f" TO "forward_income_statement_row_forwardProjectionsAndValuatio_fkey";
+
+-- RenameIndex
+ALTER INDEX "forward_balance_sheet_row_forwardProjectionsAndValuationId_item" RENAME TO "forward_balance_sheet_row_forwardProjectionsAndValuationId__key";
+
+-- RenameIndex
+ALTER INDEX "forward_cash_flow_row_forwardProjectionsAndValuationId_metric_k" RENAME TO "forward_cash_flow_row_forwardProjectionsAndValuationId_metr_key";
+
+-- RenameIndex
+ALTER INDEX "forward_credit_metric_row_forwardProjectionsAndValuationId_metr" RENAME TO "forward_credit_metric_row_forwardProjectionsAndValuationId__key";
+
+-- RenameIndex
+ALTER INDEX "forward_income_statement_row_forwardProjectionsAndValuationId_m" RENAME TO "forward_income_statement_row_forwardProjectionsAndValuation_key";

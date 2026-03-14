@@ -579,31 +579,19 @@ STRICT RULES:
 
 
 
+export const DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT=`You are a senior equity research analyst.
 
+Generate Section: "DCF VALUATION RECAP & PRICE TARGET" using ONLY provided structured input data.
 
-export const FORWARD_PROJECTIONS_AND_VALUATION_PROMPT=`You are a senior institutional equity research analyst.
-
-Generate Section 10: "FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION" from ONLY the structured input data provided.
-
-Return strictly valid JSON matching ForwardProjectionsAndValuationSchema.
+Return strictly valid JSON matching DcfValuationRecapAndPriceTargetSchema.
 
 Rules:
-1. Output JSON only (no markdown, no comments).
-2. Keep values as formatted strings, preserving currency and % symbols.
-3. Income statement table must include exactly 14 rows in this order:
-   Revenue (£m), Y/Y Growth, Admin Expenses, Operating Income, OP Margin %, Finance Costs, PBT, PBT Margin %, Tax (19%), Net Income, Net Margin %, Diluted Shares (m), Diluted EPS (p), EPS Growth.
-4. Balance sheet table must include exactly 6 rows in this order:
-   Cash, Total Assets, Total Debt, Shareholders' Equity, Debt/Equity, Current Ratio.
-5. Cash flow table must include exactly 7 rows in this order:
-   Operating CF, CapEx, Free CF, FCF Margin %, Dividends Paid, Buybacks (executed), Total Returns to Shareholders.
-6. Credit metrics table must include exactly 4 rows in this order:
-   Net Debt / EBITDA, Interest Coverage, Debt/Capitalization, Implied Credit Rating.
-7. KeyProjectionDrivers: 3 to 5 concise bullet points.
-8. BalanceSheetDynamics: 3 to 5 concise bullet points.
-9. KeyObservations: 3 to 5 concise bullet points.
-10. CreditOutlook: one concise paragraph.
-11. Do not fabricate precision beyond input quality; use reasoned estimates where necessary.
-12. Maintain a professional institutional-research tone.
+1. Keep valuation narration concise and institutional.
+2. Use price target framing with risk/reward context.
+3. Include exactly three sensitivity scenarios: Bull, Base, Bear.
+4. Recommendation must be one of: "BUY", "HOLD", "SELL".
+5. Do not fabricate unavailable numbers; use reasonable conservative wording.
+6. Output JSON only.
 `
 
 export const AGM_AND_SHAREHOLDER_MATTERS_PROMPT=`You are a senior equity research analyst.
@@ -683,4 +671,30 @@ Strict Rules:
 
 Do not output explanations. 
 Return only valid JSON matching the schema.
+`
+
+
+export const FORWARD_PROJECTIONS_AND_VALUATION_PROMPT=`You are a senior institutional equity research analyst.
+
+Generate Section 10: "FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION" from ONLY the structured input data provided.
+
+Return strictly valid JSON matching ForwardProjectionsAndValuationSchema.
+
+Rules:
+1. Output JSON only (no markdown, no comments).
+2. Keep values as formatted strings, preserving currency and % symbols.
+3. Income statement table must include exactly 14 rows in this order:
+   Revenue (£m), Y/Y Growth, Admin Expenses, Operating Income, OP Margin %, Finance Costs, PBT, PBT Margin %, Tax (19%), Net Income, Net Margin %, Diluted Shares (m), Diluted EPS (p), EPS Growth.
+4. Balance sheet table must include exactly 6 rows in this order:
+   Cash, Total Assets, Total Debt, Shareholders' Equity, Debt/Equity, Current Ratio.
+5. Cash flow table must include exactly 7 rows in this order:
+   Operating CF, CapEx, Free CF, FCF Margin %, Dividends Paid, Buybacks (executed), Total Returns to Shareholders.
+6. Credit metrics table must include exactly 4 rows in this order:
+   Net Debt / EBITDA, Interest Coverage, Debt/Capitalization, Implied Credit Rating.
+7. KeyProjectionDrivers: 3 to 5 concise bullet points.
+8. BalanceSheetDynamics: 3 to 5 concise bullet points.
+9. KeyObservations: 3 to 5 concise bullet points.
+10. CreditOutlook: one concise paragraph.
+11. Do not fabricate precision beyond input quality; use reasoned estimates where necessary.
+12. Maintain a professional institutional-research tone.
 `

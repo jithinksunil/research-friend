@@ -11,6 +11,7 @@ import {
   FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
   INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+  DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
   AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
   CONCLUSION_AND_RECOMMENDATION_PROMPT,
 } from '@/lib';
@@ -25,6 +26,7 @@ import {
   BusinessSegmentsCompetitivePositionSchema,
   ContingentLiabilitiesRegulatoryRisksSchema,
   InterimResultsQuarterlyPerformanceSchema,
+  DcfValuationRecapAndPriceTargetSchema,
   AgmAndShareholderMattersSchema,
   ForwardProjectionsAndValuationSchema,
   ConclusionAndRecommendationSchema,
@@ -681,6 +683,73 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
 
 
 
+
+
+
+export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const dcfRecapData = (await prisma.dcfValuationRecapAndPriceTarget.findFirst({
+    where: { report: { company: { symbol } } },
+    include: { sensitivityAnalysisRecap: true },
+  }))!;
+
+  const dcfRecapInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(dcfRecapData)}`,
+    systemPrompt: DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
+    schema: DcfValuationRecapAndPriceTargetSchema,
+    schemaName: 'DcfValuationRecapAndPriceTargetSchema',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.dcfValuationRecapAndPriceTarget.update({
+    where: { id: dcfRecapData.id },
+    data: {
+      sectionTitle: dcfRecapInfo.sectionTitle,
+      valuationSummaryTitle: dcfRecapInfo.valuationSummaryTitle,
+      baseCaseAssumption: dcfRecapInfo.baseCaseAssumption,
+      pvOfFcf: dcfRecapInfo.valuationBuildUp.pvOfFcf,
+      pvOfTerminalValue: dcfRecapInfo.valuationBuildUp.pvOfTerminalValue,
+      enterpriseValue: dcfRecapInfo.valuationBuildUp.enterpriseValue,
+      netDebt: dcfRecapInfo.valuationBuildUp.netDebt,
+      equityValue: dcfRecapInfo.valuationBuildUp.equityValue,
+      sharesDiluted: dcfRecapInfo.valuationBuildUp.sharesDiluted,
+      fairValuePerShare: dcfRecapInfo.valuationBuildUp.fairValuePerShare,
+      currentPrice: dcfRecapInfo.valuationBuildUp.currentPrice,
+      upside: dcfRecapInfo.valuationBuildUp.upside,
+      recommendation: dcfRecapInfo.valuationBuildUp.recommendation,
+      twelveMonthPriceTarget: dcfRecapInfo.twelveMonthPriceTarget,
+      rationaleForPriceTarget: dcfRecapInfo.rationaleForPriceTarget,
+      sensitivityAnalysisRecap: {
+        deleteMany: {},
+        createMany: {
+          data: dcfRecapInfo.sensitivityAnalysisRecap,
+        },
+      },
+    },
+    select: {
+      id: true,
+      sectionTitle: true,
+      valuationSummaryTitle: true,
+      baseCaseAssumption: true,
+      pvOfFcf: true,
+      pvOfTerminalValue: true,
+      enterpriseValue: true,
+      netDebt: true,
+      equityValue: true,
+      sharesDiluted: true,
+      fairValuePerShare: true,
+      currentPrice: true,
+      upside: true,
+      recommendation: true,
+      twelveMonthPriceTarget: true,
+      rationaleForPriceTarget: true,
+      sensitivityAnalysisRecap: true,
+    },
+  });
+
+  return { okay: true, data: updated };
+});
 
 export const enhanceAgmAndShareholderMattersSection = requireRBAC(
   ROLES.USER,

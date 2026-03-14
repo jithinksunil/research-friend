@@ -17,6 +17,7 @@ import {
   enhanceBusinessSegmentDataSection,
   enhanceInterimResultsAndQuarterlyPerformanceSection,
   enhanceContingentLiabilitiesAndRegulatoryRiskSection,
+  enhanceDcfValuationRecapAndPriceTargetSection,
   enhanceAgmAndShareholderMattersSection,
   enhanceForwardProjectionsAndValuationSection,
   enhanceConclusionAndRecommendationSection,
@@ -25,7 +26,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { produce } from 'immer';
 import { getReportDetails } from '@/lib/server-only/repot';
-import { companyRelatedNews, industryNewsAndCatalysts } from './recentNewsData';
 const FY_ORDER = [
   'FY20',
   'FY21',
@@ -1353,10 +1353,10 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
 
       <SectionWrapper
-        heading='9. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS'
+        heading='9. DCF VALUATION RECAP & PRICE TARGET'
         symbol={symbol}
         onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceAgmAndShareholderMattersSection(
+          const result = await enhanceDcfValuationRecapAndPriceTargetSection(
             symbol,
             improvementText,
           );
@@ -1365,65 +1365,70 @@ function Report({ symbol }: { symbol: string }) {
             ['report', symbol],
             (oldData: ReportDetailsResponse) =>
               produce(oldData, (draft) => {
-                draft.data.report!.agmAndShareholderMatters = result.data;
+                draft.data.report!.dcfValuationRecapAndPriceTarget = result.data;
               }),
           );
         }}
       >
         {(() => {
-          const agm = report.data.report?.agmAndShareholderMatters;
-          if (!agm)
+          const dcfRecap = report.data.report?.dcfValuationRecapAndPriceTarget;
+          if (!dcfRecap)
             return <div className='text-sm text-muted-foreground'>No data</div>;
 
           return (
             <>
-              <SubHeading>Next AGM Details</SubHeading>
+              <SubHeading>{dcfRecap.valuationSummaryTitle}</SubHeading>
+              <Description>
+                <strong>Base Case DCF:</strong> {dcfRecap.baseCaseAssumption}
+              </Description>
+
               <List
                 items={[
-                  `<span style="font-weight: bold">Announced Date</span>: ${agm.announcedDate}`,
-                  `<span style="font-weight: bold">Location</span>: ${agm.location}`,
-                  `<span style="font-weight: bold">Notice Filed</span>: ${agm.noticeFiled}`,
+                  `<span style="font-weight: bold">PV of FCF</span>: ${dcfRecap.pvOfFcf}`,
+                  `<span style="font-weight: bold">PV of Terminal Value</span>: ${dcfRecap.pvOfTerminalValue}`,
+                  `<span style="font-weight: bold">Enterprise Value</span>: ${dcfRecap.enterpriseValue}`,
+                  `<span style="font-weight: bold">Less: Net Debt</span>: ${dcfRecap.netDebt}`,
+                  `<span style="font-weight: bold">Equity Value</span>: ${dcfRecap.equityValue}`,
+                  `<span style="font-weight: bold">Shares Diluted</span>: ${dcfRecap.sharesDiluted}`,
+                  `<span style="font-weight: bold">Fair Value per Share</span>: ${dcfRecap.fairValuePerShare}`,
+                  `<span style="font-weight: bold">Current Price</span>: ${dcfRecap.currentPrice}`,
+                  `<span style="font-weight: bold">Upside</span>: ${dcfRecap.upside}`,
+                  `<span style="font-weight: bold">Recommendation</span>: ${dcfRecap.recommendation}`,
                 ]}
               />
 
-              <SubHeading className='mt-6'>Expected Voting Agenda</SubHeading>
+              <SubHeading className='mt-6'>Sensitivity Analysis Recap</SubHeading>
               <TableWithoutPagination
                 noData='No data'
                 headings={[
-                  <div key='agm-r' className={cn('px-[26px] py-[10px] font-medium')}>
-                    Resolution #
+                  <div key='dcf-scenario' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Scenario
                   </div>,
-                  <div key='agm-t' className={cn('px-[26px] py-[10px] font-medium')}>
-                    Title
+                  <div key='dcf-assumption' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Assumption
                   </div>,
-                  <div key='agm-ty' className={cn('px-[26px] py-[10px] font-medium')}>
-                    Type
-                  </div>,
-                  <div key='agm-er' className={cn('px-[26px] py-[10px] font-medium')}>
-                    Expected Result
+                  <div key='dcf-value' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Value
                   </div>,
                 ]}
-                rows={(agm.expectedVotingAgenda || []).map((row, idx) => [
-                  <div className='py-[10px] text-sm text-muted-foreground' key={`agm-r-${idx}`}>
-                    {row.resolutionNumber}
+                rows={(dcfRecap.sensitivityAnalysisRecap || []).map((row: any, idx: number) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`dcf-s-${idx}`}>
+                    {row.scenario}
                   </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`agm-t-${idx}`}>
-                    {row.title}
+                  <div className={cn('py-[10px] font-medium')} key={`dcf-a-${idx}`}>
+                    {row.assumption}
                   </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`agm-ty-${idx}`}>
-                    {row.type}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`agm-er-${idx}`}>
-                    {row.expectedResult}
+                  <div className={cn('py-[10px] font-medium')} key={`dcf-v-${idx}`}>
+                    {row.value}
                   </div>,
                 ])}
               />
 
-              <SubHeading className='mt-6'>Special Resolutions Expected</SubHeading>
-              <List items={agm.specialResolutionsExpected || []} />
+              <SubHeading className='mt-6'>12-Month Price Target</SubHeading>
+              <Description>{dcfRecap.twelveMonthPriceTarget}</Description>
 
-              <SubHeading className='mt-6'>Key Governance Notes</SubHeading>
-              <List items={agm.keyGovernanceNotes || []} />
+              <SubHeading className='mt-6'>Rationale for Price Target</SubHeading>
+              <List items={dcfRecap.rationaleForPriceTarget || []} />
             </>
           );
         })()}
@@ -1545,8 +1550,87 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
 
 
+
       <SectionWrapper
-        heading='11. CONCLUSION'
+        heading='11. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS'
+        symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceAgmAndShareholderMattersSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.agmAndShareholderMatters = result.data;
+              }),
+          );
+        }}
+      >
+        {(() => {
+          const agm = report.data.report?.agmAndShareholderMatters;
+          if (!agm)
+            return <div className='text-sm text-muted-foreground'>No data</div>;
+
+          return (
+            <>
+              <SubHeading>Next AGM Details</SubHeading>
+              <List
+                items={[
+                  `<span style="font-weight: bold">Announced Date</span>: ${agm.announcedDate}`,
+                  `<span style="font-weight: bold">Location</span>: ${agm.location}`,
+                  `<span style="font-weight: bold">Notice Filed</span>: ${agm.noticeFiled}`,
+                ]}
+              />
+
+              <SubHeading className='mt-6'>Expected Voting Agenda</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={[
+                  <div key='agm-r' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Resolution #
+                  </div>,
+                  <div key='agm-t' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Title
+                  </div>,
+                  <div key='agm-ty' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Type
+                  </div>,
+                  <div key='agm-er' className={cn('px-[26px] py-[10px] font-medium')}>
+                    Expected Result
+                  </div>,
+                ]}
+                rows={(agm.expectedVotingAgenda || []).map((row, idx) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`agm-r-${idx}`}>
+                    {row.resolutionNumber}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-t-${idx}`}>
+                    {row.title}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-ty-${idx}`}>
+                    {row.type}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`agm-er-${idx}`}>
+                    {row.expectedResult}
+                  </div>,
+                ])}
+              />
+
+              <SubHeading className='mt-6'>Special Resolutions Expected</SubHeading>
+              <List items={agm.specialResolutionsExpected || []} />
+
+              <SubHeading className='mt-6'>Key Governance Notes</SubHeading>
+              <List items={agm.keyGovernanceNotes || []} />
+            </>
+          );
+        })()}
+      </SectionWrapper>
+
+
+      <SectionWrapper
+        heading='12. CONCLUSION'
         symbol={symbol}
         onEnhanceSection={async (symbol: string, improvementText: string) => {
           const result = await enhanceConclusionAndRecommendationSection(

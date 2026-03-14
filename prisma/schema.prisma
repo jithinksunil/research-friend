@@ -87,6 +87,7 @@ model Report {
   businessSegmentData                    BusinessSegmentData?
   interimResultsAndQuarterlyPerformance  InterimResultsAndQuarterlyPerformance?
   contingentLiabilitiesAndRegulatoryRisk ContingentLiabilitiesAndRegulatoryRisk?
+  dcfValuationRecapAndPriceTarget      DcfValuationRecapAndPriceTarget?
   agmAndShareholderMatters              AgmAndShareholderMatters?
   forwardProjectionsAndValuation         ForwardProjectionsAndValuation?
   conclusionAndRecommendation            ConclusionAndRecommendation?
@@ -769,6 +770,52 @@ enum RecommendationType {
 
 
 
+
+
+model DcfValuationRecapAndPriceTarget {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  sectionTitle          String
+  valuationSummaryTitle String
+  baseCaseAssumption    String
+  pvOfFcf               String
+  pvOfTerminalValue     String
+  enterpriseValue       String
+  netDebt               String
+  equityValue           String
+  sharesDiluted         String
+  fairValuePerShare     String
+  currentPrice          String
+  upside                String
+  recommendation        RecommendationType
+  twelveMonthPriceTarget String
+  rationaleForPriceTarget String[]
+
+  sensitivityAnalysisRecap DcfSensitivityAnalysisRecap[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dcf_valuation_recap_and_price_target")
+}
+
+model DcfSensitivityAnalysisRecap {
+  id Int @id @default(autoincrement())
+
+  dcfValuationRecapAndPriceTargetId Int
+  dcfValuationRecapAndPriceTarget   DcfValuationRecapAndPriceTarget @relation(fields: [dcfValuationRecapAndPriceTargetId], references: [id], onDelete: Cascade)
+
+  scenario   String
+  assumption String
+  value      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dcf_sensitivity_analysis_recap")
+}
 model AgmAndShareholderMatters {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique

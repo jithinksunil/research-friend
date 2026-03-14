@@ -6,6 +6,7 @@ import {
   ANALYST_RECOMMENDATION_PROMPT,
   BUSINESS_SEGMENT_DATA_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
+  DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
   AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
   CONCLUSION_AND_RECOMMENDATION_PROMPT,
   EQUITY_VALUATION_PROMPT,
@@ -2233,6 +2234,142 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
   return analysis;
 }
 
+
+
+
+
+interface DcfValuationRecapData {
+  company: {
+    name: string | null;
+    marketType: 'UK' | 'US' | 'India' | 'Global';
+    currency: string | null;
+  };
+  valuation: {
+    currentPrice: number | null;
+    targetMeanPrice: number | null;
+    targetHighPrice: number | null;
+    targetLowPrice: number | null;
+    recommendationKey: string | null;
+    enterpriseValue: number | null;
+    marketCap: number | null;
+    totalDebt: number | null;
+    totalCash: number | null;
+  };
+  dcfSignals: {
+    trailingPE: number | null;
+    forwardPE: number | null;
+    enterpriseToRevenue: number | null;
+    enterpriseToEbitda: number | null;
+  };
+}
+
+export async function getDcfValuationRecapData(
+  symbol: string,
+): Promise<DcfValuationRecapData> {
+  const summary = await yahooFinance.quoteSummary(symbol, {
+    modules: [
+      'assetProfile',
+      'price',
+      'summaryDetail',
+      'financialData',
+      'defaultKeyStatistics',
+    ],
+  });
+
+  const asNumber = (value: unknown): number | null =>
+    typeof value === 'number' ? value : null;
+
+  const country = summary.assetProfile?.country?.toLowerCase() ?? '';
+  const marketType: DcfValuationRecapData['company']['marketType'] =
+    country.includes('india')
+      ? 'India'
+      : country.includes('united kingdom') || country.includes('uk')
+        ? 'UK'
+        : country.includes('united states') || country.includes('usa')
+          ? 'US'
+          : 'Global';
+
+  return {
+    company: {
+      name: summary.price?.longName ?? null,
+      marketType,
+      currency: summary.price?.currency ?? null,
+    },
+    valuation: {
+      currentPrice: asNumber(summary.price?.regularMarketPrice),
+      targetMeanPrice: asNumber(summary.financialData?.targetMeanPrice),
+      targetHighPrice: asNumber(summary.financialData?.targetHighPrice),
+      targetLowPrice: asNumber(summary.financialData?.targetLowPrice),
+      recommendationKey: summary.financialData?.recommendationKey ?? null,
+      enterpriseValue: asNumber(summary.financialData?.enterpriseValue),
+      marketCap: asNumber(summary.price?.marketCap),
+      totalDebt: asNumber(summary.financialData?.totalDebt),
+      totalCash: asNumber(summary.financialData?.totalCash),
+    },
+    dcfSignals: {
+      trailingPE: asNumber(summary.summaryDetail?.trailingPE),
+      forwardPE: asNumber(summary.summaryDetail?.forwardPE),
+      enterpriseToRevenue: asNumber(summary.defaultKeyStatistics?.enterpriseToRevenue),
+      enterpriseToEbitda: asNumber(summary.defaultKeyStatistics?.enterpriseToEbitda),
+    },
+  };
+}
+
+export const DcfValuationRecapAndPriceTargetSchema = z.object({
+  sectionTitle: z.literal('DCF VALUATION RECAP & PRICE TARGET'),
+  valuationSummaryTitle: z.string(),
+  baseCaseAssumption: z.string(),
+  valuationBuildUp: z.object({
+    pvOfFcf: z.string(),
+    pvOfTerminalValue: z.string(),
+    enterpriseValue: z.string(),
+    netDebt: z.string(),
+    equityValue: z.string(),
+    sharesDiluted: z.string(),
+    fairValuePerShare: z.string(),
+    currentPrice: z.string(),
+    upside: z.string(),
+    recommendation: z.enum(['BUY', 'HOLD', 'SELL']),
+  }),
+  sensitivityAnalysisRecap: z
+    .array(
+      z.object({
+        scenario: z.enum(['Bull Case', 'Base Case', 'Bear Case']),
+        assumption: z.string(),
+        value: z.string(),
+      }),
+    )
+    .length(3),
+  twelveMonthPriceTarget: z.string(),
+  rationaleForPriceTarget: z.array(z.string()).min(2),
+});
+
+export async function getDcfValuationRecapAndPriceTargetAboutCompany(
+  symbol: string,
+) {
+  const response = await getDcfValuationRecapData(symbol);
+
+  const analysis = await fetchSection<
+    z.infer<typeof DcfValuationRecapAndPriceTargetSchema>
+  >({
+    userPrompt: `
+Generate Section 9: DCF VALUATION RECAP & PRICE TARGET.
+Input Data: ${JSON.stringify(response)}
+
+Requirements:
+1. Include valuation summary with build-up and recommendation.
+2. Include exactly 3 sensitivity scenarios (bull/base/bear).
+3. Include a 12-month price target and rationale bullets.
+4. Keep tone institutional and objective.
+5. Return only valid JSON matching DcfValuationRecapAndPriceTargetSchema.
+`,
+    systemPrompt: DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
+    schema: DcfValuationRecapAndPriceTargetSchema,
+    schemaName: 'DcfValuationRecapAndPriceTargetSchema',
+  });
+
+  return analysis;
+}
 
 interface AgmAndShareholderMattersData {
   company: {
