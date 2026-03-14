@@ -11,6 +11,7 @@ import {
   EQUITY_VALUATION_PROMPT,
   EXECUTIVE_PROMPT,
   FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
+  FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
   INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
   OVERVIEW_PROMPT,
   SHARE_HOLDER_STRUCTURE_PROMPT,
@@ -2353,6 +2354,146 @@ Requirements:
     systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
     schema: AgmAndShareholderMattersSchema,
     schemaName: 'AgmAndShareholderMattersSchema',
+  });
+
+  return analysis;
+}
+
+
+
+interface ForwardProjectionsValuationInput {
+  company: {
+    name: string | null;
+    currency: string | null;
+    marketType: 'UK' | 'US' | 'India' | 'Global';
+  };
+  valuationSignals: {
+    currentPrice: number | null;
+    targetMeanPrice: number | null;
+    recommendationKey: string | null;
+    marketCap: number | null;
+  };
+  forwardSignals: {
+    revenueGrowth: number | null;
+    earningsGrowth: number | null;
+    operatingMargins: number | null;
+    profitMargins: number | null;
+    returnOnEquity: number | null;
+    debtToEquity: number | null;
+  };
+}
+
+export async function getForwardProjectionsAndValuationInput(
+  symbol: string,
+): Promise<ForwardProjectionsValuationInput> {
+  const summary = await yahooFinance.quoteSummary(symbol, {
+    modules: ['assetProfile', 'price', 'financialData', 'summaryDetail'],
+  });
+
+  const country = summary.assetProfile?.country?.toLowerCase() ?? '';
+  const marketType: ForwardProjectionsValuationInput['company']['marketType'] =
+    country.includes('india')
+      ? 'India'
+      : country.includes('united kingdom') || country.includes('uk')
+        ? 'UK'
+        : country.includes('united states') || country.includes('usa')
+          ? 'US'
+          : 'Global';
+
+  return {
+    company: {
+      name: summary.price?.longName ?? null,
+      currency: summary.price?.currency ?? null,
+      marketType,
+    },
+    valuationSignals: {
+      currentPrice: summary.price?.regularMarketPrice ?? null,
+      targetMeanPrice: summary.financialData?.targetMeanPrice ?? null,
+      recommendationKey: summary.financialData?.recommendationKey ?? null,
+      marketCap: summary.price?.marketCap ?? null,
+    },
+    forwardSignals: {
+      revenueGrowth: summary.financialData?.revenueGrowth ?? null,
+      earningsGrowth: summary.financialData?.earningsGrowth ?? null,
+      operatingMargins: summary.financialData?.operatingMargins ?? null,
+      profitMargins: summary.financialData?.profitMargins ?? null,
+      returnOnEquity: summary.financialData?.returnOnEquity ?? null,
+      debtToEquity: summary.financialData?.debtToEquity ?? null,
+    },
+  };
+}
+
+export const ForwardProjectionsAndValuationSchema = z.object({
+  sectionTitle: z.literal('FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION'),
+  projectedIncomeStatement: z.array(
+    z.object({
+      metric: z.string(),
+      fy26e: z.string(),
+      fy27e: z.string(),
+      fy28e: z.string(),
+      fy29e: z.string(),
+      fy30e: z.string(),
+    }),
+  ).min(8),
+  keyProjectionDrivers: z.array(z.string()).min(3).max(5),
+  projectedBalanceSheet: z.array(
+    z.object({
+      item: z.string(),
+      fy25a: z.string(),
+      fy26e: z.string(),
+      fy27e: z.string(),
+      fy28e: z.string(),
+      fy29e: z.string(),
+      fy30e: z.string(),
+    }),
+  ).min(5),
+  balanceSheetDynamics: z.array(z.string()).min(3).max(5),
+  projectedCashFlow: z.array(
+    z.object({
+      metric: z.string(),
+      fy26e: z.string(),
+      fy27e: z.string(),
+      fy28e: z.string(),
+      fy29e: z.string(),
+      fy30e: z.string(),
+    }),
+  ).min(5),
+  keyObservations: z.array(z.string()).min(3).max(5),
+  creditMetricsProjection: z.array(
+    z.object({
+      metric: z.string(),
+      fy26e: z.string(),
+      fy27e: z.string(),
+      fy28e: z.string(),
+      fy29e: z.string(),
+      fy30e: z.string(),
+    }),
+  ).min(4),
+  creditOutlook: z.string(),
+});
+
+export async function getForwardProjectionsAndValuationAboutCompany(
+  symbol: string,
+) {
+  const response = await getForwardProjectionsAndValuationInput(symbol);
+
+  const analysis = await fetchSection<
+    z.infer<typeof ForwardProjectionsAndValuationSchema>
+  >({
+    userPrompt: `
+Generate section: FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION.
+Input Data: ${JSON.stringify(response)}
+
+Requirements:
+1. Build realistic 5-year forward views (FY26E-FY30E) with coherent internal consistency.
+2. Include all four sub-sections: projected income statement, projected balance sheet, projected cash flow & FCF, credit metrics projection.
+3. Use ${response.company.currency ?? 'local'} formatting with readable financial notation.
+4. Tailor risk/credit narrative to market type: ${response.company.marketType}.
+5. Return valid JSON only matching schema.
+`,
+    systemPrompt: FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
+    schema: ForwardProjectionsAndValuationSchema,
+    schemaName: 'ForwardProjectionsAndValuationSchema',
   });
 
   return analysis;

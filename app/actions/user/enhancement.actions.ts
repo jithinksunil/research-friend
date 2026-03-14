@@ -8,6 +8,7 @@ import {
   EQUITY_VALUATION_PROMPT,
   FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
   BUSINESS_SEGMENT_DATA_PROMPT,
+  FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
   INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
   CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
   AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
@@ -25,6 +26,7 @@ import {
   ContingentLiabilitiesRegulatoryRisksSchema,
   InterimResultsQuarterlyPerformanceSchema,
   AgmAndShareholderMattersSchema,
+  ForwardProjectionsAndValuationSchema,
   ConclusionAndRecommendationSchema,
   improveSection,
   requireRBAC,
@@ -726,6 +728,70 @@ export const enhanceAgmAndShareholderMattersSection = requireRBAC(
 
   return { okay: true, data: updated };
 });
+
+
+export const enhanceForwardProjectionsAndValuationSection = requireRBAC(
+  ROLES.USER,
+)(async (symbol: string, improvementNeeded) => {
+  const forwardData = (await prisma.forwardProjectionsAndValuation.findFirst({
+    where: { report: { company: { symbol } } },
+    include: {
+      projectedIncomeStatementRows: true,
+      projectedBalanceSheetRows: true,
+      projectedCashFlowRows: true,
+      creditMetricsRows: true,
+    },
+  }))!;
+
+  const forwardInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(forwardData)}`,
+    systemPrompt: FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
+    schema: ForwardProjectionsAndValuationSchema,
+    schemaName: 'ForwardProjectionsAndValuationSchema',
+    improvementNeeded,
+  });
+
+  const updated = await prisma.forwardProjectionsAndValuation.update({
+    where: { id: forwardData.id },
+    data: {
+      sectionTitle: forwardInfo.sectionTitle,
+      keyProjectionDrivers: forwardInfo.keyProjectionDrivers,
+      balanceSheetDynamics: forwardInfo.balanceSheetDynamics,
+      keyObservations: forwardInfo.keyObservations,
+      creditOutlook: forwardInfo.creditOutlook,
+      projectedIncomeStatementRows: {
+        deleteMany: {},
+        createMany: { data: forwardInfo.projectedIncomeStatement },
+      },
+      projectedBalanceSheetRows: {
+        deleteMany: {},
+        createMany: { data: forwardInfo.projectedBalanceSheet },
+      },
+      projectedCashFlowRows: {
+        deleteMany: {},
+        createMany: { data: forwardInfo.projectedCashFlow },
+      },
+      creditMetricsRows: {
+        deleteMany: {},
+        createMany: { data: forwardInfo.creditMetricsProjection },
+      },
+    },
+    select: {
+      sectionTitle: true,
+      keyProjectionDrivers: true,
+      balanceSheetDynamics: true,
+      keyObservations: true,
+      creditOutlook: true,
+      projectedIncomeStatementRows: true,
+      projectedBalanceSheetRows: true,
+      projectedCashFlowRows: true,
+      creditMetricsRows: true,
+    },
+  });
+
+  return { okay: true, data: updated };
+});
+
 export const enhanceConclusionAndRecommendationSection = requireRBAC(
   ROLES.USER,
 )(async (symbol: string, improvementNeeded) => {

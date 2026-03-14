@@ -88,6 +88,7 @@ model Report {
   interimResultsAndQuarterlyPerformance  InterimResultsAndQuarterlyPerformance?
   contingentLiabilitiesAndRegulatoryRisk ContingentLiabilitiesAndRegulatoryRisk?
   agmAndShareholderMatters              AgmAndShareholderMatters?
+  forwardProjectionsAndValuation         ForwardProjectionsAndValuation?
   conclusionAndRecommendation            ConclusionAndRecommendation?
 
   @@map("report")
@@ -805,6 +806,110 @@ model ExpectedVotingAgenda {
   @@unique([agmAndShareholderMattersId, resolutionNumber])
   @@map("expected_voting_agenda")
 }
+
+model ForwardProjectionsAndValuation {
+  id       Int    @id @default(autoincrement())
+  reportId Int    @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  sectionTitle         String
+  keyProjectionDrivers String[]
+  balanceSheetDynamics String[]
+  keyObservations      String[]
+  creditOutlook        String
+
+  projectedIncomeStatementRows ForwardIncomeStatementRow[]
+  projectedBalanceSheetRows    ForwardBalanceSheetRow[]
+  projectedCashFlowRows        ForwardCashFlowRow[]
+  creditMetricsRows            ForwardCreditMetricRow[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("forward_projections_and_valuation")
+}
+
+model ForwardIncomeStatementRow {
+  id Int @id @default(autoincrement())
+
+  forwardProjectionsAndValuationId Int
+  forwardProjectionsAndValuation   ForwardProjectionsAndValuation @relation(fields: [forwardProjectionsAndValuationId], references: [id], onDelete: Cascade)
+
+  metric String
+  fy26e  String
+  fy27e  String
+  fy28e  String
+  fy29e  String
+  fy30e  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([forwardProjectionsAndValuationId, metric])
+  @@map("forward_income_statement_row")
+}
+
+model ForwardBalanceSheetRow {
+  id Int @id @default(autoincrement())
+
+  forwardProjectionsAndValuationId Int
+  forwardProjectionsAndValuation   ForwardProjectionsAndValuation @relation(fields: [forwardProjectionsAndValuationId], references: [id], onDelete: Cascade)
+
+  item  String
+  fy25a String
+  fy26e String
+  fy27e String
+  fy28e String
+  fy29e String
+  fy30e String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([forwardProjectionsAndValuationId, item])
+  @@map("forward_balance_sheet_row")
+}
+
+model ForwardCashFlowRow {
+  id Int @id @default(autoincrement())
+
+  forwardProjectionsAndValuationId Int
+  forwardProjectionsAndValuation   ForwardProjectionsAndValuation @relation(fields: [forwardProjectionsAndValuationId], references: [id], onDelete: Cascade)
+
+  metric String
+  fy26e  String
+  fy27e  String
+  fy28e  String
+  fy29e  String
+  fy30e  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([forwardProjectionsAndValuationId, metric])
+  @@map("forward_cash_flow_row")
+}
+
+model ForwardCreditMetricRow {
+  id Int @id @default(autoincrement())
+
+  forwardProjectionsAndValuationId Int
+  forwardProjectionsAndValuation   ForwardProjectionsAndValuation @relation(fields: [forwardProjectionsAndValuationId], references: [id], onDelete: Cascade)
+
+  metric String
+  fy26e  String
+  fy27e  String
+  fy28e  String
+  fy29e  String
+  fy30e  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([forwardProjectionsAndValuationId, metric])
+  @@map("forward_credit_metric_row")
+}
+
 model ConclusionAndRecommendation {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique

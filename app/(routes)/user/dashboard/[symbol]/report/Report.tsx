@@ -18,6 +18,7 @@ import {
   enhanceInterimResultsAndQuarterlyPerformanceSection,
   enhanceContingentLiabilitiesAndRegulatoryRiskSection,
   enhanceAgmAndShareholderMattersSection,
+  enhanceForwardProjectionsAndValuationSection,
   enhanceConclusionAndRecommendationSection,
 } from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -1430,7 +1431,122 @@ function Report({ symbol }: { symbol: string }) {
 
 
       <SectionWrapper
-        heading='10. CONCLUSION'
+        heading='10. FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION'
+        symbol={symbol}
+        onEnhanceSection={async (symbol: string, improvementText: string) => {
+          const result = await enhanceForwardProjectionsAndValuationSection(
+            symbol,
+            improvementText,
+          );
+          if (!result.okay) throw new Error(result.error.message);
+          await queryClient.setQueryData(
+            ['report', symbol],
+            (oldData: ReportDetailsResponse) =>
+              produce(oldData, (draft) => {
+                draft.data.report!.forwardProjectionsAndValuation = result.data;
+              }),
+          );
+        }}
+      >
+        {(() => {
+          const forward = report.data.report?.forwardProjectionsAndValuation;
+          if (!forward)
+            return <div className='text-sm text-muted-foreground'>No data</div>;
+
+          return (
+            <>
+              <SubHeading>Projected Income Statement (FY26-FY30E)</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map((h, idx) => (
+                  <div key={`fwd-is-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                    {h}
+                  </div>
+                ))}
+                rows={(forward.projectedIncomeStatementRows || []).map((row, idx) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`fwd-is-m-${idx}`}>{row.metric}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-26-${idx}`}>{row.fy26e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-27-${idx}`}>{row.fy27e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-28-${idx}`}>{row.fy28e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-29-${idx}`}>{row.fy29e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-30-${idx}`}>{row.fy30e}</div>,
+                ])}
+              />
+
+              <SubHeading className='mt-6'>Key Projection Drivers</SubHeading>
+              <List items={forward.keyProjectionDrivers || []} />
+
+              <SubHeading className='mt-6'>Projected Balance Sheet (Simplified, FY26-FY30E)</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={['Item', 'FY25A', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map((h, idx) => (
+                  <div key={`fwd-bs-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                    {h}
+                  </div>
+                ))}
+                rows={(forward.projectedBalanceSheetRows || []).map((row, idx) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`fwd-bs-i-${idx}`}>{row.item}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-25-${idx}`}>{row.fy25a}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-26-${idx}`}>{row.fy26e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-27-${idx}`}>{row.fy27e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-28-${idx}`}>{row.fy28e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-29-${idx}`}>{row.fy29e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-30-${idx}`}>{row.fy30e}</div>,
+                ])}
+              />
+
+              <SubHeading className='mt-6'>Balance Sheet Dynamics</SubHeading>
+              <List items={forward.balanceSheetDynamics || []} />
+
+              <SubHeading className='mt-6'>Projected Cash Flow & FCF (FY26-FY30E)</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map((h, idx) => (
+                  <div key={`fwd-cf-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                    {h}
+                  </div>
+                ))}
+                rows={(forward.projectedCashFlowRows || []).map((row, idx) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`fwd-cf-m-${idx}`}>{row.metric}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-26-${idx}`}>{row.fy26e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-27-${idx}`}>{row.fy27e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-28-${idx}`}>{row.fy28e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-29-${idx}`}>{row.fy29e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-30-${idx}`}>{row.fy30e}</div>,
+                ])}
+              />
+
+              <SubHeading className='mt-6'>Key Observations</SubHeading>
+              <List items={forward.keyObservations || []} />
+
+              <SubHeading className='mt-6'>Credit Metrics Projection (FY26-FY30E)</SubHeading>
+              <TableWithoutPagination
+                noData='No data'
+                headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map((h, idx) => (
+                  <div key={`fwd-cr-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                    {h}
+                  </div>
+                ))}
+                rows={(forward.creditMetricsRows || []).map((row, idx) => [
+                  <div className='py-[10px] text-sm text-muted-foreground' key={`fwd-cr-m-${idx}`}>{row.metric}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-26-${idx}`}>{row.fy26e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-27-${idx}`}>{row.fy27e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-28-${idx}`}>{row.fy28e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-29-${idx}`}>{row.fy29e}</div>,
+                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-30-${idx}`}>{row.fy30e}</div>,
+                ])}
+              />
+
+              <SubHeading className='mt-6'>Credit Outlook</SubHeading>
+              <Description>{forward.creditOutlook}</Description>
+            </>
+          );
+        })()}
+      </SectionWrapper>
+
+
+      <SectionWrapper
+        heading='11. CONCLUSION'
         symbol={symbol}
         onEnhanceSection={async (symbol: string, improvementText: string) => {
           const result = await enhanceConclusionAndRecommendationSection(

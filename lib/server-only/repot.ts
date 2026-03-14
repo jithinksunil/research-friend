@@ -10,6 +10,7 @@ import {
   getEquityValuationAboutCompany,
   getExecutiveInformationAboutCompany,
   getFinancialStatementsAnalysisAboutCompany,
+  getForwardProjectionsAndValuationAboutCompany,
   getInterimResultsAndQuarterlyPerformanceAboutCompany,
   getOverviewMetricsAboutCompany,
   getShareholderStructureAboutCompany,
@@ -117,6 +118,19 @@ export const getReportDetails = async (symbol: string) => {
               specialResolutionsExpected: true,
               keyGovernanceNotes: true,
               expectedVotingAgenda: true,
+            },
+          },
+          forwardProjectionsAndValuation: {
+            select: {
+              sectionTitle: true,
+              keyProjectionDrivers: true,
+              balanceSheetDynamics: true,
+              keyObservations: true,
+              creditOutlook: true,
+              projectedIncomeStatementRows: true,
+              projectedBalanceSheetRows: true,
+              projectedCashFlowRows: true,
+              creditMetricsRows: true,
             },
           },
           conclusionAndRecommendation: true,
@@ -228,7 +242,20 @@ export const getReportDetails = async (symbol: string) => {
                 expectedVotingAgenda: true,
               },
             },
-            conclusionAndRecommendation: true,
+            forwardProjectionsAndValuation: {
+            select: {
+              sectionTitle: true,
+              keyProjectionDrivers: true,
+              balanceSheetDynamics: true,
+              keyObservations: true,
+              creditOutlook: true,
+              projectedIncomeStatementRows: true,
+              projectedBalanceSheetRows: true,
+              projectedCashFlowRows: true,
+              creditMetricsRows: true,
+            },
+          },
+          conclusionAndRecommendation: true,
           },
         },
         companyName: true,
@@ -261,6 +288,170 @@ export const getReportDetails = async (symbol: string) => {
     company = { ...newInfo };
   }
 
+
+
+  if (company.report && !company.report.forwardProjectionsAndValuation) {
+    const forwardProjectionsAndValuation =
+      await getForwardProjectionsAndValuationAboutCompany(symbol);
+
+    const newInfo = await prisma.company.update({
+      where: { symbol },
+      select: {
+        report: {
+          select: {
+            id: true,
+            executiveSummary: true,
+            overviewAndStockMetrics: {
+              select: { stockMetrics: true, fiftyTwoWeekPerformance: true },
+            },
+            shareHolderStructure: {
+              select: {
+                majorShareholders: true,
+                keyInsiderObservations: true,
+                shareCapitalNotes: true,
+                totalShares: true,
+              },
+            },
+            analystRecommendation: {
+              select: {
+                consensusDetails: true,
+                currentConsensus: true,
+                recentAnalystViews: true,
+              },
+            },
+            equityValuationAndDcfAnalysis: {
+              select: {
+                keyAssumptions: true,
+                dcfValuationBuildup: true,
+                keyTakeAway: true,
+                projectedFinancialYears: { include: { projections: true } },
+                valuationSensitivities: { include: { values: true } },
+              },
+            },
+            financialStatementAnalyasis: {
+              select: {
+                keyObservations: true,
+                capitalPositionAnalysis: true,
+                fcfQualityAnalysis: true,
+                valuationObservations: true,
+                incomeStatementTrendRows: true,
+                balanceSheetStrengthRows: true,
+                cashFlowAnalysisRows: true,
+                financialRatioMetrics: { include: { values: true } },
+              },
+            },
+            businessSegmentData: {
+              select: {
+                id: true,
+                businessModelDynamics: true,
+                competitivePosition: {
+                  select: {
+                    id: true,
+                    keyCompetitors: true,
+                    competitiveAdvantage: true,
+                  },
+                },
+                platformSegmentPerformance: true,
+                revenueModelBreakdown: true,
+              },
+            },
+            interimResultsAndQuarterlyPerformance: {
+              select: {
+                id: true,
+                title: true,
+                keyPositives: true,
+                keyNegatives: true,
+                recordFinancialPerformance: true,
+                forwardGuidance: {
+                  select: {
+                    id: true,
+                    managementCommentary: true,
+                    analystConsensusFY1: true,
+                  },
+                },
+              },
+            },
+            contingentLiabilitiesAndRegulatoryRisk: {
+              select: {
+                id: true,
+                balanceSheetContingencies: true,
+                keyRegulatoryConsiderations: true,
+                netContingentPosition: true,
+              },
+            },
+            agmAndShareholderMatters: {
+              select: {
+                id: true,
+                sectionTitle: true,
+                announcedDate: true,
+                location: true,
+                noticeFiled: true,
+                specialResolutionsExpected: true,
+                keyGovernanceNotes: true,
+                expectedVotingAgenda: true,
+              },
+            },
+            forwardProjectionsAndValuation: {
+              select: {
+                sectionTitle: true,
+                keyProjectionDrivers: true,
+                balanceSheetDynamics: true,
+                keyObservations: true,
+                creditOutlook: true,
+                projectedIncomeStatementRows: true,
+                projectedBalanceSheetRows: true,
+                projectedCashFlowRows: true,
+                creditMetricsRows: true,
+              },
+            },
+            conclusionAndRecommendation: true,
+          },
+        },
+        companyName: true,
+      },
+      data: {
+        report: {
+          update: {
+            forwardProjectionsAndValuation: {
+              create: {
+                sectionTitle: forwardProjectionsAndValuation.sectionTitle,
+                keyProjectionDrivers:
+                  forwardProjectionsAndValuation.keyProjectionDrivers,
+                balanceSheetDynamics:
+                  forwardProjectionsAndValuation.balanceSheetDynamics,
+                keyObservations: forwardProjectionsAndValuation.keyObservations,
+                creditOutlook: forwardProjectionsAndValuation.creditOutlook,
+                projectedIncomeStatementRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.projectedIncomeStatement,
+                  },
+                },
+                projectedBalanceSheetRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.projectedBalanceSheet,
+                  },
+                },
+                projectedCashFlowRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.projectedCashFlow,
+                  },
+                },
+                creditMetricsRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.creditMetricsProjection,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // @ts-ignore
+    company = { ...newInfo };
+  }
+
   if (!company?.report) {
     const sectionPromises = [
       getExecutiveInformationAboutCompany(symbol),
@@ -270,6 +461,7 @@ export const getReportDetails = async (symbol: string) => {
       getEquityValuationAboutCompany(symbol),
       getFinancialStatementsAnalysisAboutCompany(symbol),
       getBusinessSegmentDataAboutCompany(symbol),
+      getForwardProjectionsAndValuationAboutCompany(symbol),
       getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol),
       getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol),
       getAgmAndShareholderMattersAboutCompany(symbol),
@@ -284,6 +476,7 @@ export const getReportDetails = async (symbol: string) => {
       equityValuationAndDcfAnalysisInfoResult,
       financialStatementAnalysisInfoResult,
       businessSegmentDataResult,
+      forwardProjectionsAndValuationResult,
       interimResultsAndQuarterlyPerformanceResult,
       contingentLiabilitiesAndRegulatoryRiskResult,
       agmAndShareholderMattersResult,
@@ -306,6 +499,9 @@ export const getReportDetails = async (symbol: string) => {
       financialStatementAnalysisInfoResult,
     );
     const businessSegmentData = resolveSettled(businessSegmentDataResult);
+    const forwardProjectionsAndValuation = resolveSettled(
+      forwardProjectionsAndValuationResult,
+    );
     const interimResultsAndQuarterlyPerformance = resolveSettled(
       interimResultsAndQuarterlyPerformanceResult,
     );
@@ -420,7 +616,20 @@ export const getReportDetails = async (symbol: string) => {
                 expectedVotingAgenda: true,
               },
             },
-            conclusionAndRecommendation: true,
+            forwardProjectionsAndValuation: {
+            select: {
+              sectionTitle: true,
+              keyProjectionDrivers: true,
+              balanceSheetDynamics: true,
+              keyObservations: true,
+              creditOutlook: true,
+              projectedIncomeStatementRows: true,
+              projectedBalanceSheetRows: true,
+              projectedCashFlowRows: true,
+              creditMetricsRows: true,
+            },
+          },
+          conclusionAndRecommendation: true,
           },
         },
         companyName: true,
@@ -715,6 +924,37 @@ export const getReportDetails = async (symbol: string) => {
                 expectedVotingAgenda: {
                   createMany: {
                     data: agmAndShareholderMatters.expectedVotingAgenda,
+                  },
+                },
+              },
+            },
+            forwardProjectionsAndValuation: {
+              create: {
+                sectionTitle: forwardProjectionsAndValuation.sectionTitle,
+                keyProjectionDrivers:
+                  forwardProjectionsAndValuation.keyProjectionDrivers,
+                balanceSheetDynamics:
+                  forwardProjectionsAndValuation.balanceSheetDynamics,
+                keyObservations: forwardProjectionsAndValuation.keyObservations,
+                creditOutlook: forwardProjectionsAndValuation.creditOutlook,
+                projectedIncomeStatementRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.projectedIncomeStatement,
+                  },
+                },
+                projectedBalanceSheetRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.projectedBalanceSheet,
+                  },
+                },
+                projectedCashFlowRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.projectedCashFlow,
+                  },
+                },
+                creditMetricsRows: {
+                  createMany: {
+                    data: forwardProjectionsAndValuation.creditMetricsProjection,
                   },
                 },
               },
