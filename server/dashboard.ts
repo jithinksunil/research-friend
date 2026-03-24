@@ -1,11 +1,5 @@
 import 'server-only';
-import {
-  BasicStockInfo,
-  KeyMetrics,
-  Metric,
-  QuickMetric,
-  RiskMetric,
-} from '@/interfaces';
+import { BasicStockInfo, KeyMetrics, QuickMetric, RiskMetric } from '@/interfaces';
 import YahooFinance from 'yahoo-finance2';
 
 const yahooFinance = new YahooFinance();
@@ -36,12 +30,8 @@ export async function getStockDashboardData(
     safeFetch(
       `${BASE}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=compact&apikey=${API_KEY}`,
     ),
-    safeFetch(
-      `${BASE}?function=INCOME_STATEMENT&symbol=${symbol}&apikey=${API_KEY}`,
-    ),
-    safeFetch(
-      `${BASE}?function=BALANCE_SHEET&symbol=${symbol}&apikey=${API_KEY}`,
-    ),
+    safeFetch(`${BASE}?function=INCOME_STATEMENT&symbol=${symbol}&apikey=${API_KEY}`),
+    safeFetch(`${BASE}?function=BALANCE_SHEET&symbol=${symbol}&apikey=${API_KEY}`),
     safeFetch(`${BASE}?function=CASH_FLOW&symbol=${symbol}&apikey=${API_KEY}`),
   ]);
 
@@ -53,8 +43,7 @@ export async function getStockDashboardData(
   // -----------------------------
   // 2. Safe helpers
   // -----------------------------
-  const safeNumber = (v: any) =>
-    v === undefined || v === null || v === 'None' ? null : Number(v);
+  const safeNumber = (v: any) => (v === undefined || v === null || v === 'None' ? null : Number(v));
 
   const ttm = (reports: any[] | null, field: string) => {
     if (!reports || reports.length < 4) return null;
@@ -66,9 +55,7 @@ export async function getStockDashboardData(
     const entries = Object.entries(timeSeries);
     //@ts-ignore
     const current = safeNumber(entries[0][1]['4. close']);
-    const jan = entries.find(([d]) =>
-      d.startsWith(new Date().getFullYear().toString()),
-    );
+    const jan = entries.find(([d]) => d.startsWith(new Date().getFullYear().toString()));
     if (!current || !jan) return null;
     //@ts-ignore
     const janPrice = safeNumber(jan[1]['4. close']);
@@ -84,11 +71,7 @@ export async function getStockDashboardData(
     if (prices.length < 2) return null;
     const returns = prices.slice(1).map((p, i) => (p - prices[i]) / prices[i]);
     const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-    return (
-      Math.sqrt(
-        returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length,
-      ) * 100
-    );
+    return Math.sqrt(returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length) * 100;
   };
 
   const calcMaxDrawdown = () => {
@@ -177,8 +160,7 @@ export async function getStockDashboardData(
       {
         label: 'Free Cash Flow',
         value: cashflowQ
-          ? ttm(cashflowQ, 'operatingCashflow')! -
-            ttm(cashflowQ, 'capitalExpenditures')!
+          ? ttm(cashflowQ, 'operatingCashflow')! - ttm(cashflowQ, 'capitalExpenditures')!
           : null,
         unit: 'USD',
         format: 'currencyCompact',
@@ -186,8 +168,7 @@ export async function getStockDashboardData(
       {
         label: 'Operating Margin',
         value: incomeQ
-          ? (ttm(incomeQ, 'operatingIncome')! / ttm(incomeQ, 'totalRevenue')!) *
-            100
+          ? (ttm(incomeQ, 'operatingIncome')! / ttm(incomeQ, 'totalRevenue')!) * 100
           : null,
         unit: '%',
         format: 'percentage',
@@ -223,14 +204,12 @@ export async function getStockDashboardData(
         value: calcMaxDrawdown(),
         unit: '%',
         format: 'percentage',
-        description:
-          'Maximum observed loss from peak to trough over the past year.',
+        description: 'Maximum observed loss from peak to trough over the past year.',
       },
       {
         label: 'Debt Ratio',
         value: balanceQ
-          ? safeNumber(balanceQ[0]?.totalLiabilities)! /
-            safeNumber(balanceQ[0]?.totalAssets)!
+          ? safeNumber(balanceQ[0]?.totalLiabilities)! / safeNumber(balanceQ[0]?.totalAssets)!
           : null,
         format: 'number',
         description:
@@ -255,14 +234,12 @@ export async function getHistory(symbol: string) {
       period2: new Date(),
       interval: '1d',
     });
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
-export async function getBasicInfo(
-  symbol: string,
-): Promise<BasicStockInfo | null> {
+export async function getBasicInfo(symbol: string): Promise<BasicStockInfo | null> {
   try {
     const quote = await yahooFinance.quote(symbol);
     if (!quote) {
@@ -290,14 +267,12 @@ export async function getBasicInfo(
       website: quote.website || null,
       description: quote.longBusinessSummary || null,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
-export async function getQuickMetrics(
-  symbol: string,
-): Promise<QuickMetric | null> {
+export async function getQuickMetrics(symbol: string): Promise<QuickMetric | null> {
   try {
     const info = await getBasicInfo(symbol);
 
@@ -335,16 +310,12 @@ export async function getQuickMetrics(
       name: info.name,
       description: info.description,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
-export function formatMetricValue(
-  value: number | null,
-  format: string,
-  unit?: string,
-): string {
+export function formatMetricValue(value: number | null, format: string, unit?: string): string {
   if (value === null || value === undefined) {
     return '';
   }
@@ -402,9 +373,7 @@ export function formatMetricValue(
     : formattedValue;
 }
 
-export async function getFundamentalsMetrics(
-  symbol: string,
-): Promise<QuickMetric | null> {
+export async function getFundamentalsMetrics(symbol: string): Promise<QuickMetric | null> {
   try {
     const quote = await yahooFinance.quote(symbol);
 
@@ -443,9 +412,7 @@ export async function getFundamentalsMetrics(
       },
       {
         label: 'Debt / Equity',
-        value: quote.debtToEquity
-          ? formatMetricValue(quote.debtToEquity, 'number')
-          : '',
+        value: quote.debtToEquity ? formatMetricValue(quote.debtToEquity, 'number') : '',
       },
     ];
 
@@ -454,13 +421,11 @@ export async function getFundamentalsMetrics(
       name: quote.longName || quote.shortName || null,
       description: quote.longBusinessSummary || null,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
-export async function getRiskMetrics(
-  symbol: string,
-): Promise<RiskMetric[] | null> {
+export async function getRiskMetrics(symbol: string): Promise<RiskMetric[] | null> {
   try {
     const [quote, history] = await Promise.all([
       yahooFinance.quote(symbol),
@@ -479,12 +444,9 @@ export async function getRiskMetrics(
     const prices = history.map((h) => h.close).filter(Boolean) as number[];
     let volatility: number | null = null;
     if (prices.length >= 2) {
-      const returns = prices
-        .slice(1)
-        .map((p, i) => (p - prices[i]) / prices[i]);
+      const returns = prices.slice(1).map((p, i) => (p - prices[i]) / prices[i]);
       const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-      const variance =
-        returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
+      const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
       volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
     }
 
@@ -517,19 +479,16 @@ export async function getRiskMetrics(
       {
         label: 'Max Drawdown (1Y)',
         value: formatMetricValue(maxDrawdown, 'percentage'),
-        description:
-          'Maximum observed loss from peak to trough over the past year.',
+        description: 'Maximum observed loss from peak to trough over the past year.',
       },
       {
         label: 'Debt Ratio',
-        value: quote.debtToEquity
-          ? formatMetricValue(quote.debtToEquity, 'number')
-          : '',
+        value: quote.debtToEquity ? formatMetricValue(quote.debtToEquity, 'number') : '',
         description:
           'Proportion of assets financed by debt. Higher values indicate higher financial leverage.',
       },
     ];
-  } catch (error) {
+  } catch {
     return null;
   }
 }

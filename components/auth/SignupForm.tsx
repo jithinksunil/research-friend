@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { SignupFormInterface } from '@/interfaces';
 import { toastMessage } from '@/lib/toast';
 import { CheckBoxInput, PasswordInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
@@ -12,97 +11,85 @@ import { signup } from '@/app/actions/auth';
 // import { signIn } from 'next-auth/react';
 
 const schema = yup.object().shape({
-  firstName: yup.string().trim().required('Last Name is required').defined(),
+  firstName: yup.string().trim().required('First Name is required').defined(),
   password: yup.string().trim().required('Password is required').defined(),
   lastName: yup.string().trim().optional(),
-  email: yup
-    .string()
-    .email('Email must be valid')
-    .trim()
-    .required('Email is required')
-    .defined(),
+  email: yup.string().email('Email must be valid').trim().required('Email is required').defined(),
   termAndPrivacyPolicy: yup.bool().defined(),
 });
 
-const defaultValues: SignupFormInterface = {
+type SignupFormValues = yup.InferType<typeof schema>;
+
+const defaultValues: SignupFormValues = {
   firstName: '',
   lastName: '',
   email: '',
-  password:'',
+  password: '',
   termAndPrivacyPolicy: true,
 };
 
 export function SignupForm() {
   const [registering, setRegistering] = useState(false);
-  const { push, replace } = useRouter();
-  const { control, handleSubmit } = useForm({
-    //@ts-ignore
+  const router = useRouter();
+  const { control, handleSubmit } = useForm<SignupFormValues>({
     resolver: yupResolver(schema),
     defaultValues,
   });
   const params = useSearchParams();
 
   useEffect(() => {
-    if (params.get('message')) {
-      replace('/auth/signup');
-      toastMessage.error(params.get('message')!);
+    const message = params.get('message');
+    if (message) {
+      router.replace('/auth/signup');
+      toastMessage.error(message);
     }
-  }, [params]);
+  }, [params, router]);
 
-  const onSubmit = async (formData: SignupFormInterface) => {
+  const onSubmit = async (formData: SignupFormValues) => {
     try {
       setRegistering(true);
-      if (!formData.termAndPrivacyPolicy)
-        throw new Error('Must agree to terms and services');
+      if (!formData.termAndPrivacyPolicy) throw new Error('Must agree to terms and services');
       const res = await signup({
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        password: formData.password
+        password: formData.password,
       });
       if (!res.okay) throw res.error;
       toastMessage.success('Signed up successfully');
-      setRegistering(false);
-      push('/user/search');
-    } catch (err: any) {
-      toastMessage.error(err?.message);
+      router.push('/user/search');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toastMessage.error(message);
     } finally {
       setRegistering(false);
     }
   };
   return (
-    <form className='flex flex-col' onSubmit={handleSubmit(onSubmit)}>
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-x-5'>
-        <TextInput
-          control={control}
-          name='firstName'
-          placeholder='First Name'
-        />
-        <TextInput control={control} name='lastName' placeholder='Last Name' />
+    <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5">
+        <TextInput control={control} name="firstName" placeholder="First Name" />
+        <TextInput control={control} name="lastName" placeholder="Last Name" />
       </div>
-      <TextInput control={control} name='email' placeholder='Email' />
-      <PasswordInput control={control} name='password' placeholder='Password' />
+      <TextInput control={control} name="email" placeholder="Email" />
+      <PasswordInput control={control} name="password" placeholder="Password" />
       <CheckBoxInput
-        labelClassName='!text-sm'
+        labelClassName="!text-sm"
         control={control}
-        name='termAndPrivacyPolicy'
+        name="termAndPrivacyPolicy"
         label={
           <>
             I agree to the &nbsp;
             <span
-              onClick={() =>
-                window.open('https://www.abcxchange.com/terms-of-service')
-              }
-              className='text-[#0018FF] hover:cursor-pointer font-semibold'
+              onClick={() => window.open('https://www.abcxchange.com/terms-of-service')}
+              className="text-[#0018FF] hover:cursor-pointer font-semibold"
             >
               Terms of Service
             </span>
             &nbsp; and &nbsp;
             <span
-              onClick={() =>
-                window.open('https://www.abcxchange.com/privacy-policy')
-              }
-              className='text-[#0018FF] hover:cursor-pointer font-semibold'
+              onClick={() => window.open('https://www.abcxchange.com/privacy-policy')}
+              className="text-[#0018FF] hover:cursor-pointer font-semibold"
             >
               Privacy Policy
             </span>
@@ -110,29 +97,27 @@ export function SignupForm() {
         }
       />
 
-      <PrimaryButton type='submit' isLoading={registering}>
+      <PrimaryButton type="submit" isLoading={registering}>
         Register
       </PrimaryButton>
 
-      <div className='flex flex-col items-center justify-center gap-5 text-sm font-medium pt-6'>
-        <p className='flex items-center'>
+      <div className="flex flex-col items-center justify-center gap-5 text-sm font-medium pt-6">
+        <p className="flex items-center">
           Have an account?&nbsp;
           <span
-            onClick={() => push(`/`)}
-            className='text-[#0018FF] hover:cursor-pointer font-semibold'
+            onClick={() => router.push(`/`)}
+            className="text-[#0018FF] hover:cursor-pointer font-semibold"
           >
             Sign in
           </span>
         </p>
-        <p className=' flex items-center -mt-2'>
+        <p className=" flex items-center -mt-2">
           Didn’t receive any update?&nbsp;
           <span
             onClick={() =>
-              window.open(
-                'https://calendly.com/mrugesh-abcxchange/30min?month=2023-07',
-              )
+              window.open('https://calendly.com/mrugesh-abcxchange/30min?month=2023-07')
             }
-            className='text-[#0018FF] hover:cursor-pointer font-semibold'
+            className="text-[#0018FF] hover:cursor-pointer font-semibold"
           >
             Contact Support
           </span>

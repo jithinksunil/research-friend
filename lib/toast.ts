@@ -4,14 +4,7 @@ const option:
   | Partial<
       Pick<
         Toast,
-        | 'id'
-        | 'icon'
-        | 'duration'
-        | 'ariaProps'
-        | 'className'
-        | 'style'
-        | 'position'
-        | 'iconTheme'
+        'id' | 'icon' | 'duration' | 'ariaProps' | 'className' | 'style' | 'position' | 'iconTheme'
       >
     >
   | undefined = {

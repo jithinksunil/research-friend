@@ -12,7 +12,6 @@ import {
   getExecutiveInformationAboutCompany,
   getFinancialStatementsAnalysisAboutCompany,
   getForwardProjectionsAndValuationAboutCompany,
-  getInterimResultsAndQuarterlyPerformanceAboutCompany,
   getOverviewMetricsAboutCompany,
   getShareholderStructureAboutCompany,
 } from '@/server';
@@ -163,44 +162,23 @@ export const getReportDetails = async (symbol: string) => {
   }))!;
 
   if (!company?.report) {
-    const withSuccessLog = <T>(
-      sectionName: string,
-      sectionPromise: Promise<T>,
-    ): Promise<T> =>
+    const withSuccessLog = <T>(sectionName: string, sectionPromise: Promise<T>): Promise<T> =>
       sectionPromise.then((data) => {
         console.info(`[getReportDetails:${symbol}] fetched ${sectionName}`);
         return data;
       });
 
     const sectionPromises = [
-      withSuccessLog(
-        'executiveSummary',
-        getExecutiveInformationAboutCompany(symbol),
-      ),
-      withSuccessLog(
-        'overviewAndStockMetrics',
-        getOverviewMetricsAboutCompany(symbol),
-      ),
-      withSuccessLog(
-        'shareHolderStructure',
-        getShareholderStructureAboutCompany(symbol),
-      ),
-      withSuccessLog(
-        'analystRecommendation',
-        getAnalystRecommendationsAboutCompany(symbol),
-      ),
-      withSuccessLog(
-        'equityValuationAndDcfAnalysis',
-        getEquityValuationAboutCompany(symbol),
-      ),
+      withSuccessLog('executiveSummary', getExecutiveInformationAboutCompany(symbol)),
+      withSuccessLog('overviewAndStockMetrics', getOverviewMetricsAboutCompany(symbol)),
+      withSuccessLog('shareHolderStructure', getShareholderStructureAboutCompany(symbol)),
+      withSuccessLog('analystRecommendation', getAnalystRecommendationsAboutCompany(symbol)),
+      withSuccessLog('equityValuationAndDcfAnalysis', getEquityValuationAboutCompany(symbol)),
       withSuccessLog(
         'financialStatementAnalyasis',
         getFinancialStatementsAnalysisAboutCompany(symbol),
       ),
-      withSuccessLog(
-        'businessSegmentData',
-        getBusinessSegmentDataAboutCompany(symbol),
-      ),
+      withSuccessLog('businessSegmentData', getBusinessSegmentDataAboutCompany(symbol)),
       withSuccessLog(
         'forwardProjectionsAndValuation',
         getForwardProjectionsAndValuationAboutCompany(symbol),
@@ -213,10 +191,7 @@ export const getReportDetails = async (symbol: string) => {
         'contingentLiabilitiesAndRegulatoryRisk',
         getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol),
       ),
-      withSuccessLog(
-        'agmAndShareholderMatters',
-        getAgmAndShareholderMattersAboutCompany(symbol),
-      ),
+      withSuccessLog('agmAndShareholderMatters', getAgmAndShareholderMattersAboutCompany(symbol)),
       withSuccessLog(
         'conclusionAndRecommendation',
         getConclusionAndRecommendationAboutCompany(symbol),
@@ -255,28 +230,18 @@ export const getReportDetails = async (symbol: string) => {
     const equityValuationAndDcfAnalysisInfo = resolveSettled(
       equityValuationAndDcfAnalysisInfoResult,
     );
-    const financialStatementAnalysisInfo = resolveSettled(
-      financialStatementAnalysisInfoResult,
-    );
+    const financialStatementAnalysisInfo = resolveSettled(financialStatementAnalysisInfoResult);
     const businessSegmentData = resolveSettled(businessSegmentDataResult);
-    const forwardProjectionsAndValuation = resolveSettled(
-      forwardProjectionsAndValuationResult,
-    );
+    const forwardProjectionsAndValuation = resolveSettled(forwardProjectionsAndValuationResult);
     // const interimResultsAndQuarterlyPerformance = resolveSettled(
     //   interimResultsAndQuarterlyPerformanceResult,
     // );
     const contingentLiabilitiesAndRegulatoryRisk = resolveSettled(
       contingentLiabilitiesAndRegulatoryRiskResult,
     );
-    const agmAndShareholderMatters = resolveSettled(
-      agmAndShareholderMattersResult,
-    );
-    const conclusionAndRecommendation = resolveSettled(
-      conclusionAndRecommendationResult,
-    );
-    const dcfValuationRecapAndPriceTarget = resolveSettled(
-      dcfValuationRecapAndPriceTargetResult,
-    );
+    const agmAndShareholderMatters = resolveSettled(agmAndShareholderMattersResult);
+    const conclusionAndRecommendation = resolveSettled(conclusionAndRecommendationResult);
+    const dcfValuationRecapAndPriceTarget = resolveSettled(dcfValuationRecapAndPriceTargetResult);
 
     const newInfo = await prisma.company.update({
       where: { symbol },
@@ -424,8 +389,7 @@ export const getReportDetails = async (symbol: string) => {
           create: {
             executiveSummary: {
               create: {
-                analystConsensus:
-                  executiveInfo.investmentThesis.analystConsensus,
+                analystConsensus: executiveInfo.investmentThesis.analystConsensus,
                 positive: executiveInfo.investmentThesis.positives,
                 risk: executiveInfo.investmentThesis.risks,
                 summary: executiveInfo.executiveSummary,
@@ -455,13 +419,11 @@ export const getReportDetails = async (symbol: string) => {
                 keyInsiderObservations: shareHolderInfo.keyInsiderObservations,
                 majorShareholders: {
                   createMany: {
-                    data: shareHolderInfo.majorShareholders.map(
-                      (shareholder) => ({
-                        shareHolderType: shareholder.shareHolderType,
-                        ownership: shareholder.ownership,
-                        notes: shareholder.notes,
-                      }),
-                    ),
+                    data: shareHolderInfo.majorShareholders.map((shareholder) => ({
+                      shareHolderType: shareholder.shareHolderType,
+                      ownership: shareholder.ownership,
+                      notes: shareholder.notes,
+                    })),
                   },
                 },
               },
@@ -485,103 +447,82 @@ export const getReportDetails = async (symbol: string) => {
                 keyTakeAway: equityValuationAndDcfAnalysisInfo.keyTakeAway,
                 keyAssumptions: {
                   createMany: {
-                    data: equityValuationAndDcfAnalysisInfo.keyAssumptions.map(
-                      (a) => ({
-                        modelName: a.modelName,
-                        assumption: a.assumption,
-                      }),
-                    ),
+                    data: equityValuationAndDcfAnalysisInfo.keyAssumptions.map((a) => ({
+                      modelName: a.modelName,
+                      assumption: a.assumption,
+                    })),
                   },
                 },
                 projectedFinancialYears: {
-                  create:
-                    equityValuationAndDcfAnalysisInfo.projectedFinanacialNext5Years.map(
-                      (y) => ({
-                        financialYear: y.financialYear,
-                        projections: {
-                          createMany: {
-                            data: y.projections.map((p) => ({
-                              metric: p.metric,
-                              value: p.value,
-                            })),
-                          },
+                  create: equityValuationAndDcfAnalysisInfo.projectedFinanacialNext5Years.map(
+                    (y) => ({
+                      financialYear: y.financialYear,
+                      projections: {
+                        createMany: {
+                          data: y.projections.map((p) => ({
+                            metric: p.metric,
+                            value: p.value,
+                          })),
                         },
-                      }),
-                    ),
+                      },
+                    }),
+                  ),
                 },
                 dcfValuationBuildup: {
                   create: {
-                    pvOfFCF:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .pvOfFCF,
+                    pvOfFCF: equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.pvOfFCF,
                     pvOfTerminalValue:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .pvOfTerminalValue,
+                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.pvOfTerminalValue,
                     enterpriseValue:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .enterpriseValue,
-                    netDebt:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .netDebt,
-                    equityValue:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .equityValue,
+                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.enterpriseValue,
+                    netDebt: equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.netDebt,
+                    equityValue: equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.equityValue,
                     fairValuePerShare:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .fairValuePerShare,
+                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.fairValuePerShare,
                     currentPrice:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .currentPrice,
+                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.currentPrice,
                     impliedUpside:
-                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                        .impliedUpside,
-                    note: equityValuationAndDcfAnalysisInfo.dcfValuationBuildups
-                      .note,
+                      equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.impliedUpside,
+                    note: equityValuationAndDcfAnalysisInfo.dcfValuationBuildups.note,
                   },
                 },
 
                 valuationSensitivities: {
-                  create:
-                    equityValuationAndDcfAnalysisInfo.valuationSensitivityAnalysis.map(
-                      (row) => ({
-                        wacc: row.wacc,
-                        values: {
-                          createMany: {
-                            data: row.value.map((v) => ({
-                              terminalGrowth: v.terminalGrowth,
-                              value: v.value,
-                            })),
-                          },
+                  create: equityValuationAndDcfAnalysisInfo.valuationSensitivityAnalysis.map(
+                    (row) => ({
+                      wacc: row.wacc,
+                      values: {
+                        createMany: {
+                          data: row.value.map((v) => ({
+                            terminalGrowth: v.terminalGrowth,
+                            value: v.value,
+                          })),
                         },
-                      }),
-                    ),
+                      },
+                    }),
+                  ),
                 },
               },
             },
             financialStatementAnalyasis: {
               create: {
                 keyObservations:
-                  financialStatementAnalysisInfo.incomeStatementTrend
-                    .keyObservations,
+                  financialStatementAnalysisInfo.incomeStatementTrend.keyObservations,
                 capitalPositionAnalysis:
-                  financialStatementAnalysisInfo.balanceSheetStrength
-                    .capitalPositionAnalysis,
+                  financialStatementAnalysisInfo.balanceSheetStrength.capitalPositionAnalysis,
                 fcfQualityAnalysis:
-                  financialStatementAnalysisInfo.cashFlowAnalysis
-                    .fcfQualityAnalysis,
+                  financialStatementAnalysisInfo.cashFlowAnalysis.fcfQualityAnalysis,
                 valuationObservations:
                   financialStatementAnalysisInfo.financialRatiosAndCreditMetrics
                     .valuationObservations,
                 incomeStatementTrendRows: {
                   createMany: {
-                    data: financialStatementAnalysisInfo.incomeStatementTrend
-                      .table,
+                    data: financialStatementAnalysisInfo.incomeStatementTrend.table,
                   },
                 },
                 balanceSheetStrengthRows: {
                   createMany: {
-                    data: financialStatementAnalysisInfo.balanceSheetStrength
-                      .table,
+                    data: financialStatementAnalysisInfo.balanceSheetStrength.table,
                   },
                 },
                 cashFlowAnalysisRows: {
@@ -602,47 +543,40 @@ export const getReportDetails = async (symbol: string) => {
             },
             businessSegmentData: {
               create: {
-                businessModelDynamics:
-                  businessSegmentData.businessModelDynamics,
+                businessModelDynamics: businessSegmentData.businessModelDynamics,
                 revenueModelBreakdown: {
                   createMany: {
-                    data: businessSegmentData.revenueModelBreakdown.map(
-                      (row) => ({
-                        revenueStream: row.revenueStream,
-                        amount: row.amount,
-                        percentOfTotal: row.percentOfTotal,
-                        growth: row.growth,
-                        driver: row.driver,
-                      }),
-                    ),
+                    data: businessSegmentData.revenueModelBreakdown.map((row) => ({
+                      revenueStream: row.revenueStream,
+                      amount: row.amount,
+                      percentOfTotal: row.percentOfTotal,
+                      growth: row.growth,
+                      driver: row.driver,
+                    })),
                   },
                 },
                 platformSegmentPerformance: {
                   createMany: {
-                    data: businessSegmentData.platformSegmentsPerformance.map(
-                      (row) => ({
-                        segment: row.segment,
-                        customers: row.customers,
-                        aua: row.aua,
-                        growth: row.growth,
-                        netInflows: row.netInflows,
-                        comments: row.comments,
-                      }),
-                    ),
+                    data: businessSegmentData.platformSegmentsPerformance.map((row) => ({
+                      segment: row.segment,
+                      customers: row.customers,
+                      aua: row.aua,
+                      growth: row.growth,
+                      netInflows: row.netInflows,
+                      comments: row.comments,
+                    })),
                   },
                 },
                 competitivePosition: {
                   create: {
                     keyCompetitors: {
                       createMany: {
-                        data: businessSegmentData.competitivePosition
-                          .keyCompetitors,
+                        data: businessSegmentData.competitivePosition.keyCompetitors,
                       },
                     },
                     competitiveAdvantage: {
                       createMany: {
-                        data: businessSegmentData.competitivePosition
-                          .competitiveAdvantages,
+                        data: businessSegmentData.competitivePosition.competitiveAdvantages,
                       },
                     },
                   },
@@ -685,21 +619,19 @@ export const getReportDetails = async (symbol: string) => {
             // },
             contingentLiabilitiesAndRegulatoryRisk: {
               create: {
-                sectionTitle:
-                  contingentLiabilitiesAndRegulatoryRisk.sectionTitle,
+                sectionTitle: contingentLiabilitiesAndRegulatoryRisk.sectionTitle,
                 balanceSheetContingencies: {
                   createMany: {
                     data: contingentLiabilitiesAndRegulatoryRisk.balanceSheetContingencies,
                   },
                 },
                 netContingentPosition: {
-                  create:
-                    contingentLiabilitiesAndRegulatoryRisk.netContingentPosition,
+                  create: contingentLiabilitiesAndRegulatoryRisk.netContingentPosition,
                 },
                 keyRegulatoryConsiderations: {
                   createMany: {
-                    data: contingentLiabilitiesAndRegulatoryRisk
-                      .regulatoryEnvironment.keyRegulatoryConsiderations,
+                    data: contingentLiabilitiesAndRegulatoryRisk.regulatoryEnvironment
+                      .keyRegulatoryConsiderations,
                   },
                 },
               },
@@ -707,38 +639,22 @@ export const getReportDetails = async (symbol: string) => {
             dcfValuationRecapAndPriceTarget: {
               create: {
                 sectionTitle: dcfValuationRecapAndPriceTarget.sectionTitle,
-                valuationSummaryTitle:
-                  dcfValuationRecapAndPriceTarget.valuationSummaryTitle,
-                baseCaseAssumption:
-                  dcfValuationRecapAndPriceTarget.baseCaseAssumption,
-                pvOfFcf:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp.pvOfFcf,
+                valuationSummaryTitle: dcfValuationRecapAndPriceTarget.valuationSummaryTitle,
+                baseCaseAssumption: dcfValuationRecapAndPriceTarget.baseCaseAssumption,
+                pvOfFcf: dcfValuationRecapAndPriceTarget.valuationBuildUp.pvOfFcf,
                 pvOfTerminalValue:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp
-                    .pvOfTerminalValue,
-                enterpriseValue:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp
-                    .enterpriseValue,
-                netDebt:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp.netDebt,
-                equityValue:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp.equityValue,
-                sharesDiluted:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp
-                    .sharesDiluted,
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.pvOfTerminalValue,
+                enterpriseValue: dcfValuationRecapAndPriceTarget.valuationBuildUp.enterpriseValue,
+                netDebt: dcfValuationRecapAndPriceTarget.valuationBuildUp.netDebt,
+                equityValue: dcfValuationRecapAndPriceTarget.valuationBuildUp.equityValue,
+                sharesDiluted: dcfValuationRecapAndPriceTarget.valuationBuildUp.sharesDiluted,
                 fairValuePerShare:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp
-                    .fairValuePerShare,
-                currentPrice:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp.currentPrice,
+                  dcfValuationRecapAndPriceTarget.valuationBuildUp.fairValuePerShare,
+                currentPrice: dcfValuationRecapAndPriceTarget.valuationBuildUp.currentPrice,
                 upside: dcfValuationRecapAndPriceTarget.valuationBuildUp.upside,
-                recommendation:
-                  dcfValuationRecapAndPriceTarget.valuationBuildUp
-                    .recommendation,
-                twelveMonthPriceTarget:
-                  dcfValuationRecapAndPriceTarget.twelveMonthPriceTarget,
-                rationaleForPriceTarget:
-                  dcfValuationRecapAndPriceTarget.rationaleForPriceTarget,
+                recommendation: dcfValuationRecapAndPriceTarget.valuationBuildUp.recommendation,
+                twelveMonthPriceTarget: dcfValuationRecapAndPriceTarget.twelveMonthPriceTarget,
+                rationaleForPriceTarget: dcfValuationRecapAndPriceTarget.rationaleForPriceTarget,
                 sensitivityAnalysisRecap: {
                   createMany: {
                     data: dcfValuationRecapAndPriceTarget.sensitivityAnalysisRecap,
@@ -749,13 +665,10 @@ export const getReportDetails = async (symbol: string) => {
             agmAndShareholderMatters: {
               create: {
                 sectionTitle: agmAndShareholderMatters.sectionTitle,
-                announcedDate:
-                  agmAndShareholderMatters.nextAgmDetails.announcedDate,
+                announcedDate: agmAndShareholderMatters.nextAgmDetails.announcedDate,
                 location: agmAndShareholderMatters.nextAgmDetails.location,
-                noticeFiled:
-                  agmAndShareholderMatters.nextAgmDetails.noticeFiled,
-                specialResolutionsExpected:
-                  agmAndShareholderMatters.specialResolutionsExpected,
+                noticeFiled: agmAndShareholderMatters.nextAgmDetails.noticeFiled,
+                specialResolutionsExpected: agmAndShareholderMatters.specialResolutionsExpected,
                 keyGovernanceNotes: agmAndShareholderMatters.keyGovernanceNotes,
                 expectedVotingAgenda: {
                   createMany: {
@@ -767,10 +680,8 @@ export const getReportDetails = async (symbol: string) => {
             forwardProjectionsAndValuation: {
               create: {
                 sectionTitle: forwardProjectionsAndValuation.sectionTitle,
-                keyProjectionDrivers:
-                  forwardProjectionsAndValuation.keyProjectionDrivers,
-                balanceSheetDynamics:
-                  forwardProjectionsAndValuation.balanceSheetDynamics,
+                keyProjectionDrivers: forwardProjectionsAndValuation.keyProjectionDrivers,
+                balanceSheetDynamics: forwardProjectionsAndValuation.balanceSheetDynamics,
                 keyObservations: forwardProjectionsAndValuation.keyObservations,
                 creditOutlook: forwardProjectionsAndValuation.creditOutlook,
                 projectedIncomeStatementRows: {

@@ -26,9 +26,7 @@ import {
 import { readFile } from 'node:fs/promises';
 import prisma from '@/prisma';
 
-export async function createReportBuffer(
-  data: Record<string, any>,
-): Promise<Buffer> {
+export async function createReportBuffer(data: Record<string, any>): Promise<Buffer> {
   const template = readFileSync('./report_template.docx');
   const unit8Buffer = await docx.createReport({
     template: template,
@@ -41,16 +39,13 @@ export async function createReportBuffer(
 async function convertToPdf(buffer: Buffer): Promise<Buffer> {
   const base64 = buffer.toString('base64');
 
-  const response = await fetch(
-    `${process.env.FILE_CONVERSION_ENGINE_URL}/api/convert-to-pdf`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ file: base64 }),
+  const response = await fetch(`${process.env.FILE_CONVERSION_ENGINE_URL}/api/convert-to-pdf`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
-  );
+    body: JSON.stringify({ file: base64 }),
+  });
 
   if (!response.ok) {
     throw new Error(`convertToPdf failed with status ${response.status}`);
@@ -96,7 +91,6 @@ async function fetchSection({
 }
 
 export async function fetchAllSections(companyName: string, symbol: string) {
-
   const company = await prisma.company.findUnique({
     where: { symbol },
     select: { data: true },
@@ -133,8 +127,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
     symbol,
     schema: FinancialsSchema,
     schemaName: 'Financials',
-    prompt:
-      'Extract historical financial statements (income, balance sheet, cash flow).',
+    prompt: 'Extract historical financial statements (income, balance sheet, cash flow).',
   });
 
   const ratiosPromise = fetchSection({
@@ -166,8 +159,7 @@ export async function fetchAllSections(companyName: string, symbol: string) {
     symbol,
     schema: GuidanceSchema,
     schemaName: 'Guidance',
-    prompt:
-      'Extract latest earnings results, guidance, and management commentary.',
+    prompt: 'Extract latest earnings results, guidance, and management commentary.',
   });
 
   const regulatoryPromise = fetchSection({

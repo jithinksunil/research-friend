@@ -1,0 +1,14 @@
+.next
+node_modules
+out
+build
+coverage
+bun.lock
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+*.log
+*.pdf
+*.docx
+report_data.json
+stockdata.json

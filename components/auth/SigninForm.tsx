@@ -12,12 +12,7 @@ import { signIn, useSession } from 'next-auth/react';
 
 const schema = yup.object().shape({
   password: yup.string().trim().required('Password is required').defined(),
-  email: yup
-    .string()
-    .email('Email must be valid')
-    .trim()
-    .required('Email is required')
-    .defined(),
+  email: yup.string().email('Email must be valid').trim().required('Email is required').defined(),
 });
 
 const defaultValues: SigninFormInterface = {
@@ -27,31 +22,32 @@ const defaultValues: SigninFormInterface = {
 
 export function SigninForm() {
   const [loading, setLoading] = useState(false);
-  const { replace, push } = useRouter();
-  const [isPending, startTransition]=useTransition()
-  const { control, handleSubmit } = useForm({
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const { control, handleSubmit } = useForm<SigninFormInterface>({
     resolver: yupResolver(schema),
     defaultValues,
   });
   const params = useSearchParams();
 
   useEffect(() => {
-    if (params.get('message')) {
-      replace('/');
-      toastMessage.error(params.get('message')!);
+    const message = params.get('message');
+    if (message) {
+      router.replace('/');
+      toastMessage.error(message);
     }
-  }, [params]);
+  }, [params, router]);
 
   const onSubmit = async (formData: SigninFormInterface) => {
     try {
       setLoading(true);
       const res = await signIn('credentials', { ...formData, redirect: false });
       if (res.error) throw new Error(res.error);
-      toastMessage.success('Signed up successfully');
-      setLoading(false);
+      toastMessage.success('Signed in successfully');
       // replace('/user/search');
-    } catch (err: any) {
-      toastMessage.error(err?.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toastMessage.error(message);
     } finally {
       setLoading(false);
     }
@@ -59,48 +55,36 @@ export function SigninForm() {
   const session = useSession();
   useEffect(() => {
     if (session.data) {
-      startTransition(()=>
-      replace('/user/search'))
+      startTransition(() => router.replace('/user/search'));
     }
-  }, [session]);
+  }, [router, session.data, startTransition]);
   return (
-    <form className='flex flex-col' onSubmit={handleSubmit(onSubmit)}>
-      <TextInput
-        control={control}
-        name='email'
-        placeholder='Email'
-        type='email'
-      />
+    <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
+      <TextInput control={control} name="email" placeholder="Email" type="email" />
       <div>
-        <PasswordInput
-          control={control}
-          name='password'
-          placeholder='Password'
-        />
+        <PasswordInput control={control} name="password" placeholder="Password" />
       </div>
-      <PrimaryButton type='submit' isLoading={loading||isPending} className='mt-4'>
+      <PrimaryButton type="submit" isLoading={loading || isPending} className="mt-4">
         Sign In
       </PrimaryButton>
 
-      <div className='flex flex-col items-center justify-center gap-5 text-sm font-medium pt-6'>
-        <p className='flex items-center'>
+      <div className="flex flex-col items-center justify-center gap-5 text-sm font-medium pt-6">
+        <p className="flex items-center">
           New user?&nbsp;
           <span
-            onClick={() => push(`/auth/signup`)}
-            className='text-[#0018FF] hover:cursor-pointer font-semibold'
+            onClick={() => router.push(`/auth/signup`)}
+            className="text-[#0018FF] hover:cursor-pointer font-semibold"
           >
             Sign up
           </span>
         </p>
-        <p className=' flex items-center -mt-2'>
+        <p className=" flex items-center -mt-2">
           Didn’t receive any update?&nbsp;
           <span
             onClick={() =>
-              window.open(
-                'https://calendly.com/mrugesh-abcxchange/30min?month=2023-07',
-              )
+              window.open('https://calendly.com/mrugesh-abcxchange/30min?month=2023-07')
             }
-            className='text-[#0018FF] hover:cursor-pointer font-semibold'
+            className="text-[#0018FF] hover:cursor-pointer font-semibold"
           >
             Contact Support
           </span>

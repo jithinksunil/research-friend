@@ -9,23 +9,25 @@ export const signup = async ({
   email,
   firstName,
   lastName,
-  password
+  password,
 }: {
   firstName: string;
   lastName: string | undefined;
   email: string;
   password: string;
-}): Promise<
-  ServerActionResult<null>
-> => {
+}): Promise<ServerActionResult<null>> => {
   try {
     const user = await prisma.user.create({
-      data: { email, firstName, lastName, role: ROLES.USER,password},
-      select: { email: true, id: true, role: true,password:true },
+      data: { email, firstName, lastName, role: ROLES.USER, password },
+      select: { email: true, id: true, role: true, password: true },
     });
-    const res = await signIn('credentials', { email:user.email, password:user.password, redirect: false });
+    const res = await signIn('credentials', {
+      email: user.email,
+      password: user.password,
+      redirect: false,
+    });
     if (res.error) throw new Error(res.error);
-    
+
     return {
       okay: true,
       data: null,

@@ -35,10 +35,10 @@ function Page() {
   };
 
   return (
-    <div className='min-h-screen w-full flex justify-center pt-[25vh]'>
-      <div className='w-full max-w-2xl px-4'>
+    <div className="min-h-screen w-full flex justify-center pt-[25vh]">
+      <div className="w-full max-w-2xl px-4">
         <SearchBar
-          placeholder='Search stocks, companies...'
+          placeholder="Search stocks, companies..."
           isLoading={isLoading}
           suggestions={suggestions}
           onSearch={handleSearch}

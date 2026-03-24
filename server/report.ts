@@ -89,10 +89,13 @@ type LegacyCashflowStatement = {
   repurchasesOfStock: number | null;
 };
 
+function getNumberField(item: Record<string, unknown>, key: string): number | null {
+  const value = item[key];
+  return typeof value === 'number' ? value : null;
+}
+
 async function getAnnualFinancialStatements(symbol: string, years = 8) {
-  const period1 = new Date(
-    Date.now() - years * 365.25 * 24 * 60 * 60 * 1000,
-  )
+  const period1 = new Date(Date.now() - years * 365.25 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
 
@@ -103,49 +106,48 @@ async function getAnnualFinancialStatements(symbol: string, years = 8) {
     period2: new Date().toISOString().slice(0, 10),
   });
 
-  const sortedSeries = [...timeSeries].sort(
-    (a, b) => b.date.getTime() - a.date.getTime(),
-  );
+  const sortedSeries = [...timeSeries].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  const incomeStatements: LegacyIncomeStatement[] = sortedSeries.map((item) => ({
-    endDate: item.date.toISOString(),
-    totalRevenue: item.totalRevenue ?? null,
-    operatingIncome: item.operatingIncome ?? null,
-    netIncome: item.netIncome ?? null,
-  }));
-
-  const balanceSheetStatements: LegacyBalanceSheetStatement[] = sortedSeries.map(
-    (item) => ({
+  const incomeStatements: LegacyIncomeStatement[] = sortedSeries.map((item) => {
+    const normalizedItem = item as unknown as Record<string, unknown>;
+    return {
       endDate: item.date.toISOString(),
-      cash: item.cashAndCashEquivalents ?? null,
-      totalAssets: item.totalAssets ?? null,
-      totalDebt: item.totalDebt ?? null,
-      totalStockholderEquity: item.totalEquityGrossMinorityInterest ?? null,
-      totalLiab: item.totalLiabilitiesNetMinorityInterest ?? null,
-    }),
-  );
+      totalRevenue: getNumberField(normalizedItem, 'totalRevenue'),
+      operatingIncome: getNumberField(normalizedItem, 'operatingIncome'),
+      netIncome: getNumberField(normalizedItem, 'netIncome'),
+    };
+  });
 
-  const cashflowStatements: LegacyCashflowStatement[] = sortedSeries.map(
-    (item) => ({
+  const balanceSheetStatements: LegacyBalanceSheetStatement[] = sortedSeries.map((item) => {
+    const normalizedItem = item as unknown as Record<string, unknown>;
+    return {
       endDate: item.date.toISOString(),
-      totalCashFromOperatingActivities: item.operatingCashFlow ?? null,
-      capitalExpenditures: item.capitalExpenditure
-        ? -Math.abs(item.capitalExpenditure)
-        : null,
-      dividendsPaid: item.cashDividendsPaid
-        ? -Math.abs(item.cashDividendsPaid)
-        : null,
-      repurchasesOfStock: item.repurchaseOfCapitalStock
-        ? -Math.abs(item.repurchaseOfCapitalStock)
-        : null,
-    }),
-  );
+      cash: getNumberField(normalizedItem, 'cashAndCashEquivalents'),
+      totalAssets: getNumberField(normalizedItem, 'totalAssets'),
+      totalDebt: getNumberField(normalizedItem, 'totalDebt'),
+      totalStockholderEquity: getNumberField(normalizedItem, 'totalEquityGrossMinorityInterest'),
+      totalLiab: getNumberField(normalizedItem, 'totalLiabilitiesNetMinorityInterest'),
+    };
+  });
+
+  const cashflowStatements: LegacyCashflowStatement[] = sortedSeries.map((item) => {
+    const normalizedItem = item as unknown as Record<string, unknown>;
+    const capitalExpenditure = getNumberField(normalizedItem, 'capitalExpenditure');
+    const cashDividendsPaid = getNumberField(normalizedItem, 'cashDividendsPaid');
+    const repurchaseOfCapitalStock = getNumberField(normalizedItem, 'repurchaseOfCapitalStock');
+
+    return {
+      endDate: item.date.toISOString(),
+      totalCashFromOperatingActivities: getNumberField(normalizedItem, 'operatingCashFlow'),
+      capitalExpenditures: capitalExpenditure ? -Math.abs(capitalExpenditure) : null,
+      dividendsPaid: cashDividendsPaid ? -Math.abs(cashDividendsPaid) : null,
+      repurchasesOfStock: repurchaseOfCapitalStock ? -Math.abs(repurchaseOfCapitalStock) : null,
+    };
+  });
 
   return { incomeStatements, balanceSheetStatements, cashflowStatements };
 }
-export async function getTrimmedExecutiveData(
-  symbol: string,
-): Promise<StockResearchData> {
+export async function getTrimmedExecutiveData(symbol: string): Promise<StockResearchData> {
   const [{ incomeStatements }, summary, chart] = await Promise.all([
     getAnnualFinancialStatements(symbol),
     yahooFinance.quoteSummary(symbol, {
@@ -159,9 +161,7 @@ export async function getTrimmedExecutiveData(
       ],
     }),
     yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 5 * 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
+      period1: new Date(Date.now() - 5 * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       period2: new Date().toISOString().slice(0, 10),
       interval: '1mo',
       events: 'div',
@@ -182,22 +182,17 @@ export async function getTrimmedExecutiveData(
       ? ((revenueTTM - previous.totalRevenue) / previous.totalRevenue) * 100
       : null;
 
-  const netMargin =
-    revenueTTM && netIncomeTTM ? (netIncomeTTM / revenueTTM) * 100 : null;
+  const netMargin = revenueTTM && netIncomeTTM ? (netIncomeTTM / revenueTTM) * 100 : null;
 
   // ---- Analyst ----
   const currentPrice = summary.price?.regularMarketPrice ?? null;
   const targetMean = summary.financialData?.targetMeanPrice ?? null;
 
   const upsidePercent =
-    currentPrice && targetMean
-      ? ((targetMean - currentPrice) / currentPrice) * 100
-      : null;
+    currentPrice && targetMean ? ((targetMean - currentPrice) / currentPrice) * 100 : null;
 
   // ---- Dividends ----
-  const dividends =
-    chart.events?.dividends?.reduce((sum, d) => sum + (d.amount ?? 0), 0) ??
-    null;
+  const dividends = chart.events?.dividends?.reduce((sum, d) => sum + (d.amount ?? 0), 0) ?? null;
 
   // ---- 1Y Return ----
   const quotes = chart.quotes || [];
@@ -205,9 +200,7 @@ export async function getTrimmedExecutiveData(
   const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
 
   const oneYearReturn =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+    firstClose && lastClose ? ((lastClose - firstClose) / firstClose) * 100 : null;
 
   return {
     company: {
@@ -322,17 +315,10 @@ export async function getTrimmedCompanyOverviewMetrics(
 ): Promise<CompanyOverviewMetrics> {
   const [summary, chart] = await Promise.all([
     yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'price',
-        'summaryDetail',
-        'financialData',
-        'defaultKeyStatistics',
-      ],
+      modules: ['price', 'summaryDetail', 'financialData', 'defaultKeyStatistics'],
     }),
     yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 1 * 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
+      period1: new Date(Date.now() - 1 * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       period2: new Date().toISOString().slice(0, 10),
       interval: '1mo',
     }),
@@ -344,8 +330,7 @@ export async function getTrimmedCompanyOverviewMetrics(
   const high52 = summary.summaryDetail?.fiftyTwoWeekHigh ?? null;
   const low52 = summary.summaryDetail?.fiftyTwoWeekLow ?? null;
 
-  const sharesOutstanding =
-    summary.defaultKeyStatistics?.sharesOutstanding ?? null;
+  const sharesOutstanding = summary.defaultKeyStatistics?.sharesOutstanding ?? null;
 
   const beta = summary.defaultKeyStatistics?.beta ?? null;
   const totalDebt = summary.financialData?.totalDebt ?? 0;
@@ -390,8 +375,7 @@ export async function getTrimmedCompanyOverviewMetrics(
       totalPV += projectedFCF / Math.pow(1 + wacc, year);
     }
 
-    const terminalValue =
-      (projectedFCF * (1 + terminalGrowth)) / (wacc - terminalGrowth);
+    const terminalValue = (projectedFCF * (1 + terminalGrowth)) / (wacc - terminalGrowth);
 
     const discountedTerminal = terminalValue / Math.pow(1 + wacc, 5);
 
@@ -406,20 +390,16 @@ export async function getTrimmedCompanyOverviewMetrics(
   // Performance Metrics
   // --------------------------
 
-  const fiftyTwoWeekRangePercent =
-    high52 && low52 ? ((high52 - low52) / low52) * 100 : null;
+  const fiftyTwoWeekRangePercent = high52 && low52 ? ((high52 - low52) / low52) * 100 : null;
 
-  const recoveryFromLowPercent =
-    price && low52 ? ((price - low52) / low52) * 100 : null;
+  const recoveryFromLowPercent = price && low52 ? ((price - low52) / low52) * 100 : null;
 
   const quotes = chart.quotes || [];
   const firstClose = quotes[0]?.adjclose ?? null;
   const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
 
   const oneYearReturnPercent =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+    firstClose && lastClose ? ((lastClose - firstClose) / firstClose) * 100 : null;
 
   return {
     price,
@@ -539,8 +519,7 @@ export async function getTrimmedShareholderStructure(
   // Ownership Breakdown
   // --------------------------
 
-  const institutionalPercent = summary.majorHoldersBreakdown
-    ?.institutionsPercentHeld
+  const institutionalPercent = summary.majorHoldersBreakdown?.institutionsPercentHeld
     ? summary.majorHoldersBreakdown.institutionsPercentHeld * 100
     : null;
 
@@ -594,9 +573,7 @@ export async function getTrimmedShareholderStructure(
         name: tx.filerName ?? null,
         type: isBuy ? 'BUY' : 'SELL',
         value: value,
-        date: tx.startDate
-          ? new Date(tx.startDate).toLocaleDateString('en-IN')
-          : null,
+        date: tx.startDate ? new Date(tx.startDate).toLocaleDateString('en-IN') : null,
       };
     }
   }
@@ -642,11 +619,7 @@ export const ShareholderStructureSectionSchema = z.object({
   majorShareholders: z
     .array(
       z.object({
-        shareHolderType: z.enum([
-          'FREE_FLOAT',
-          'INSTITUTIONAL_HOLDINGS',
-          'MANAGEMENT_DIRECTORS',
-        ]),
+        shareHolderType: z.enum(['FREE_FLOAT', 'INSTITUTIONAL_HOLDINGS', 'MANAGEMENT_DIRECTORS']),
         ownership: z.string(), // e.g., "~75%"
         notes: z.string(),
       }),
@@ -663,9 +636,7 @@ export const ShareholderStructureSectionSchema = z.object({
 
 export async function getShareholderStructureAboutCompany(symbol: string) {
   const response = await getTrimmedShareholderStructure(symbol);
-  const analysis = await fetchSection<
-    z.infer<typeof ShareholderStructureSectionSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof ShareholderStructureSectionSchema>>({
     userPrompt: `Generate the "Shareholder Structure & Insider Activity" section using the following structured input data: ShareholderStructureRawData: ${JSON.stringify(response)}`,
     systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
     schema: ShareholderStructureSectionSchema,
@@ -796,9 +767,7 @@ export const AnalystRecommendationsSchema = z.object({
 export async function getAnalystRecommendationsAboutCompany(symbol: string) {
   const response = await getAnalystRecommendationsData(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof AnalystRecommendationsSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof AnalystRecommendationsSchema>>({
     userPrompt: `Generate the "Analyst Recommendations & Price Targets" section using the following structured input: ${JSON.stringify(response)}`,
     systemPrompt: ANALYST_RECOMMENDATION_PROMPT,
     schema: AnalystRecommendationsSchema,
@@ -939,8 +908,7 @@ export async function getTrimmedEquityValuationData(
 
   const finalYearIncome = projections[projections.length - 1].netIncome;
 
-  const terminalValue =
-    (finalYearIncome * (1 + terminalGrowth)) / (wacc - terminalGrowth);
+  const terminalValue = (finalYearIncome * (1 + terminalGrowth)) / (wacc - terminalGrowth);
 
   const discountedTerminal = terminalValue / Math.pow(1 + wacc, forecastYears);
 
@@ -1018,12 +986,7 @@ export const EquityValuationDcfSchema = z.object({
   keyAssumptions: z
     .array(
       z.object({
-        modelName: z.enum([
-          'WACC',
-          'TERMINAL_GROWTH_RATE',
-          'FORECAST_PERIOD',
-          'REVENUE_GROWTH',
-        ]),
+        modelName: z.enum(['WACC', 'TERMINAL_GROWTH_RATE', 'FORECAST_PERIOD', 'REVENUE_GROWTH']),
         assumption: z.string(),
       }),
     )
@@ -1032,13 +995,7 @@ export const EquityValuationDcfSchema = z.object({
   projectedFinanacialNext5Years: z
     .array(
       z.object({
-        financialYear: z.enum([
-          'FY_2026',
-          'FY_2027',
-          'FY_2028',
-          'FY_2029',
-          'FY_2030',
-        ]),
+        financialYear: z.enum(['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030']),
         projections: z
           .array(
             z.object({
@@ -1093,14 +1050,12 @@ export const EquityValuationDcfSchema = z.object({
 
 export async function getEquityValuationAboutCompany(symbol: string) {
   const response = await getTrimmedEquityValuationData(symbol);
-  const analysis = await fetchSection<z.infer<typeof EquityValuationDcfSchema>>(
-    {
-      userPrompt: `Generate Section 4: Equity Valuation & DCF Analysis Using the following structured input from getEquityValuationData: ${JSON.stringify(response)}`,
-      systemPrompt: EQUITY_VALUATION_PROMPT,
-      schema: EquityValuationDcfSchema,
-      schemaName: 'EquityValuationDcf',
-    },
-  );
+  const analysis = await fetchSection<z.infer<typeof EquityValuationDcfSchema>>({
+    userPrompt: `Generate Section 4: Equity Valuation & DCF Analysis Using the following structured input from getEquityValuationData: ${JSON.stringify(response)}`,
+    systemPrompt: EQUITY_VALUATION_PROMPT,
+    schema: EquityValuationDcfSchema,
+    schemaName: 'EquityValuationDcf',
+  });
   return analysis;
 }
 
@@ -1158,8 +1113,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
 
   const currency = summary.price?.currency ?? null;
 
-  const { incomeStatements, balanceSheetStatements, cashflowStatements } =
-    annualStatements;
+  const { incomeStatements, balanceSheetStatements, cashflowStatements } = annualStatements;
 
   const balanceSheets = balanceSheetStatements;
 
@@ -1170,8 +1124,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
   const latestBalance = balanceSheets.slice(0, 6);
   const latestCashFlow = cashFlows.slice(0, 6);
 
-  const sharesOutstanding =
-    summary.defaultKeyStatistics?.sharesOutstanding ?? null;
+  const sharesOutstanding = summary.defaultKeyStatistics?.sharesOutstanding ?? null;
 
   const currentPrice = summary.price?.regularMarketPrice ?? null;
 
@@ -1186,10 +1139,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
     revenue: stmt.totalRevenue ?? null,
     operatingIncome: stmt.operatingIncome ?? null,
     netIncome: stmt.netIncome ?? null,
-    eps:
-      stmt.netIncome && sharesOutstanding
-        ? stmt.netIncome / sharesOutstanding
-        : null,
+    eps: stmt.netIncome && sharesOutstanding ? stmt.netIncome / sharesOutstanding : null,
   }));
 
   const balanceSheet = latestBalance.map((bs: any) => ({
@@ -1262,15 +1212,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
     table: z
       .array(
         z.object({
-          fiscalYear: z.enum([
-            'FY20',
-            'FY21',
-            'FY22',
-            'FY23',
-            'FY24',
-            'FY25',
-            'FY25_EST',
-          ]),
+          fiscalYear: z.enum(['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST']),
           revenue: z.string(), // "126.7"
           yoyGrowth: z.string(), // "-12%"
           operatingIncome: z.string(), // "49.2"
@@ -1286,15 +1228,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
     table: z
       .array(
         z.object({
-          fiscalYear: z.enum([
-            'FY20',
-            'FY21',
-            'FY22',
-            'FY23',
-            'FY24',
-            'FY25',
-            'FY25_EST',
-          ]),
+          fiscalYear: z.enum(['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST']),
           cash: z.string(),
           totalAssets: z.string(),
           totalDebt: z.string(),
@@ -1310,15 +1244,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
     table: z
       .array(
         z.object({
-          fiscalYear: z.enum([
-            'FY20',
-            'FY21',
-            'FY22',
-            'FY23',
-            'FY24',
-            'FY25',
-            'FY25_EST',
-          ]),
+          fiscalYear: z.enum(['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST']),
           operatingCF: z.string(),
           capex: z.string(),
           freeCF: z.string(),
@@ -1361,14 +1287,10 @@ export const FinancialStatementsAnalysisSchema = z.object({
   }),
 });
 
-export async function getFinancialStatementsAnalysisAboutCompany(
-  symbol: string,
-) {
+export async function getFinancialStatementsAnalysisAboutCompany(symbol: string) {
   const response = await getTrimmedFinancialStatementsAnalysisData(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof FinancialStatementsAnalysisSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof FinancialStatementsAnalysisSchema>>({
     userPrompt: `
     Generate Section 5: Financial Statements Analysis 
     Using the following structured data from getFinancialStatementsAnalysisData: ${JSON.stringify(response)}
@@ -1465,8 +1387,7 @@ export async function getTrimmedBusinessSegmentsData(
     const mean = growthRates.reduce((a, b) => a + b, 0) / growthRates.length;
 
     revenueVolatility3Y = Math.sqrt(
-      growthRates.map((g) => Math.pow(g - mean, 2)).reduce((a, b) => a + b, 0) /
-        growthRates.length,
+      growthRates.map((g) => Math.pow(g - mean, 2)).reduce((a, b) => a + b, 0) / growthRates.length,
     );
   }
 
@@ -1483,8 +1404,7 @@ export async function getTrimmedBusinessSegmentsData(
   // Capital-light detection
   const grossMargin = summary.financialData?.grossMargins ?? null;
 
-  let costStructureSignal: 'Capital Light' | 'Asset Heavy' | 'Mixed' | null =
-    null;
+  let costStructureSignal: 'Capital Light' | 'Asset Heavy' | 'Mixed' | null = null;
 
   if (grossMargin !== null) {
     if (grossMargin > 0.45) costStructureSignal = 'Capital Light';
@@ -1601,9 +1521,7 @@ export const BusinessSegmentsCompetitivePositionSchema = z.object({
 export async function getBusinessSegmentDataAboutCompany(symbol: string) {
   const response = await getTrimmedBusinessSegmentsData(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof BusinessSegmentsCompetitivePositionSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof BusinessSegmentsCompetitivePositionSchema>>({
     userPrompt: `
     Generate Section 6: Business Segments & Competitive Position
     Using the input: ${JSON.stringify(response)}
@@ -1624,8 +1542,8 @@ export async function getBusinessSegmentDataAboutCompany(symbol: string) {
 interface InterimResultsData {
   context: {
     currency: string | null;
-    fiscalYearLabel: Date | null;
-    previousFiscalYearLabel: Date | null;
+    fiscalYearLabel: string | null;
+    previousFiscalYearLabel: string | null;
     marketType: 'UK' | 'US' | 'India' | 'Global';
   };
 
@@ -1694,13 +1612,7 @@ export async function getInterimResultsData(
 ): Promise<InterimResultsData> {
   const [summary, annualStatements] = await Promise.all([
     yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'price',
-        'financialData',
-        'defaultKeyStatistics',
-        'earningsTrend',
-        'summaryDetail',
-      ],
+      modules: ['price', 'financialData', 'defaultKeyStatistics', 'earningsTrend', 'summaryDetail'],
     }),
     getAnnualFinancialStatements(symbol),
   ]);
@@ -1717,8 +1629,7 @@ export async function getInterimResultsData(
   const latestCF = cashFlows[0] as ExtendedCashFlowStatement;
   const previousCF = cashFlows[1] as ExtendedCashFlowStatement;
 
-  const growth = (c: number | null, p: number | null) =>
-    c && p ? (c - p) / p : null;
+  const growth = (c: number | null, p: number | null) => (c && p ? (c - p) / p : null);
 
   const revenueGrowthHistorical = summary.financialData?.revenueGrowth ?? null;
 
@@ -1737,27 +1648,21 @@ export async function getInterimResultsData(
       : null;
 
   const prevFCF =
-    previousCF?.totalCashFromOperatingActivities &&
-    previousCF?.capitalExpenditures
-      ? previousCF.totalCashFromOperatingActivities +
-        previousCF.capitalExpenditures
+    previousCF?.totalCashFromOperatingActivities && previousCF?.capitalExpenditures
+      ? previousCF.totalCashFromOperatingActivities + previousCF.capitalExpenditures
       : null;
 
   const shares = summary.defaultKeyStatistics?.sharesOutstanding ?? null;
 
-  const impliedShares =
-    summary.defaultKeyStatistics?.impliedSharesOutstanding ?? null;
+  const impliedShares = summary.defaultKeyStatistics?.impliedSharesOutstanding ?? null;
 
-  const shareCountChange =
-    shares && impliedShares ? impliedShares - shares : null;
+  const shareCountChange = shares && impliedShares ? impliedShares - shares : null;
 
   const epsCurrent = latestNet && shares ? latestNet / shares : null;
 
   const epsPrevious = prevNet && shares ? prevNet / shares : null;
 
-  const earningsTrend = summary.earningsTrend?.trend?.find(
-    (t) => t.period === '0y',
-  );
+  const earningsTrend = summary.earningsTrend?.trend?.find((t) => t.period === '0y');
 
   const revenueGrowthFY1 = earningsTrend?.revenueEstimate?.growth ?? null;
 
@@ -1780,8 +1685,7 @@ export async function getInterimResultsData(
         current: latestRevenue,
         previous: prevRevenue,
         growth: growth(latestRevenue, prevRevenue),
-        absoluteChange:
-          latestRevenue && prevRevenue ? latestRevenue - prevRevenue : null,
+        absoluteChange: latestRevenue && prevRevenue ? latestRevenue - prevRevenue : null,
       },
       netIncome: {
         current: latestNet,
@@ -1806,10 +1710,7 @@ export async function getInterimResultsData(
       },
       profitMargin,
       operatingMargin,
-      marginExpansion:
-        operatingMargin && previousMargin
-          ? operatingMargin - previousMargin
-          : null,
+      marginExpansion: operatingMargin && previousMargin ? operatingMargin - previousMargin : null,
     },
 
     leverageSignals: {
@@ -1838,8 +1739,7 @@ export async function getInterimResultsData(
         revenueGrowthFY1 && revenueGrowthHistorical
           ? revenueGrowthFY1 < revenueGrowthHistorical
           : false,
-      marginCompressionRisk:
-        revenueGrowthFY1 && revenueGrowthFY1 < 0.1 ? true : false,
+      marginCompressionRisk: revenueGrowthFY1 && revenueGrowthFY1 < 0.1 ? true : false,
     },
   };
 }
@@ -1850,14 +1750,7 @@ export const InterimResultsQuarterlyPerformanceSchema = z.object({
   recordFinancialPerformance: z
     .array(
       z.object({
-        metric: z.enum([
-          'Revenue',
-          'PBT',
-          'Net Income',
-          'Diluted EPS',
-          'Operating CF',
-          'FCF',
-        ]),
+        metric: z.enum(['Revenue', 'PBT', 'Net Income', 'Diluted EPS', 'Operating CF', 'FCF']),
         currentYearValue: z.string(), // "£317.8m", "25.56p"
         previousYearValue: z.string(), // "£269.4m"
         change: z.string(), // "+18%"
@@ -1892,14 +1785,10 @@ export type InterimResultsQuarterlyPerformanceSection = z.infer<
   typeof InterimResultsQuarterlyPerformanceSchema
 >;
 
-export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
-  symbol: string,
-) {
+export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(symbol: string) {
   const response = await getInterimResultsData(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof InterimResultsQuarterlyPerformanceSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof InterimResultsQuarterlyPerformanceSchema>>({
     userPrompt: `
     Generate Section 7: Interim Results & Quarterly Performance
     Using input: ${JSON.stringify(response)}
@@ -1999,18 +1888,10 @@ export async function getContingentLiabilitiesData(
 ): Promise<ContingentLiabilitiesRegulatoryRiskData> {
   const [summary, chart, annualStatements] = await Promise.all([
     yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'price',
-        'assetProfile',
-        'financialData',
-        'defaultKeyStatistics',
-        'summaryDetail',
-      ],
+      modules: ['price', 'assetProfile', 'financialData', 'defaultKeyStatistics', 'summaryDetail'],
     }),
     yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 1 * 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
+      period1: new Date(Date.now() - 1 * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       period2: new Date().toISOString().slice(0, 10),
       interval: '1mo',
     }),
@@ -2042,9 +1923,7 @@ export async function getContingentLiabilitiesData(
 
   const balanceStatements = annualStatements.balanceSheetStatements;
 
-  const latestBalance = balanceStatements[0] as
-    | ExtendedBalanceSheet
-    | undefined;
+  const latestBalance = balanceStatements[0] as ExtendedBalanceSheet | undefined;
 
   const totalDebt = latestBalance?.totalDebt ?? null;
   const cash = latestBalance?.cash ?? null;
@@ -2075,14 +1954,11 @@ export async function getContingentLiabilitiesData(
 
   const incomeStatements = annualStatements.incomeStatements;
 
-  const latestIncome = incomeStatements[0] as
-    | ExtendedIncomeStatement
-    | undefined;
+  const latestIncome = incomeStatements[0] as ExtendedIncomeStatement | undefined;
 
   const netIncome = latestIncome?.netIncome ?? null;
 
-  const fcfToNetIncome =
-    freeCashFlow && netIncome ? freeCashFlow / netIncome : null;
+  const fcfToNetIncome = freeCashFlow && netIncome ? freeCashFlow / netIncome : null;
 
   /* ============================= */
   /* Leverage Strength             */
@@ -2125,17 +2001,13 @@ export async function getContingentLiabilitiesData(
   const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
 
   const oneYearReturnPercent =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+    firstClose && lastClose ? ((lastClose - firstClose) / firstClose) * 100 : null;
 
   const beta = summary.defaultKeyStatistics?.beta ?? null;
 
   const volatilityProxy =
-    summary.summaryDetail?.fiftyTwoWeekHigh &&
-    summary.summaryDetail?.fiftyTwoWeekLow
-      ? ((summary.summaryDetail.fiftyTwoWeekHigh -
-          summary.summaryDetail.fiftyTwoWeekLow) /
+    summary.summaryDetail?.fiftyTwoWeekHigh && summary.summaryDetail?.fiftyTwoWeekLow
+      ? ((summary.summaryDetail.fiftyTwoWeekHigh - summary.summaryDetail.fiftyTwoWeekLow) /
           summary.summaryDetail.fiftyTwoWeekLow) *
         100
       : null;
@@ -2145,9 +2017,7 @@ export async function getContingentLiabilitiesData(
   /* ============================= */
 
   const litigationKeywordFlag =
-    summary.assetProfile?.longBusinessSummary
-      ?.toLowerCase()
-      .includes('litigation') ?? false;
+    summary.assetProfile?.longBusinessSummary?.toLowerCase().includes('litigation') ?? false;
 
   return {
     context: {
@@ -2238,14 +2108,10 @@ export const ContingentLiabilitiesRegulatoryRisksSchema = z.object({
   }),
 });
 
-export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
-  symbol: string,
-) {
+export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol: string) {
   const response = await getContingentLiabilitiesData(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof ContingentLiabilitiesRegulatoryRisksSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof ContingentLiabilitiesRegulatoryRisksSchema>>({
     userPrompt: `
     Generate Section 8: CONTINGENT LIABILITIES & REGULATORY RISKS 
     based strictly on the following structured input data.
@@ -2287,10 +2153,6 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
   return analysis;
 }
 
-
-
-
-
 interface DcfValuationRecapData {
   company: {
     name: string | null;
@@ -2316,31 +2178,21 @@ interface DcfValuationRecapData {
   };
 }
 
-export async function getDcfValuationRecapData(
-  symbol: string,
-): Promise<DcfValuationRecapData> {
+export async function getDcfValuationRecapData(symbol: string): Promise<DcfValuationRecapData> {
   const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'assetProfile',
-      'price',
-      'summaryDetail',
-      'financialData',
-      'defaultKeyStatistics',
-    ],
+    modules: ['assetProfile', 'price', 'summaryDetail', 'financialData', 'defaultKeyStatistics'],
   });
 
-  const asNumber = (value: unknown): number | null =>
-    typeof value === 'number' ? value : null;
+  const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
 
   const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: DcfValuationRecapData['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: DcfValuationRecapData['company']['marketType'] = country.includes('india')
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
   return {
     company: {
@@ -2397,14 +2249,10 @@ export const DcfValuationRecapAndPriceTargetSchema = z.object({
   rationaleForPriceTarget: z.array(z.string()).min(2),
 });
 
-export async function getDcfValuationRecapAndPriceTargetAboutCompany(
-  symbol: string,
-) {
+export async function getDcfValuationRecapAndPriceTargetAboutCompany(symbol: string) {
   const response = await getDcfValuationRecapData(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof DcfValuationRecapAndPriceTargetSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof DcfValuationRecapAndPriceTargetSchema>>({
     userPrompt: `
 Generate Section 9: DCF VALUATION RECAP & PRICE TARGET.
 Input Data: ${JSON.stringify(response)}
@@ -2464,17 +2312,17 @@ export async function getAgmAndShareholderMattersData(
   });
 
   const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: AgmAndShareholderMattersData['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: AgmAndShareholderMattersData['company']['marketType'] = country.includes(
+    'india',
+  )
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
-  const asNumber = (value: unknown): number | null =>
-    typeof value === 'number' ? value : null;
+  const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
 
   const exDividendTimestamp = asNumber(summary.calendarEvents?.exDividendDate);
   const exDividendDate = exDividendTimestamp
@@ -2496,8 +2344,7 @@ export async function getAgmAndShareholderMattersData(
       auditRisk: asNumber(summary.defaultKeyStatistics?.auditRisk),
       boardRisk: asNumber(summary.defaultKeyStatistics?.boardRisk),
       compensationRisk: asNumber(summary.defaultKeyStatistics?.compensationRisk),
-      shareholderRightsRisk:
-        asNumber(summary.defaultKeyStatistics?.shareHolderRightsRisk),
+      shareholderRightsRisk: asNumber(summary.defaultKeyStatistics?.shareHolderRightsRisk),
       overallRisk: asNumber(summary.defaultKeyStatistics?.overallRisk),
     },
     valuationSignals: {
@@ -2515,14 +2362,16 @@ export const AgmAndShareholderMattersSchema = z.object({
     location: z.string(),
     noticeFiled: z.string(),
   }),
-  expectedVotingAgenda: z.array(
-    z.object({
-      resolutionNumber: z.number(),
-      title: z.string(),
-      type: z.enum(['Ordinary', 'Advisory', 'Special']),
-      expectedResult: z.string(),
-    }),
-  ).min(5),
+  expectedVotingAgenda: z
+    .array(
+      z.object({
+        resolutionNumber: z.number(),
+        title: z.string(),
+        type: z.enum(['Ordinary', 'Advisory', 'Special']),
+        expectedResult: z.string(),
+      }),
+    )
+    .min(5),
   specialResolutionsExpected: z.array(z.string()).min(1),
   keyGovernanceNotes: z.array(z.string()).min(2),
 });
@@ -2548,8 +2397,6 @@ Requirements:
 
   return analysis;
 }
-
-
 
 interface ForwardProjectionsValuationInput {
   company: {
@@ -2581,14 +2428,15 @@ export async function getForwardProjectionsAndValuationInput(
   });
 
   const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: ForwardProjectionsValuationInput['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: ForwardProjectionsValuationInput['company']['marketType'] = country.includes(
+    'india',
+  )
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
   return {
     company: {
@@ -2615,61 +2463,65 @@ export async function getForwardProjectionsAndValuationInput(
 
 export const ForwardProjectionsAndValuationSchema = z.object({
   sectionTitle: z.literal('FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION'),
-  projectedIncomeStatement: z.array(
-    z.object({
-      metric: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(8),
+  projectedIncomeStatement: z
+    .array(
+      z.object({
+        metric: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(8),
   keyProjectionDrivers: z.array(z.string()).min(3).max(5),
-  projectedBalanceSheet: z.array(
-    z.object({
-      item: z.string(),
-      fy25a: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(5),
+  projectedBalanceSheet: z
+    .array(
+      z.object({
+        item: z.string(),
+        fy25a: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(5),
   balanceSheetDynamics: z.array(z.string()).min(3).max(5),
-  projectedCashFlow: z.array(
-    z.object({
-      metric: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(5),
+  projectedCashFlow: z
+    .array(
+      z.object({
+        metric: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(5),
   keyObservations: z.array(z.string()).min(3).max(5),
-  creditMetricsProjection: z.array(
-    z.object({
-      metric: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(4),
+  creditMetricsProjection: z
+    .array(
+      z.object({
+        metric: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(4),
   creditOutlook: z.string(),
 });
 
-export async function getForwardProjectionsAndValuationAboutCompany(
-  symbol: string,
-) {
+export async function getForwardProjectionsAndValuationAboutCompany(symbol: string) {
   const response = await getForwardProjectionsAndValuationInput(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof ForwardProjectionsAndValuationSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof ForwardProjectionsAndValuationSchema>>({
     userPrompt: `
 Generate section: FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION.
 Input Data: ${JSON.stringify(response)}
@@ -2727,18 +2579,10 @@ export async function getConclusionRecommendationData(
 ): Promise<ConclusionRecommendationData> {
   const [summary, chart] = await Promise.all([
     yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'assetProfile',
-        'price',
-        'summaryDetail',
-        'financialData',
-        'defaultKeyStatistics',
-      ],
+      modules: ['assetProfile', 'price', 'summaryDetail', 'financialData', 'defaultKeyStatistics'],
     }),
     yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
+      period1: new Date(Date.now() - 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       period2: new Date().toISOString().slice(0, 10),
       interval: '1mo',
     }),
@@ -2747,22 +2591,21 @@ export async function getConclusionRecommendationData(
   const profile = summary.assetProfile;
   const currency = summary.price?.currency ?? null;
   const country = profile?.country?.toLowerCase() ?? '';
-  const marketType: ConclusionRecommendationData['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: ConclusionRecommendationData['company']['marketType'] = country.includes(
+    'india',
+  )
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
   const quotes = chart.quotes ?? [];
   const firstClose = quotes[0]?.adjclose ?? null;
   const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
   const oneYearReturnPercent =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+    firstClose && lastClose ? ((lastClose - firstClose) / firstClose) * 100 : null;
 
   return {
     company: {
@@ -2816,15 +2659,10 @@ export const ConclusionAndRecommendationSchema = z.object({
   disclaimer: z.string(),
 });
 
-export async function getConclusionAndRecommendationAboutCompany(
-  symbol: string,
-) {
-
+export async function getConclusionAndRecommendationAboutCompany(symbol: string) {
   const response = await getConclusionRecommendationData(symbol);
 
-  const analysis = await fetchSection<
-    z.infer<typeof ConclusionAndRecommendationSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof ConclusionAndRecommendationSchema>>({
     userPrompt: `
 Generate final Section 9: CONCLUSION.
 Input Data: ${JSON.stringify(response)}

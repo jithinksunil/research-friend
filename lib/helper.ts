@@ -38,10 +38,7 @@ export async function createJWTToken(
     .sign(encodedSecret);
 }
 
-export async function verifyJWTToken(
-  token: string,
-  secret: string,
-): Promise<SessionPayload> {
+export async function verifyJWTToken(token: string, secret: string): Promise<SessionPayload> {
   const encodedSecret = new TextEncoder().encode(secret);
 
   const { payload } = await jwtVerify(token, encodedSecret, {
@@ -58,10 +55,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const formatDate = (
-  isoString: string,
-  format: 'January 1, 2000',
-): string => {
+export const formatDate = (isoString: string, format: 'January 1, 2000'): string => {
   const date = new Date(isoString);
 
   if (isNaN(date.getTime())) return isoString;
@@ -77,12 +71,7 @@ export const formatDate = (
   }
 };
 
-
-export function formatValue(
-  value: number | null,
-  format: string,
-  unit?: string | null,
-) {
+export function formatValue(value: number | null, format: string, unit?: string | null) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return '—';
   }

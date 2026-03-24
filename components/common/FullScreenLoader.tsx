@@ -19,13 +19,8 @@ export function FullScreenLoader() {
   );
 
   return (
-    <div className='fixed inset-0 z-[70] flex items-center justify-center bg-background/80 backdrop-blur-[1px]'>
-      <Lottie
-        options={defaultOptions}
-        height={160}
-        width={160}
-        isClickToPauseDisabled={true}
-      />
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/80 backdrop-blur-[1px]">
+      <Lottie options={defaultOptions} height={160} width={160} isClickToPauseDisabled={true} />
     </div>
   );
 }

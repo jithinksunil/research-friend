@@ -31,9 +31,7 @@ function normalizeData(data: Candle[]) {
     });
   }
 
-  const sorted = [...map.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([, value]) => value);
+  const sorted = [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, value]) => value);
 
   const lineData = sorted.map((d) => ({
     time: Math.floor(new Date(d.date).getTime() / 1000) as UTCTimestamp,
@@ -45,10 +43,7 @@ function normalizeData(data: Candle[]) {
     .map((d) => ({
       time: Math.floor(new Date(d.date).getTime() / 1000) as UTCTimestamp,
       value: d.volume,
-      color:
-        d.close >= d.open
-          ? 'rgba(34,197,94,0.8)'
-          : 'rgba(239,68,68,0.8)',
+      color: d.close >= d.open ? 'rgba(34,197,94,0.8)' : 'rgba(239,68,68,0.8)',
     }));
 
   return { lineData, volumeData };
@@ -139,28 +134,33 @@ export default function StockChart({ stock }: { stock: Candle[] }) {
         return;
       }
 
-      const price = seriesData.get(priceSeries) as any;
-      const volume = seriesData.get(volumeSeries) as any;
+      const priceData = seriesData.get(priceSeries);
+      const volumeDataPoint = seriesData.get(volumeSeries);
+      const priceValue =
+        priceData && 'value' in priceData && typeof priceData.value === 'number'
+          ? priceData.value
+          : null;
+      const volumeValue =
+        volumeDataPoint && 'value' in volumeDataPoint && typeof volumeDataPoint.value === 'number'
+          ? volumeDataPoint.value
+          : null;
 
       if (tooltipTimeRef.current) {
-        tooltipTimeRef.current.textContent = new Date(
-          (time as number) * 1000
-        ).toLocaleDateString();
+        tooltipTimeRef.current.textContent = new Date((time as number) * 1000).toLocaleDateString();
       }
 
       if (tooltipPriceRef.current) {
-        tooltipPriceRef.current.textContent = `$${price?.value ?? '—'}`;
+        tooltipPriceRef.current.textContent = priceValue !== null ? `$${priceValue}` : '—';
       }
 
       if (tooltipVolumeRef.current) {
-        tooltipVolumeRef.current.textContent = volume
-          ? Number(volume.value).toLocaleString()
-          : '—';
+        tooltipVolumeRef.current.textContent =
+          volumeValue !== null ? volumeValue.toLocaleString() : '—';
       }
 
       tooltip.style.display = 'block';
-      tooltip.style.left = point.x + 400 + 'px';
-      tooltip.style.top = point.y + 'px';
+      tooltip.style.left = `${point.x + 16}px`;
+      tooltip.style.top = `${point.y + 16}px`;
     });
 
     const handleResize = () => {
@@ -194,10 +194,7 @@ export default function StockChart({ stock }: { stock: Candle[] }) {
         ref={tooltipRef}
         className="pointer-events-none z-[999] absolute hidden min-w-[180px] rounded-xl bg-black/85 backdrop-blur-md px-4 py-3 text-sm text-white shadow-2xl"
       >
-        <div
-          ref={tooltipTimeRef}
-          className="mb-2 text-xs text-gray-400"
-        ></div>
+        <div ref={tooltipTimeRef} className="mb-2 text-xs text-gray-400"></div>
 
         <div className="mt-1 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -212,10 +209,7 @@ export default function StockChart({ stock }: { stock: Candle[] }) {
             <span className="h-4 w-1 rounded bg-blue-400"></span>
             <span className="text-gray-300">Volume</span>
           </div>
-          <span
-            ref={tooltipVolumeRef}
-            className="font-semibold text-gray-300"
-          ></span>
+          <span ref={tooltipVolumeRef} className="font-semibold text-gray-300"></span>
         </div>
       </div>
     </>

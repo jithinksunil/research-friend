@@ -1,293 +1,115 @@
 # Research Friend
 
-Research Friend is a **Next.js full-stack financial research system** that generates structured investment reports for publicly traded companies.
+AI-agent-first stock research platform built with Next.js, Prisma, PostgreSQL, yahoo-finance2, and OpenAI.
 
-The system fetches raw financial data using **yahoo-finance2**, processes the data through the **OpenAI SDK for structured output**, validates the result using **Zod**, stores the structured report in **PostgreSQL**, and renders the report in the UI.
+This repository is intentionally structured so AI agents can implement, extend, and maintain features with minimal ambiguity.
 
-This README is written primarily **for AI agents and developers** to understand the system architecture and data pipeline.
+## Vision
 
----
+Research Friend helps users analyze public companies through two experiences:
 
-# Core Goal
+1. Dashboard view with key company and market data.
+2. Report view with structured long-form sections similar to institutional equity research reports.
+3. Section composition should follow the sample report style provided by the project owner (for example, the AJ Bell reference PDF).
 
-Transform **raw financial API responses** into **structured investment research reports**.
+## Core Product Flow
 
-The report rendered in the UI mirrors the structure of a traditional equity research report.
+1. User signs up or logs in.
+2. User searches for a company/ticker.
+3. User opens company dashboard.
+4. User opens report page.
+5. System checks PostgreSQL for existing structured report.
+6. If report exists: fetch from DB and render immediately.
+7. If report does not exist:
+   1. Fetch section-level raw data from yahoo-finance2.
+   2. Run separate OpenAI calls for each report section.
+   3. Validate and normalize outputs.
+   4. Persist section data via Prisma.
+   5. Render report UI.
 
----
+## Tech Stack
 
-# Data Pipeline
+- Next.js App Router
+- TypeScript
+- Prisma + PostgreSQL
+- yahoo-finance2
+- OpenAI SDK
+- Zod
+- Server Actions + API routes
 
-```text
-User selects company ticker
-        ↓
-Fetch financial data (yahoo-finance2)
-        ↓
-Normalize raw financial data
-        ↓
-Send data to OpenAI SDK
-        ↓
-LLM generates structured report sections
-        ↓
-Validate structure using Zod schemas
-        ↓
-Persist report using Prisma
-        ↓
-Render report UI
-```
+## Routing Scope
 
----
+- `login` page
+- `registration` page
+- `search` page
+- `dashboard` page
+- `report` page
 
-# LLM Structured Output
+## Report Section Scope
 
-The OpenAI SDK is used to transform raw financial datasets into **structured report objects**.
+Report sections should resemble a professional equity-research document, including areas such as:
 
-The LLM generates sections such as:
+- Executive summary
+- Business/company overview
+- Financial and valuation analysis
+- Risk and regulatory analysis
+- Forward outlook and conclusion
 
-* Executive Summary
-* Company Overview
-* Analyst Consensus
-* Valuation Analysis
-* Financial Statement Analysis
-* Competitive Position
-* Risk Analysis
-* Forward Projections
-* Investment Conclusion
+The exact section schema should remain modular so each section can be generated, stored, and re-rendered independently.
 
-These sections match the structure of a traditional equity research report like the sample report included in the repository. 
+## API and Mutation Strategy
 
----
+- Preferred future direction:
+  - GET/read operations via API routes.
+  - Mutations via Server Actions.
+- Existing project may contain both patterns; migrate incrementally toward this contract.
 
-# Report Structure
+## Frontend Component Pattern
 
-The report page renders **all sections of a research report**.
+- Page-specific components live beside their page route.
+- Reusable shared components live in `components/`.
+- Keep report section components modular and data-driven.
 
-Example structure:
+## Agent-First Documentation
 
-```text
-Executive Summary
+Project instructions for agents are split into:
 
-Company Overview & Stock Metrics
+- `AGENTS.md` - execution policy for all AI sessions.
+- `ai-context/AI.md` - AI operating model and responsibilities.
+- `ai-context/architecture.md` - system architecture and data flow.
+- `ai-context/coding-guidelines.md` - coding conventions.
+- `ai-context/policy.md` - hard rules and guardrails.
+- `ai-context/patterns.md` - implementation patterns and templates.
 
-Shareholder Structure & Insider Activity
+## Quality Gate Policy
 
-Analyst Recommendations & Price Targets
+For every AI session:
 
-Equity Valuation & DCF Analysis
+- If code changes were made, run all of:
+  - `prettier`
+  - `spellcheck`
+  - `eslint`
+  - `typecheck`
+- If only non-code files changed (docs/markdown), these checks may be skipped.
 
-Financial Statements Analysis
-
-Business Segments & Competitive Position
-
-Quarterly / Interim Performance
-
-Regulatory Risks
-
-Recent News & Catalysts
-
-Management Commentary
-
-Forward Projections
-
-Valuation Summary
-
-Governance / AGM Information
-
-Investment Conclusion
-```
-
-Each section corresponds to a **structured data object generated by the LLM**.
-
----
-
-# Tech Stack
-
-Frontend
-
-* Next.js (App Router)
-* React
-* TailwindCSS
-* lightweight-charts
-
-Backend
-
-* Next.js Server Actions
-* OpenAI SDK
-* Axios
-
-Data
-
-* PostgreSQL
-* Prisma ORM
-* Zod validation
-
-Financial Data
-
-* yahoo-finance2
-
-Runtime
-
-* Bun
-
----
-
-# Important Directories
-
-```text
-app/
-  application routes
-
-app/actions/
-  server actions
-
-components/
-  reusable UI components
-
-components/report/
-  UI components that render report sections
-
-server/
-  data ingestion and report generation logic
-
-lib/
-  helpers and utilities
-
-prisma/
-  database schema and migrations
-```
-
----
-
-# Main Routes
-
-```text
-/search
-  search for company
-
-/dashboard/[symbol]
-  stock dashboard
-
-/dashboard/[symbol]/report
-  full financial research report
-```
-
----
-
-# Report Rendering
-
-The report page renders modular sections.
-
-Example components:
-
-```text
-ExecutiveSummarySection
-CompanyOverviewSection
-AnalystConsensusSection
-DCFValuationSection
-FinancialStatementsSection
-BusinessSegmentsSection
-NewsSection
-ProjectionSection
-ConclusionSection
-```
-
-Each component receives **structured report data generated by the LLM pipeline**.
-
----
-
-# Database
-
-Database: PostgreSQL
-ORM: Prisma
-
-Core models:
-
-```text
-User
-Company
-Report
-ReportSection
-Votes
-Comments
-```
-
-Schema location:
-
-```
-prisma/schema.prisma
-```
-
----
-
-# Local Development
-
-Install dependencies
+## Getting Started
 
 ```bash
 bun install
-```
-
-Run development server
-
-```bash
 bun run dev
 ```
 
----
+## Environment Variables
 
-# Environment Variables
+Typical required variables:
 
-Create `.env`
+- `DATABASE_URL`
+- `OPENAI_API_KEY`
+- `NEXTAUTH_SECRET`
+- Any Yahoo/OpenAI related runtime keys needed by current implementation
 
-```env
-DATABASE_URL=
-OPENAI_API_KEY=
-NEXTAUTH_SECRET=
-```
+## Prisma
 
-Example
-
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/research_friend
-```
-
----
-
-# Database Setup
-
-Run migrations
-
-```bash
-bunx prisma migrate dev
-```
-
-Generate Prisma client
-
-```bash
-bunx prisma generate
-```
-
----
-
-# Example Report
-
-A sample research report is included in the repository.
-
-Example:
-
-AJ Bell PLC Comprehensive Investment Analysis Report. 
-
-The application generates a similar structure dynamically using financial data and LLM structured output.
-
----
-
-# Notes for AI Agents
-
-Important rules when modifying this codebase:
-
-* Financial data is fetched using **yahoo-finance2**
-* Raw financial data is processed through **OpenAI structured output**
-* Output must match **Zod schemas**
-* Database access must use **Prisma**
-* Report sections must remain **modular UI components**
-* The report page mirrors the structure of a **traditional equity research report**
+- Schema: `prisma/schema.prisma`
+- Use Prisma Client for all DB reads/writes.
+- Persist report sections in normalized shape suitable for section-level retrieval and updates.

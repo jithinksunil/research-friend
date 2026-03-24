@@ -1,84 +1,106 @@
-# AI Agent Instructions
+# AGENTS.md
 
-This repository includes **Model Context Protocol (MCP)** servers to enhance AI-assisted development.
+This repository is operated as an AI-agent-first codebase.
 
-Configuration file:
+All AI agents must follow this document before planning or editing.
 
-```
-.vscode/mcp.json
-```
+## 0. Entry Point and Required Context
 
-## Enabled MCP Servers
+`AGENTS.md` is the mandatory entry point for all agent sessions in this repo.
 
-### filesystem
+Before starting any planning, editing, or execution, agents must read these context files:
 
-Provides access to the repository files.
+1. `ai-context/policy.md`
+2. `ai-context/architecture.md`
+3. `ai-context/patterns.md`
+4. `ai-context/coding-guidelines.md`
+5. `ai-context/AI.md`
 
-Used by AI agents to:
+Do not start implementation until these files are reviewed for the current task.
 
-* inspect Next.js components
-* analyze server actions
-* read Prisma schemas
-* debug application logic
+## 1. Mission
 
-### npm
+Deliver and maintain a stock analytics and report-generation platform where:
 
-Allows AI agents to inspect package metadata and APIs.
+- Dashboard shows key public-company data.
+- Report page shows structured research sections.
+- Report data is cached/persisted in PostgreSQL using Prisma.
 
-Useful for:
+## 2. Product Scope
 
-* `yahoo-finance2`
-* `zod`
-* `prisma`
-* `lightweight-charts`
+Required pages:
 
-### http
+- Login
+- Registration
+- Search
+- Dashboard
+- Report
 
-Allows agents to call HTTP APIs.
+Core engines:
 
-Primarily used for debugging or inspecting finance APIs such as:
+- yahoo-finance2 for market/company data fetch.
+- OpenAI for section-wise report structuring/synthesis.
 
-```
-https://query2.finance.yahoo.com
-```
+## 3. Data Lifecycle Contract
 
-### docs (server-fetch)
+When user opens report page:
 
-Allows AI agents to retrieve external documentation pages.
+1. Check if report already exists in DB.
+2. If found: return cached data and render.
+3. If not found:
+   1. Fetch required raw datasets from yahoo-finance2.
+   2. Run separate OpenAI call per report section.
+   3. Normalize and validate data shape.
+   4. Save to PostgreSQL via Prisma.
+   5. Render report.
 
-### context7
+Never skip DB lookup before regeneration.
 
-Provides semantic search across documentation sources.
+## 4. Architecture Preferences
 
-### yahoo-finance2 Docs
+- Next.js App Router.
+- Reads should move toward API routes.
+- Mutations should move toward Server Actions.
+- Keep business logic in server-side modules, not inside UI components.
 
-Provides access to the source repository and documentation for:
+## 5. Frontend Structure
 
-```
-gadicc/yahoo-finance2
-```
+- Route-local components: inside the related page folder.
+- Reusable components: `components/`.
+- Keep UI composition simple, typed, and section-driven.
 
-This helps AI agents understand the library used to fetch financial data.
+## 6. AI Session Workflow
 
-## Project Context
+For each task:
 
-This application is a **Next.js fullstack stock analytics platform**.
+1. Start at `AGENTS.md`, then read all required `ai-context/*` files listed in Section 0.
+2. Make minimal, scoped changes.
+3. Preserve backward compatibility where possible.
+4. Update docs when behavior contracts change.
 
-Key stack:
+## 7. Mandatory Quality Gates
 
-* Next.js
-* Prisma
-* PostgreSQL
-* Zod
-* yahoo-finance2
-* lightweight-charts
+If code was changed, the agent must run:
 
-Main workflow:
+1. Prettier
+2. Spellcheck
+3. ESLint
+4. Typecheck
 
-1. User searches for a company.
-2. Search results are retrieved via Yahoo Finance.
-3. Selecting a company opens a dashboard with stock data.
-4. A report page transforms financial data using Zod.
-5. Processed reports are stored in PostgreSQL via Prisma.
+If only non-code docs changed, these checks can be skipped.
 
-AI agents may use MCP tools to inspect this flow.
+## 8. Guardrails
+
+- Do not invent data not supported by available sources.
+- Do not bypass validation before DB writes.
+- Do not couple OpenAI prompts directly to UI concerns.
+- Do not regenerate an existing report unless explicitly requested.
+
+## 9. Source of Truth
+
+When conflicts occur, prioritize in this order:
+
+1. Explicit user task request
+2. This `AGENTS.md`
+3. `ai-context/policy.md`
+4. Existing code conventions

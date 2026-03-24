@@ -9,10 +9,10 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod.mjs';
 
 export function requireRBAC(role: ROLES) {
-  return function <T>(
-    action: (...args: any) => Promise<ServerActionResult<T>>,
+  return function <T, TArgs extends unknown[]>(
+    action: (...args: TArgs) => Promise<ServerActionResult<T>>,
   ) {
-    return async (...args: any): Promise<ServerActionResult<T>> => {
+    return async (...args: TArgs): Promise<ServerActionResult<T>> => {
       const user = await getSession();
       if (!user) {
         throw new Error(unauthorizedMessage);
@@ -42,7 +42,7 @@ export async function fetchSection<T>({
   userPrompt,
 }: {
   schemaName: string;
-  schema: ZodObject<any>;
+  schema: ZodObject<ZodRawShape>;
   systemPrompt: string;
   userPrompt: string;
 }): Promise<T> {

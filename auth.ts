@@ -12,11 +12,10 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials) return null;
-        const { accessToken, refreshToken, expires_at, email, id, role } =
-          await signinUser({
-            email: credentials.email as string,
-            password: credentials.password as string,
-          });
+        const { accessToken, refreshToken, expires_at, email, id, role } = await signinUser({
+          email: credentials.email as string,
+          password: credentials.password as string,
+        });
         return {
           id,
           email,
@@ -43,9 +42,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         };
       }
       if (Date.now() < (token.expires_at as number)) return { ...token };
-      const { accessToken, refreshToken, expires_at } = await refresh(
-        token.refreshToken as string,
-      );
+      const { accessToken, refreshToken, expires_at } = await refresh(token.refreshToken as string);
       return {
         ...token,
         accessToken,

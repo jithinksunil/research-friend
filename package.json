@@ -4,9 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "bunx prisma generate && next build",
+    "build": "bun run check && bunx prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "spellcheck": "cspell \"**/*\"",
+    "typecheck": "tsc --noEmit",
+    "check:prettier": "bun run format:check",
+    "check:eslint": "bun run lint",
+    "check:spellcheck": "bun run spellcheck",
+    "check:typecheck": "bun run typecheck",
+    "check": "bun run check:prettier && bun run check:eslint && bun run check:spellcheck && bun run check:typecheck"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -46,8 +56,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-lottie": "^1.2.10",
+    "cspell": "^9.7.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "prettier": "^3.8.1",
     "prisma": "^7.2.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",

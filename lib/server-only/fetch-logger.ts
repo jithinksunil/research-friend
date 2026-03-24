@@ -3,8 +3,10 @@
 const originalFetch = global.fetch;
 
 global.fetch = async (input, init) => {
-    // @ts-ignore
-  const url = typeof input === 'string' ? input : input.url;
+  const url =
+    typeof input === 'string' || input instanceof URL
+      ? String(input)
+      : input.url;
 
   // Skip internal Next.js calls if you want
   if (url.includes('localhost') || url.includes('/_next')) {

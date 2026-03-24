@@ -14,23 +14,20 @@ export function CheckBoxInput(props: PropTypes) {
     <Controller
       control={props.control}
       name={props.name}
-      render={({
-        field: { onChange, value },
-        fieldState: { invalid, error },
-      }) => (
+      render={({ field: { onChange, value }, fieldState: { invalid, error } }) => (
         <div className={`mb-4 ${props?.inputContainer || ''}`}>
-          <label className='flex items-center [&_p]:text-base [&_p]:cursor-pointer'>
+          <label className="flex items-center [&_p]:text-base [&_p]:cursor-pointer">
             <input
-              type='checkbox'
+              type="checkbox"
               name={props.name}
               onChange={onChange}
               checked={value}
               disabled={props.disabled}
-              className='h-4 w-4 accent-[#6f0652] mr-2 rounded-[50%]'
+              className="h-4 w-4 accent-[#6f0652] mr-2 rounded-[50%]"
             />
             <p className={props?.labelClassName}>{props.label}</p>
           </label>
-          {invalid ? <p className='error'>{error?.message}</p> : null}
+          {invalid ? <p className="error">{error?.message}</p> : null}
         </div>
       )}
     />
