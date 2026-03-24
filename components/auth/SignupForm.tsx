@@ -13,12 +13,18 @@ import { signup } from '@/app/actions/auth';
 const schema = yup.object().shape({
   firstName: yup.string().trim().required('First Name is required').defined(),
   password: yup.string().trim().required('Password is required').defined(),
-  lastName: yup.string().trim().optional(),
+  lastName: yup.string().trim().defined(),
   email: yup.string().email('Email must be valid').trim().required('Email is required').defined(),
   termAndPrivacyPolicy: yup.bool().defined(),
 });
 
-type SignupFormValues = yup.InferType<typeof schema>;
+type SignupFormValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  termAndPrivacyPolicy: boolean;
+};
 
 const defaultValues: SignupFormValues = {
   firstName: '',

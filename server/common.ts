@@ -9,7 +9,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod.mjs';
 
 export function requireRBAC(role: ROLES) {
-  return function <T, TArgs extends unknown[]>(
+  return function <T, TArgs extends unknown[] = any[]>(
     action: (...args: TArgs) => Promise<ServerActionResult<T>>,
   ) {
     return async (...args: TArgs): Promise<ServerActionResult<T>> => {
