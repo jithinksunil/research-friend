@@ -16,8 +16,8 @@ export function Loader({ color, size }: PropTypes) {
   );
 
   return (
-    <div className='h-full w-full flex items-center justify-center'>
-      <span className='loader' style={style}></span>
+    <div className="h-full w-full flex items-center justify-center">
+      <span className="loader" style={style}></span>
     </div>
   );
 }

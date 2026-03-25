@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { ReactNode } from 'react';
 import { Button } from '@mui/material';
 import { Loader } from './Loader';
@@ -20,17 +20,11 @@ export function PrimaryButton(props: PropTypes) {
       id={props.id}
       size={props.size || 'medium'}
       type={props.type}
-      className={`relative primaryButton !rounded-lg ${
-        props.className || ''
-      } !bg-primary`}
+      className={`relative primaryButton !rounded-lg ${props.className || ''} !bg-primary`}
       disabled={props.isDisabled}
       onClick={props.onClick}
     >
-      <span
-        className={`${
-          props.isLoading ? 'invisible' : 'visible'
-        }  text-inherit inherit`}
-      >
+      <span className={`${props.isLoading ? 'invisible' : 'visible'}  text-inherit inherit`}>
         {props.children}
       </span>
       <span className={`${props.isLoading ? '' : 'hidden'} absolute`}>

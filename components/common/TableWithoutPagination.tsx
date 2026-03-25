@@ -6,19 +6,15 @@ interface TableProps {
   noData: string;
 }
 
-export const TableWithoutPagination: FC<TableProps> = ({
-  headings,
-  rows,
-  noData,
-}) => {
+export const TableWithoutPagination: FC<TableProps> = ({ headings, rows, noData }) => {
   return (
     <>
-      <table className='w-full'>
+      <table className="w-full">
         {headings && (
           <thead>
-            <tr className='bg-[#f4f4f0] border-[#E5E7EB]'>
+            <tr className="bg-[#f4f4f0] border-[#E5E7EB]">
               {headings.map((heading, i) => (
-                <th className='text-left text-[14px]' key={i}>
+                <th className="text-left text-[14px]" key={i}>
                   {heading}
                 </th>
               ))}
@@ -27,11 +23,11 @@ export const TableWithoutPagination: FC<TableProps> = ({
         )}
 
         {rows?.length ? (
-          <tbody className='relative'>
+          <tbody className="relative">
             {rows.map((row, i) => (
-              <tr key={i} className='border-[#E5E7EB] hover:bg-[#F3F4F6]'>
+              <tr key={i} className="border-[#E5E7EB] hover:bg-[#F3F4F6]">
                 {row.map((el, j) => (
-                  <td className='px-[20px] py-[10px] text-sm' key={j}>
+                  <td className="px-[20px] py-[10px] text-sm" key={j}>
                     {el}
                   </td>
                 ))}
@@ -43,7 +39,7 @@ export const TableWithoutPagination: FC<TableProps> = ({
             <tr>
               <td
                 colSpan={headings?.length}
-                className='text-center py-4 text-sm md:text-base font-semibold'
+                className="text-center py-4 text-sm md:text-base font-semibold"
               >
                 {noData}
               </td>

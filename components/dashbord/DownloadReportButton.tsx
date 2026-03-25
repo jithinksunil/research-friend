@@ -14,7 +14,7 @@ export const DownloadReportButton = ({
   isDummy?: boolean;
 }) => {
   const [loading, setLoading] = useState(false);
-  async function handleDownloadReport(companyName: string, symbol: string,isDummy?: boolean) {
+  async function handleDownloadReport(companyName: string, symbol: string, isDummy?: boolean) {
     setLoading(true);
     fetch(`/api/report?companyName=${companyName}&symbol=${symbol}&isDummy=${isDummy}`, {
       method: 'GET',
@@ -42,8 +42,8 @@ export const DownloadReportButton = ({
   }
   return (
     <PrimaryButton
-      onClick={() => handleDownloadReport(companyName, symbol,isDummy)}
-      type='button'
+      onClick={() => handleDownloadReport(companyName, symbol, isDummy)}
+      type="button"
       isLoading={loading}
     >
       Download

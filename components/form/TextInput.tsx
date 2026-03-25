@@ -1,11 +1,11 @@
 import { InfoOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import { HTMLInputTypeAttribute } from 'react';
-import { Control, Controller } from 'react-hook-form';
+import { Control, Controller, FieldPath, FieldValues } from 'react-hook-form';
 
-interface PropTypes {
-  control: Control<any>;
-  name: string;
+interface PropTypes<TFieldValues extends FieldValues> {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   placeholder: string;
   disabled?: boolean;
   inputContainer?: string;
@@ -13,15 +13,12 @@ interface PropTypes {
   type?: HTMLInputTypeAttribute;
 }
 
-export function TextInput(props: PropTypes) {
+export function TextInput<TFieldValues extends FieldValues>(props: PropTypes<TFieldValues>) {
   return (
     <Controller
       control={props.control}
       name={props.name}
-      render={({
-        field: { onChange, value },
-        fieldState: { invalid, error },
-      }) => (
+      render={({ field: { onChange, value }, fieldState: { invalid, error } }) => (
         <div className={`w-full mb-4 ${props?.inputContainer || ''}`}>
           <label>
             <input
@@ -34,19 +31,15 @@ export function TextInput(props: PropTypes) {
               value={value}
               placeholder={props.placeholder}
               disabled={props.disabled}
-              autoComplete='off'
+              autoComplete="off"
             />
-            <p className='custom_label'>
+            <p className="custom_label">
               {props.placeholder}{' '}
               {props.description ? (
-                <Tooltip
-                  className='tooltip'
-                  title={props.description}
-                  placement='right'
-                >
+                <Tooltip className="tooltip" title={props.description} placement="right">
                   <InfoOutlined
-                    fontSize='small'
-                    className='cursor-pointer hover:text-primary transition-all duration-200 ml-1 text-[18px]'
+                    fontSize="small"
+                    className="cursor-pointer hover:text-primary transition-all duration-200 ml-1 text-[18px]"
                   />
                 </Tooltip>
               ) : null}

@@ -1,11 +1,7 @@
 'use server';
 
 import { ROLES } from '@/app/generated/prisma/enums';
-import {
-  BalanceSheetData,
-  CompanyOverview,
-  StockDashboardData,
-} from '@/interfaces';
+import { BalanceSheetData, CompanyOverview, StockDashboardData } from '@/interfaces';
 import { convertToErrorInstance } from '@/lib';
 import prisma from '@/prisma';
 import {
@@ -17,33 +13,39 @@ import {
   requireRBAC,
 } from '@/server';
 
-export const getDashboardData = requireRBAC(ROLES.USER)<StockDashboardData>(
-  async (symbol: string) => {
-    try {
-      const API_KEY = process.env.ALPHA_VANTAGE_API_KEY!;
-      const BASE = 'https://www.alphavantage.co/query';
-      const keyMetrics = await getStockDashboardData(symbol, API_KEY, BASE);
-      const chartData = await getHistory(symbol);
-      const quickMetrics = await getQuickMetrics(symbol);
-      const riskMetrics = await getRiskMetrics(symbol);
-      return {
-        okay: true,
-        data: {
-          keyMetrics,
-          chartData,
-          quickMetrics,
-          riskMetrics,
-        },
-      };
-    } catch (error) {
-      return { okay: false, error: convertToErrorInstance(error) };
-    }
-  },
-);
-
-export const getOverview = requireRBAC(ROLES.USER)<CompanyOverview>(async (
+export const getDashboardData = requireRBAC(ROLES.USER)<StockDashboardData>(async (
   symbol: string,
 ) => {
+  try {
+    const normalizedSymbol = symbol.trim().toUpperCase();
+    await prisma.company.upsert({
+      where: { symbol: normalizedSymbol },
+      update: {},
+      create: { symbol: normalizedSymbol },
+      select: { id: true },
+    });
+
+    const API_KEY = process.env.ALPHA_VANTAGE_API_KEY!;
+    const BASE = 'https://www.alphavantage.co/query';
+    const keyMetrics = await getStockDashboardData(normalizedSymbol, API_KEY, BASE);
+    const chartData = await getHistory(normalizedSymbol);
+    const quickMetrics = await getQuickMetrics(normalizedSymbol);
+    const riskMetrics = await getRiskMetrics(normalizedSymbol);
+    return {
+      okay: true,
+      data: {
+        keyMetrics,
+        chartData,
+        quickMetrics,
+        riskMetrics,
+      },
+    };
+  } catch (error) {
+    return { okay: false, error: convertToErrorInstance(error) };
+  }
+});
+
+export const getOverview = requireRBAC(ROLES.USER)<CompanyOverview>(async (symbol: string) => {
   try {
     const trimmed = symbol.trim().toUpperCase();
     if (!trimmed) {
@@ -89,9 +91,7 @@ export const getOverview = requireRBAC(ROLES.USER)<CompanyOverview>(async (
     };
 
     const apiMessage =
-      errorResponse.Note ||
-      errorResponse.Information ||
-      errorResponse['Error Message'];
+      errorResponse.Note || errorResponse.Information || errorResponse['Error Message'];
     if (apiMessage && !('Symbol' in json)) {
       return {
         okay: false,
@@ -113,9 +113,7 @@ export const getOverview = requireRBAC(ROLES.USER)<CompanyOverview>(async (
   }
 });
 
-export const getBalanceSheet = requireRBAC(ROLES.USER)<BalanceSheetData>(async (
-  symbol: string,
-) => {
+export const getBalanceSheet = requireRBAC(ROLES.USER)<BalanceSheetData>(async (symbol: string) => {
   try {
     const trimmed = symbol.trim().toUpperCase();
     if (!trimmed) {
@@ -161,9 +159,7 @@ export const getBalanceSheet = requireRBAC(ROLES.USER)<BalanceSheetData>(async (
     };
 
     const apiMessage =
-      errorResponse.Note ||
-      errorResponse.Information ||
-      errorResponse['Error Message'];
+      errorResponse.Note || errorResponse.Information || errorResponse['Error Message'];
     if (apiMessage && !('symbol' in json)) {
       return {
         okay: false,

@@ -8,7 +8,5 @@ export const SubHeading = ({
   children: ReactNode;
   className?: string;
 }) => {
-  return (
-    <h1 className={cn('text-xl font-bold mb-4', className)}>{children}</h1>
-  );
+  return <h1 className={cn('text-xl font-bold mb-4', className)}>{children}</h1>;
 };

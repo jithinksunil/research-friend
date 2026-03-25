@@ -50,7 +50,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     );
   }, [query, suggestions]);
 
-
   useEffect(() => {
     if (!onSearch || !isFocused) return;
     if (normalizedQuery.length < minCharsToSearch) return;
@@ -70,10 +69,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsFocused(false);
       }
     };
@@ -99,9 +95,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev < filteredSuggestions.length - 1 ? prev + 1 : prev,
-        );
+        setSelectedIndex((prev) => (prev < filteredSuggestions.length - 1 ? prev + 1 : prev));
         break;
       case 'ArrowUp':
         e.preventDefault();
@@ -131,8 +125,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   const showDropdown =
     isFocused &&
-    (filteredSuggestions.length > 0 ||
-      (normalizedQuery.length >= minCharsToSearch && !isLoading));
+    (filteredSuggestions.length > 0 || (normalizedQuery.length >= minCharsToSearch && !isLoading));
   const showNoResults =
     isFocused &&
     normalizedQuery.length >= minCharsToSearch &&
@@ -152,13 +145,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           bg-white
         `}
       >
-        <div className='pl-4 pr-2 text-gray-400'>
+        <div className="pl-4 pr-2 text-gray-400">
           <SearchIcon />
         </div>
 
         <input
           ref={inputRef}
-          type='text'
+          type="text"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -168,12 +161,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onFocus={() => setIsFocused(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className='flex-1 py-3 px-2 text-base outline-none bg-transparent text-gray-900 placeholder:text-gray-400'
+          className="flex-1 py-3 px-2 text-base outline-none bg-transparent text-gray-900 placeholder:text-gray-400"
         />
 
         {query && (
-          <div className='mr-2 flex items-center'>
-            {isLoading ? <CircularProgress size={24} className='text-blue-500' /> : null}
+          <div className="mr-2 flex items-center">
+            {isLoading ? <CircularProgress size={24} className="text-blue-500" /> : null}
           </div>
         )}
       </div>
@@ -181,15 +174,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {showDropdown && !isLoading && (
         <div
           ref={suggestionsRef}
-          className='absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-2xl shadow-lg max-h-96 overflow-hidden z-50'
+          className="absolute top-full mt-1 w-full bg-white border border-gray-200 rounded-2xl shadow-lg max-h-96 overflow-hidden z-50"
         >
-          <div className='max-h-96 overflow-y-auto search-suggestions-scrollbar pr-1'>
+          <div className="max-h-96 overflow-y-auto search-suggestions-scrollbar pr-1">
             {showNoResults ? (
-              <div className='px-4 py-8 text-center'>
-                <div className='flex flex-col items-center justify-center gap-2'>
-                  <SearchIcon className='text-gray-300 text-4xl' />
-                  <div className='text-sm font-medium text-gray-600'>No results found</div>
-                  <div className='text-xs text-gray-500 max-w-xs'>
+              <div className="px-4 py-8 text-center">
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <SearchIcon className="text-gray-300 text-4xl" />
+                  <div className="text-sm font-medium text-gray-600">No results found</div>
+                  <div className="text-xs text-gray-500 max-w-xs">
                     Try searching with a different keyword or check your spelling
                   </div>
                 </div>
@@ -206,22 +199,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     ${index === filteredSuggestions.length - 1 ? 'rounded-b-2xl' : ''}
                   `}
                 >
-                  <div className='flex-1 min-w-0'>
-                    <div className='flex items-center gap-2'>
-                      <SearchIcon className='text-gray-400 text-sm' />
-                      <span className='text-sm text-gray-900 truncate'>{suggestion.name}</span>
-                      <span className='text-xs font-semibold text-gray-500 shrink-0'>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <SearchIcon className="text-gray-400 text-sm" />
+                      <span className="text-sm text-gray-900 truncate">{suggestion.name}</span>
+                      <span className="text-xs font-semibold text-gray-500 shrink-0">
                         {suggestion.symbol}
                       </span>
                     </div>
                     {suggestion.region && (
-                      <div className='text-xs text-gray-500 mt-1 ml-6 truncate'>
+                      <div className="text-xs text-gray-500 mt-1 ml-6 truncate">
                         {suggestion.region}
                       </div>
                     )}
                   </div>
                   {index === selectedIndex && (
-                    <KeyboardArrowDown className='text-gray-400 text-sm rotate-180' />
+                    <KeyboardArrowDown className="text-gray-400 text-sm rotate-180" />
                   )}
                 </div>
               ))

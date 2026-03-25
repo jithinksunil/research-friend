@@ -1,27 +1,24 @@
-import { Control, Controller } from 'react-hook-form';
+import { Control, Controller, FieldPath, FieldValues } from 'react-hook-form';
 import { useState } from 'react';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 
-interface PropTypes {
-  control: Control<any>;
-  name: string;
+interface PropTypes<TFieldValues extends FieldValues> {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   placeholder: string;
   inputContainer?: string;
 }
 
-export function PasswordInput(props: PropTypes) {
+export function PasswordInput<TFieldValues extends FieldValues>(props: PropTypes<TFieldValues>) {
   const [show, setShow] = useState(false);
 
   return (
     <Controller
       control={props.control}
       name={props.name}
-      render={({
-        field: { onChange, value },
-        fieldState: { invalid, error },
-      }) => (
+      render={({ field: { onChange, value }, fieldState: { invalid, error } }) => (
         <div className={`w-full mb-4 ${props?.inputContainer || ''}`}>
-          <div className='flex'>
+          <div className="flex">
             <label>
               <input
                 className={`h-14 block w-full border text-base px-4 py-0 rounded-lg border-solid border-[#c8cfd6] outline-none rounded-tr-none rounded-br-none border-r-0 ${
@@ -32,15 +29,15 @@ export function PasswordInput(props: PropTypes) {
                 onChange={onChange}
                 value={value}
                 placeholder={props.placeholder}
-                autoComplete='off'
+                autoComplete="off"
               />
-              <p className='custom_label'>{props.placeholder}</p>
+              <p className="custom_label">{props.placeholder}</p>
             </label>
             <div
               onClick={() => {
                 setShow((prev) => !prev);
               }}
-              className='border flex justify-center items-center cursor-pointer px-4 py-0 rounded-tl-none rounded-bl-none rounded-lg border-l-0 border-solid border-[#c8cfd6]'
+              className="border flex justify-center items-center cursor-pointer px-4 py-0 rounded-tl-none rounded-bl-none rounded-lg border-l-0 border-solid border-[#c8cfd6]"
             >
               {show ? <VisibilityOff /> : <Visibility />}
             </div>

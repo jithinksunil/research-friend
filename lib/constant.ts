@@ -233,7 +233,7 @@ STRICT RULES:
 7. If any required value is missing, return "N/A" instead of guessing.
 
 8. Do NOT include any text outside the JSON response.
-`
+`;
 
 export const EQUITY_VALUATION_PROMPT = `You are a professional equity research analyst.
 
@@ -319,9 +319,9 @@ STRICT RULES:
     - Be analytical and neutral
 12. Do NOT invent data not present in input.
 13. If any required value is missing, return "N/A".
-`
+`;
 
-export const FINANCIAL_STATEMENT_ANALYSIS_PROMPT=`You are a professional equity research analyst.
+export const FINANCIAL_STATEMENT_ANALYSIS_PROMPT = `You are a professional equity research analyst.
 
 Your task is to generate Section 5:
 
@@ -419,9 +419,9 @@ STRICT RULES:
    - Mention CAGR where relevant
    - Avoid speculation
 10. Maintain institutional tone.
-`
+`;
 
-export const  BUSINESS_SEGMENT_DATA_PROMPT=`You are a professional equity research analyst.
+export const BUSINESS_SEGMENT_DATA_PROMPT = `You are a professional equity research analyst.
 
 Your task is to generate Section 6:
 
@@ -502,9 +502,9 @@ STRICT RULES:
 11. Maintain institutional equity research tone.
 12. Avoid marketing language.
 13. Avoid speculation beyond reasonable inference.
-`
+`;
 
-export const INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT=`You are a professional equity research analyst.
+export const INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT = `You are a professional equity research analyst.
 
 Your task is to generate Section 7:
 
@@ -575,11 +575,9 @@ STRICT RULES:
 13. Avoid marketing language.
 14. Do not fabricate CEO quotes if none are provided.
    If not provided, generate neutral management-style summary statements.
-`
+`;
 
-
-
-export const DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT=`You are a senior equity research analyst.
+export const DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT = `You are a senior equity research analyst.
 
 Generate Section: "DCF VALUATION RECAP & PRICE TARGET" using ONLY provided structured input data.
 
@@ -592,9 +590,9 @@ Rules:
 4. Recommendation must be one of: "BUY", "HOLD", "SELL".
 5. Do not fabricate unavailable numbers; use reasonable conservative wording.
 6. Output JSON only.
-`
+`;
 
-export const AGM_AND_SHAREHOLDER_MATTERS_PROMPT=`You are a senior equity research analyst.
+export const AGM_AND_SHAREHOLDER_MATTERS_PROMPT = `You are a senior equity research analyst.
 
 Generate Section: "ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS" from ONLY the provided structured input data.
 
@@ -607,8 +605,8 @@ Rules:
 4. Governance notes should focus on board composition, succession planning, and shareholder communication.
 5. If exact AGM metadata is unavailable, provide clearly marked best-estimate wording.
 6. Output JSON only.
-`
-export const CONCLUSION_AND_RECOMMENDATION_PROMPT=`You are a senior institutional equity research analyst.
+`;
+export const CONCLUSION_AND_RECOMMENDATION_PROMPT = `You are a senior institutional equity research analyst.
 
 Your task is to generate the final section: "CONCLUSION".
 Use ONLY the provided structured input data.
@@ -624,9 +622,9 @@ Rules:
 6. expectedReturn must include sign and percentage format (example: "+20.5%").
 7. Keep disclaimer to educational / not financial advice wording.
 8. Output JSON only, no markdown.
-`
+`;
 
-export const CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT=`You are an institutional equity research analyst specializing in regulatory risk, contingent liabilities, and capital adequacy assessment across global markets.
+export const CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT = `You are an institutional equity research analyst specializing in regulatory risk, contingent liabilities, and capital adequacy assessment across global markets.
 
 Your task is to generate Section 8: "CONTINGENT LIABILITIES & REGULATORY RISKS" using ONLY the structured input data provided.
 
@@ -671,10 +669,9 @@ Strict Rules:
 
 Do not output explanations. 
 Return only valid JSON matching the schema.
-`
+`;
 
-
-export const FORWARD_PROJECTIONS_AND_VALUATION_PROMPT=`You are a senior institutional equity research analyst.
+export const FORWARD_PROJECTIONS_AND_VALUATION_PROMPT = `You are a senior institutional equity research analyst.
 
 Generate Section 10: "FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION" from ONLY the structured input data provided.
 
@@ -697,4 +694,4 @@ Rules:
 10. CreditOutlook: one concise paragraph.
 11. Do not fabricate precision beyond input quality; use reasoned estimates where necessary.
 12. Maintain a professional institutional-research tone.
-`
+`;

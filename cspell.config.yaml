@@ -1,0 +1,90 @@
+version: '0.2'
+language: en
+
+enabledLanguageIds:
+  - javascript
+  - javascriptreact
+  - typescript
+  - typescriptreact
+  - json
+  - markdown
+
+ignorePaths:
+  - .git
+  - .next
+  - .vscode
+  - node_modules
+  - app/generated
+  - out
+  - build
+  - coverage
+  - prisma/migrations
+  - bun.lock
+  - tsconfig.tsbuildinfo
+  - package-lock.json
+  - pnpm-lock.yaml
+  - yarn.lock
+  - report_template.docx
+  - report_data.json
+  - stockdata.json
+  - '**/*.pdf'
+  - '**/*.svg'
+  - '**/*.png'
+  - '**/*.jpg'
+  - '**/*.jpeg'
+
+words:
+  - reasearch
+  - analyasis
+  - abcx
+  - bunx
+  - stockdata
+  - regenerable
+  - versionable
+  - parallelizable
+  - unvalidated
+  - financials
+  - autoincrement
+  - pkey
+  - fkey
+  - adjclose
+  - capm
+  - outputsize
+  - dashbord
+  - repot
+  - frcm
+  - irfp
+  - wooping
+  - finanacial
+  - onclickoutside
+  - horz
+  - motilal
+  - oswal
+  - icici
+  - datas
+  - liab
+  - bourke
+  - investcentre
+  - lansdown
+  - freetrade
+  - nextauth
+  - tailwindcss
+  - yahoo
+  - lotties
+  - tsbuildinfo
+  - postcss
+  - prisma
+  - apikey
+  - maxage
+  - longname
+  - sipp
+  - ssas
+  - hmrc
+  - cagr
+  - wacc
+  - ebitda
+  - roic
+  - capex
+  - fintech
+  - ohlcv
+  - epsttm

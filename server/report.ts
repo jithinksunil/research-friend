@@ -89,10 +89,13 @@ type LegacyCashflowStatement = {
   repurchasesOfStock: number | null;
 };
 
+function getNumberField(item: Record<string, unknown>, key: string): number | null {
+  const value = item[key];
+  return typeof value === 'number' ? value : null;
+}
+
 async function getAnnualFinancialStatements(symbol: string, years = 8) {
-  const period1 = new Date(
-    Date.now() - years * 365.25 * 24 * 60 * 60 * 1000,
-  )
+  const period1 = new Date(Date.now() - years * 365.25 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
 
@@ -103,70 +106,116 @@ async function getAnnualFinancialStatements(symbol: string, years = 8) {
     period2: new Date().toISOString().slice(0, 10),
   });
 
-  const sortedSeries = [...timeSeries].sort(
-    (a, b) => b.date.getTime() - a.date.getTime(),
-  );
+  const sortedSeries = [...timeSeries].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  const incomeStatements: LegacyIncomeStatement[] = sortedSeries.map((item) => ({
-    endDate: item.date.toISOString(),
-    totalRevenue: item.totalRevenue ?? null,
-    operatingIncome: item.operatingIncome ?? null,
-    netIncome: item.netIncome ?? null,
-  }));
-
-  const balanceSheetStatements: LegacyBalanceSheetStatement[] = sortedSeries.map(
-    (item) => ({
+  const incomeStatements: LegacyIncomeStatement[] = sortedSeries.map((item) => {
+    const normalizedItem = item as unknown as Record<string, unknown>;
+    return {
       endDate: item.date.toISOString(),
-      cash: item.cashAndCashEquivalents ?? null,
-      totalAssets: item.totalAssets ?? null,
-      totalDebt: item.totalDebt ?? null,
-      totalStockholderEquity: item.totalEquityGrossMinorityInterest ?? null,
-      totalLiab: item.totalLiabilitiesNetMinorityInterest ?? null,
-    }),
-  );
+      totalRevenue: getNumberField(normalizedItem, 'totalRevenue'),
+      operatingIncome: getNumberField(normalizedItem, 'operatingIncome'),
+      netIncome: getNumberField(normalizedItem, 'netIncome'),
+    };
+  });
 
-  const cashflowStatements: LegacyCashflowStatement[] = sortedSeries.map(
-    (item) => ({
+  const balanceSheetStatements: LegacyBalanceSheetStatement[] = sortedSeries.map((item) => {
+    const normalizedItem = item as unknown as Record<string, unknown>;
+    return {
       endDate: item.date.toISOString(),
-      totalCashFromOperatingActivities: item.operatingCashFlow ?? null,
-      capitalExpenditures: item.capitalExpenditure
-        ? -Math.abs(item.capitalExpenditure)
-        : null,
-      dividendsPaid: item.cashDividendsPaid
-        ? -Math.abs(item.cashDividendsPaid)
-        : null,
-      repurchasesOfStock: item.repurchaseOfCapitalStock
-        ? -Math.abs(item.repurchaseOfCapitalStock)
-        : null,
-    }),
-  );
+      cash: getNumberField(normalizedItem, 'cashAndCashEquivalents'),
+      totalAssets: getNumberField(normalizedItem, 'totalAssets'),
+      totalDebt: getNumberField(normalizedItem, 'totalDebt'),
+      totalStockholderEquity: getNumberField(normalizedItem, 'totalEquityGrossMinorityInterest'),
+      totalLiab: getNumberField(normalizedItem, 'totalLiabilitiesNetMinorityInterest'),
+    };
+  });
+
+  const cashflowStatements: LegacyCashflowStatement[] = sortedSeries.map((item) => {
+    const normalizedItem = item as unknown as Record<string, unknown>;
+    const capitalExpenditure = getNumberField(normalizedItem, 'capitalExpenditure');
+    const cashDividendsPaid = getNumberField(normalizedItem, 'cashDividendsPaid');
+    const repurchaseOfCapitalStock = getNumberField(normalizedItem, 'repurchaseOfCapitalStock');
+
+    return {
+      endDate: item.date.toISOString(),
+      totalCashFromOperatingActivities: getNumberField(normalizedItem, 'operatingCashFlow'),
+      capitalExpenditures: capitalExpenditure ? -Math.abs(capitalExpenditure) : null,
+      dividendsPaid: cashDividendsPaid ? -Math.abs(cashDividendsPaid) : null,
+      repurchasesOfStock: repurchaseOfCapitalStock ? -Math.abs(repurchaseOfCapitalStock) : null,
+    };
+  });
 
   return { incomeStatements, balanceSheetStatements, cashflowStatements };
 }
+const REPORT_QUOTE_SUMMARY_MODULES = [
+  'assetProfile',
+  'price',
+  'summaryDetail',
+  'financialData',
+  'defaultKeyStatistics',
+  'earningsTrend',
+  'majorHoldersBreakdown',
+  'institutionOwnership',
+  'insiderTransactions',
+  'recommendationTrend',
+  'calendarEvents',
+] as const;
+
+const ONE_YEAR_IN_MS = 365.25 * 24 * 60 * 60 * 1000;
+
+async function getSharedQuoteSummary(symbol: string) {
+  return yahooFinance.quoteSummary(symbol, {
+    modules: [...REPORT_QUOTE_SUMMARY_MODULES],
+  });
+}
+
+async function getSharedChart(symbol: string) {
+  return yahooFinance.chart(symbol, {
+    period1: new Date(Date.now() - 5 * ONE_YEAR_IN_MS).toISOString().slice(0, 10),
+    period2: new Date().toISOString().slice(0, 10),
+    interval: '1mo',
+    events: 'div',
+  });
+}
+
+export type ReportSourceBundle = {
+  summary: Awaited<ReturnType<typeof getSharedQuoteSummary>>;
+  chart: Awaited<ReturnType<typeof getSharedChart>>;
+  annualStatements: Awaited<ReturnType<typeof getAnnualFinancialStatements>>;
+};
+
+export async function getReportSourceBundle(symbol: string): Promise<ReportSourceBundle> {
+  const [summary, chart, annualStatements] = await Promise.all([
+    getSharedQuoteSummary(symbol),
+    getSharedChart(symbol),
+    getAnnualFinancialStatements(symbol),
+  ]);
+
+  return { summary, chart, annualStatements };
+}
+
+function calculateOneYearReturnPercent(chart: ReportSourceBundle['chart']) {
+  const quotes = chart.quotes ?? [];
+  const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
+
+  const oneYearAgo = Date.now() - ONE_YEAR_IN_MS;
+  const oneYearQuote =
+    quotes.find((quote) => {
+      if (!(quote.date instanceof Date)) return false;
+      return quote.date.getTime() >= oneYearAgo && typeof quote.adjclose === 'number';
+    }) ?? quotes[0];
+
+  const startClose = oneYearQuote?.adjclose ?? null;
+  return startClose && lastClose ? ((lastClose - startClose) / startClose) * 100 : null;
+}
+
 export async function getTrimmedExecutiveData(
   symbol: string,
+  sourceBundle?: ReportSourceBundle,
 ): Promise<StockResearchData> {
-  const [{ incomeStatements }, summary, chart] = await Promise.all([
-    getAnnualFinancialStatements(symbol),
-    yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'assetProfile',
-        'price',
-        'summaryDetail',
-        'financialData',
-        'defaultKeyStatistics',
-        'earningsTrend',
-      ],
-    }),
-    yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 5 * 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
-      period2: new Date().toISOString().slice(0, 10),
-      interval: '1mo',
-      events: 'div',
-    }),
-  ]);
+  const { annualStatements, summary, chart } =
+    sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { incomeStatements } = annualStatements;
 
   const safe = (v: any) => v ?? null;
 
@@ -182,32 +231,20 @@ export async function getTrimmedExecutiveData(
       ? ((revenueTTM - previous.totalRevenue) / previous.totalRevenue) * 100
       : null;
 
-  const netMargin =
-    revenueTTM && netIncomeTTM ? (netIncomeTTM / revenueTTM) * 100 : null;
+  const netMargin = revenueTTM && netIncomeTTM ? (netIncomeTTM / revenueTTM) * 100 : null;
 
   // ---- Analyst ----
   const currentPrice = summary.price?.regularMarketPrice ?? null;
   const targetMean = summary.financialData?.targetMeanPrice ?? null;
 
   const upsidePercent =
-    currentPrice && targetMean
-      ? ((targetMean - currentPrice) / currentPrice) * 100
-      : null;
+    currentPrice && targetMean ? ((targetMean - currentPrice) / currentPrice) * 100 : null;
 
   // ---- Dividends ----
-  const dividends =
-    chart.events?.dividends?.reduce((sum, d) => sum + (d.amount ?? 0), 0) ??
-    null;
+  const dividends = chart.events?.dividends?.reduce((sum, d) => sum + (d.amount ?? 0), 0) ?? null;
 
   // ---- 1Y Return ----
-  const quotes = chart.quotes || [];
-  const firstClose = quotes[0]?.adjclose ?? null;
-  const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
-
-  const oneYearReturn =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+  const oneYearReturn = calculateOneYearReturnPercent(chart);
 
   return {
     company: {
@@ -261,13 +298,22 @@ export async function getTrimmedExecutiveData(
   };
 }
 
-export async function getExecutiveInformationAboutCompany(symbol: string) {
-  const response = await getTrimmedExecutiveData(symbol);
+type SectionGenerationOptions = {
+  sourceBundle?: ReportSourceBundle;
+  enableWebSearch?: boolean;
+};
+
+export async function getExecutiveInformationAboutCompany(
+  symbol: string,
+  options?: SectionGenerationOptions,
+) {
+  const response = await getTrimmedExecutiveData(symbol, options?.sourceBundle);
   const analysis = await fetchSection<z.infer<typeof ExecutiveSchema>>({
     userPrompt: `Input data: ${JSON.stringify(response)}`,
     systemPrompt: EXECUTIVE_PROMPT,
     schema: ExecutiveSchema,
     schemaName: 'ExecutiveSchema',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
   return { companyName: response.company.name, ...analysis };
 }
@@ -319,24 +365,9 @@ export async function getTrimmedCompanyOverviewMetrics(
   terminalGrowth = 0.04, // 4% default India large cap
   riskFreeRate = 0.07, // 7% India 10Y G-Sec
   marketRiskPremium = 0.06, // 6% India ERP
+  sourceBundle?: ReportSourceBundle,
 ): Promise<CompanyOverviewMetrics> {
-  const [summary, chart] = await Promise.all([
-    yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'price',
-        'summaryDetail',
-        'financialData',
-        'defaultKeyStatistics',
-      ],
-    }),
-    yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 1 * 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
-      period2: new Date().toISOString().slice(0, 10),
-      interval: '1mo',
-    }),
-  ]);
+  const { summary, chart } = sourceBundle ?? (await getReportSourceBundle(symbol));
 
   const safe = (v: any) => v ?? null;
 
@@ -344,8 +375,7 @@ export async function getTrimmedCompanyOverviewMetrics(
   const high52 = summary.summaryDetail?.fiftyTwoWeekHigh ?? null;
   const low52 = summary.summaryDetail?.fiftyTwoWeekLow ?? null;
 
-  const sharesOutstanding =
-    summary.defaultKeyStatistics?.sharesOutstanding ?? null;
+  const sharesOutstanding = summary.defaultKeyStatistics?.sharesOutstanding ?? null;
 
   const beta = summary.defaultKeyStatistics?.beta ?? null;
   const totalDebt = summary.financialData?.totalDebt ?? 0;
@@ -390,8 +420,7 @@ export async function getTrimmedCompanyOverviewMetrics(
       totalPV += projectedFCF / Math.pow(1 + wacc, year);
     }
 
-    const terminalValue =
-      (projectedFCF * (1 + terminalGrowth)) / (wacc - terminalGrowth);
+    const terminalValue = (projectedFCF * (1 + terminalGrowth)) / (wacc - terminalGrowth);
 
     const discountedTerminal = terminalValue / Math.pow(1 + wacc, 5);
 
@@ -406,20 +435,11 @@ export async function getTrimmedCompanyOverviewMetrics(
   // Performance Metrics
   // --------------------------
 
-  const fiftyTwoWeekRangePercent =
-    high52 && low52 ? ((high52 - low52) / low52) * 100 : null;
+  const fiftyTwoWeekRangePercent = high52 && low52 ? ((high52 - low52) / low52) * 100 : null;
 
-  const recoveryFromLowPercent =
-    price && low52 ? ((price - low52) / low52) * 100 : null;
+  const recoveryFromLowPercent = price && low52 ? ((price - low52) / low52) * 100 : null;
 
-  const quotes = chart.quotes || [];
-  const firstClose = quotes[0]?.adjclose ?? null;
-  const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
-
-  const oneYearReturnPercent =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+  const oneYearReturnPercent = calculateOneYearReturnPercent(chart);
 
   return {
     price,
@@ -457,8 +477,17 @@ export async function getTrimmedCompanyOverviewMetrics(
   };
 }
 
-export async function getOverviewMetricsAboutCompany(symbol: string) {
-  const response = await getTrimmedCompanyOverviewMetrics(symbol);
+export async function getOverviewMetricsAboutCompany(
+  symbol: string,
+  options?: SectionGenerationOptions,
+) {
+  const response = await getTrimmedCompanyOverviewMetrics(
+    symbol,
+    undefined,
+    undefined,
+    undefined,
+    options?.sourceBundle,
+  );
   const analysis = await fetchSection<z.infer<typeof CompanyOverviewSchema>>({
     userPrompt: `Generate the Company Overview & Stock Metrics section using the following input data:
 
@@ -467,6 +496,7 @@ ${JSON.stringify(response)}`,
     systemPrompt: OVERVIEW_PROMPT,
     schema: CompanyOverviewSchema,
     schemaName: 'OverviewAndStockMetrics',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
   return analysis;
 }
@@ -523,15 +553,9 @@ interface ShareholderStructure {
 
 export async function getTrimmedShareholderStructure(
   symbol: string,
+  sourceBundle?: ReportSourceBundle,
 ): Promise<ShareholderStructure> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'defaultKeyStatistics',
-      'majorHoldersBreakdown',
-      'institutionOwnership',
-      'insiderTransactions',
-    ],
-  });
+  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
 
   const safe = (v: any) => v ?? null;
 
@@ -539,8 +563,7 @@ export async function getTrimmedShareholderStructure(
   // Ownership Breakdown
   // --------------------------
 
-  const institutionalPercent = summary.majorHoldersBreakdown
-    ?.institutionsPercentHeld
+  const institutionalPercent = summary.majorHoldersBreakdown?.institutionsPercentHeld
     ? summary.majorHoldersBreakdown.institutionsPercentHeld * 100
     : null;
 
@@ -594,9 +617,7 @@ export async function getTrimmedShareholderStructure(
         name: tx.filerName ?? null,
         type: isBuy ? 'BUY' : 'SELL',
         value: value,
-        date: tx.startDate
-          ? new Date(tx.startDate).toLocaleDateString('en-IN')
-          : null,
+        date: tx.startDate ? new Date(tx.startDate).toLocaleDateString('en-IN') : null,
       };
     }
   }
@@ -642,11 +663,7 @@ export const ShareholderStructureSectionSchema = z.object({
   majorShareholders: z
     .array(
       z.object({
-        shareHolderType: z.enum([
-          'FREE_FLOAT',
-          'INSTITUTIONAL_HOLDINGS',
-          'MANAGEMENT_DIRECTORS',
-        ]),
+        shareHolderType: z.enum(['FREE_FLOAT', 'INSTITUTIONAL_HOLDINGS', 'MANAGEMENT_DIRECTORS']),
         ownership: z.string(), // e.g., "~75%"
         notes: z.string(),
       }),
@@ -661,15 +678,17 @@ export const ShareholderStructureSectionSchema = z.object({
   keyInsiderObservations: z.array(z.string()).min(1).max(10),
 });
 
-export async function getShareholderStructureAboutCompany(symbol: string) {
-  const response = await getTrimmedShareholderStructure(symbol);
-  const analysis = await fetchSection<
-    z.infer<typeof ShareholderStructureSectionSchema>
-  >({
+export async function getShareholderStructureAboutCompany(
+  symbol: string,
+  options?: SectionGenerationOptions,
+) {
+  const response = await getTrimmedShareholderStructure(symbol, options?.sourceBundle);
+  const analysis = await fetchSection<z.infer<typeof ShareholderStructureSectionSchema>>({
     userPrompt: `Generate the "Shareholder Structure & Insider Activity" section using the following structured input data: ShareholderStructureRawData: ${JSON.stringify(response)}`,
     systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
     schema: ShareholderStructureSectionSchema,
     schemaName: 'ShareHolderStructure',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
   return analysis;
 }
@@ -701,10 +720,9 @@ interface AnalystRecommendationsData {
 export async function getAnalystRecommendationsData(
   symbol: string,
   reportingPeriod: string = 'Last 3 Months',
+  sourceBundle?: ReportSourceBundle,
 ): Promise<AnalystRecommendationsData> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: ['price', 'financialData', 'recommendationTrend'],
-  });
+  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
 
   // -------------------------
   // Current Market Data
@@ -793,16 +811,18 @@ export const AnalystRecommendationsSchema = z.object({
   recentAnalystViews: z.array(z.string()).min(1).max(10),
 });
 
-export async function getAnalystRecommendationsAboutCompany(symbol: string) {
-  const response = await getAnalystRecommendationsData(symbol);
+export async function getAnalystRecommendationsAboutCompany(
+  symbol: string,
+  options?: SectionGenerationOptions,
+) {
+  const response = await getAnalystRecommendationsData(symbol, undefined, options?.sourceBundle);
 
-  const analysis = await fetchSection<
-    z.infer<typeof AnalystRecommendationsSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof AnalystRecommendationsSchema>>({
     userPrompt: `Generate the "Analyst Recommendations & Price Targets" section using the following structured input: ${JSON.stringify(response)}`,
     systemPrompt: ANALYST_RECOMMENDATION_PROMPT,
     schema: AnalystRecommendationsSchema,
     schemaName: 'AnalystRecommendations',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
   return analysis;
 }
@@ -858,6 +878,7 @@ export async function getTrimmedEquityValuationData(
     revenueGrowth?: number;
     taxRate?: number;
     reportingStandard?: 'UK' | 'US' | 'India' | 'Global';
+    sourceBundle?: ReportSourceBundle;
   },
 ): Promise<EquityValuationData> {
   const {
@@ -867,13 +888,12 @@ export async function getTrimmedEquityValuationData(
     revenueGrowth = 0.12,
     taxRate = 0.19,
     reportingStandard = 'Global',
+    sourceBundle,
   } = options || {};
 
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: ['price', 'financialData', 'defaultKeyStatistics'],
-  });
-
-  const { incomeStatements } = await getAnnualFinancialStatements(symbol);
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary } = sharedBundle;
+  const { incomeStatements } = sharedBundle.annualStatements;
 
   // -----------------------------
   // Context
@@ -939,8 +959,7 @@ export async function getTrimmedEquityValuationData(
 
   const finalYearIncome = projections[projections.length - 1].netIncome;
 
-  const terminalValue =
-    (finalYearIncome * (1 + terminalGrowth)) / (wacc - terminalGrowth);
+  const terminalValue = (finalYearIncome * (1 + terminalGrowth)) / (wacc - terminalGrowth);
 
   const discountedTerminal = terminalValue / Math.pow(1 + wacc, forecastYears);
 
@@ -1018,12 +1037,7 @@ export const EquityValuationDcfSchema = z.object({
   keyAssumptions: z
     .array(
       z.object({
-        modelName: z.enum([
-          'WACC',
-          'TERMINAL_GROWTH_RATE',
-          'FORECAST_PERIOD',
-          'REVENUE_GROWTH',
-        ]),
+        modelName: z.enum(['WACC', 'TERMINAL_GROWTH_RATE', 'FORECAST_PERIOD', 'REVENUE_GROWTH']),
         assumption: z.string(),
       }),
     )
@@ -1032,13 +1046,7 @@ export const EquityValuationDcfSchema = z.object({
   projectedFinanacialNext5Years: z
     .array(
       z.object({
-        financialYear: z.enum([
-          'FY_2026',
-          'FY_2027',
-          'FY_2028',
-          'FY_2029',
-          'FY_2030',
-        ]),
+        financialYear: z.enum(['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030']),
         projections: z
           .array(
             z.object({
@@ -1091,16 +1099,20 @@ export const EquityValuationDcfSchema = z.object({
   keyTakeAway: z.string(),
 });
 
-export async function getEquityValuationAboutCompany(symbol: string) {
-  const response = await getTrimmedEquityValuationData(symbol);
-  const analysis = await fetchSection<z.infer<typeof EquityValuationDcfSchema>>(
-    {
-      userPrompt: `Generate Section 4: Equity Valuation & DCF Analysis Using the following structured input from getEquityValuationData: ${JSON.stringify(response)}`,
-      systemPrompt: EQUITY_VALUATION_PROMPT,
-      schema: EquityValuationDcfSchema,
-      schemaName: 'EquityValuationDcf',
-    },
-  );
+export async function getEquityValuationAboutCompany(
+  symbol: string,
+  options?: SectionGenerationOptions,
+) {
+  const response = await getTrimmedEquityValuationData(symbol, {
+    sourceBundle: options?.sourceBundle,
+  });
+  const analysis = await fetchSection<z.infer<typeof EquityValuationDcfSchema>>({
+    userPrompt: `Generate Section 4: Equity Valuation & DCF Analysis Using the following structured input from getEquityValuationData: ${JSON.stringify(response)}`,
+    systemPrompt: EQUITY_VALUATION_PROMPT,
+    schema: EquityValuationDcfSchema,
+    schemaName: 'EquityValuationDcf',
+    options: { enableWebSearch: options?.enableWebSearch },
+  });
   return analysis;
 }
 
@@ -1148,18 +1160,14 @@ interface FinancialStatementsAnalysisData {
 export async function getTrimmedFinancialStatementsAnalysisData(
   symbol: string,
   reportingStandard: 'UK' | 'US' | 'India' | 'Global' = 'Global',
+  sourceBundle?: ReportSourceBundle,
 ): Promise<FinancialStatementsAnalysisData> {
-  const [summary, annualStatements] = await Promise.all([
-    yahooFinance.quoteSummary(symbol, {
-      modules: ['price', 'defaultKeyStatistics', 'financialData'],
-    }),
-    getAnnualFinancialStatements(symbol),
-  ]);
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary, annualStatements } = sharedBundle;
 
   const currency = summary.price?.currency ?? null;
 
-  const { incomeStatements, balanceSheetStatements, cashflowStatements } =
-    annualStatements;
+  const { incomeStatements, balanceSheetStatements, cashflowStatements } = annualStatements;
 
   const balanceSheets = balanceSheetStatements;
 
@@ -1170,8 +1178,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
   const latestBalance = balanceSheets.slice(0, 6);
   const latestCashFlow = cashFlows.slice(0, 6);
 
-  const sharesOutstanding =
-    summary.defaultKeyStatistics?.sharesOutstanding ?? null;
+  const sharesOutstanding = summary.defaultKeyStatistics?.sharesOutstanding ?? null;
 
   const currentPrice = summary.price?.regularMarketPrice ?? null;
 
@@ -1186,10 +1193,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
     revenue: stmt.totalRevenue ?? null,
     operatingIncome: stmt.operatingIncome ?? null,
     netIncome: stmt.netIncome ?? null,
-    eps:
-      stmt.netIncome && sharesOutstanding
-        ? stmt.netIncome / sharesOutstanding
-        : null,
+    eps: stmt.netIncome && sharesOutstanding ? stmt.netIncome / sharesOutstanding : null,
   }));
 
   const balanceSheet = latestBalance.map((bs: any) => ({
@@ -1262,15 +1266,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
     table: z
       .array(
         z.object({
-          fiscalYear: z.enum([
-            'FY20',
-            'FY21',
-            'FY22',
-            'FY23',
-            'FY24',
-            'FY25',
-            'FY25_EST',
-          ]),
+          fiscalYear: z.enum(['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST']),
           revenue: z.string(), // "126.7"
           yoyGrowth: z.string(), // "-12%"
           operatingIncome: z.string(), // "49.2"
@@ -1286,15 +1282,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
     table: z
       .array(
         z.object({
-          fiscalYear: z.enum([
-            'FY20',
-            'FY21',
-            'FY22',
-            'FY23',
-            'FY24',
-            'FY25',
-            'FY25_EST',
-          ]),
+          fiscalYear: z.enum(['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST']),
           cash: z.string(),
           totalAssets: z.string(),
           totalDebt: z.string(),
@@ -1310,15 +1298,7 @@ export const FinancialStatementsAnalysisSchema = z.object({
     table: z
       .array(
         z.object({
-          fiscalYear: z.enum([
-            'FY20',
-            'FY21',
-            'FY22',
-            'FY23',
-            'FY24',
-            'FY25',
-            'FY25_EST',
-          ]),
+          fiscalYear: z.enum(['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST']),
           operatingCF: z.string(),
           capex: z.string(),
           freeCF: z.string(),
@@ -1363,12 +1343,15 @@ export const FinancialStatementsAnalysisSchema = z.object({
 
 export async function getFinancialStatementsAnalysisAboutCompany(
   symbol: string,
+  options?: SectionGenerationOptions,
 ) {
-  const response = await getTrimmedFinancialStatementsAnalysisData(symbol);
+  const response = await getTrimmedFinancialStatementsAnalysisData(
+    symbol,
+    undefined,
+    options?.sourceBundle,
+  );
 
-  const analysis = await fetchSection<
-    z.infer<typeof FinancialStatementsAnalysisSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof FinancialStatementsAnalysisSchema>>({
     userPrompt: `
     Generate Section 5: Financial Statements Analysis 
     Using the following structured data from getFinancialStatementsAnalysisData: ${JSON.stringify(response)}
@@ -1376,6 +1359,7 @@ export async function getFinancialStatementsAnalysisAboutCompany(
     systemPrompt: FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
     schema: FinancialStatementsAnalysisSchema,
     schemaName: 'FinancialStatementsAnalysis',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;
@@ -1432,13 +1416,10 @@ interface BusinessSegmentsData {
 export async function getTrimmedBusinessSegmentsData(
   symbol: string,
   marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
+  sourceBundle?: ReportSourceBundle,
 ): Promise<BusinessSegmentsData> {
-  const [summary, annualStatements] = await Promise.all([
-    yahooFinance.quoteSummary(symbol, {
-      modules: ['price', 'assetProfile', 'financialData', 'defaultKeyStatistics'],
-    }),
-    getAnnualFinancialStatements(symbol),
-  ]);
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary, annualStatements } = sharedBundle;
 
   const currency = summary.price?.currency ?? null;
 
@@ -1465,8 +1446,7 @@ export async function getTrimmedBusinessSegmentsData(
     const mean = growthRates.reduce((a, b) => a + b, 0) / growthRates.length;
 
     revenueVolatility3Y = Math.sqrt(
-      growthRates.map((g) => Math.pow(g - mean, 2)).reduce((a, b) => a + b, 0) /
-        growthRates.length,
+      growthRates.map((g) => Math.pow(g - mean, 2)).reduce((a, b) => a + b, 0) / growthRates.length,
     );
   }
 
@@ -1483,8 +1463,7 @@ export async function getTrimmedBusinessSegmentsData(
   // Capital-light detection
   const grossMargin = summary.financialData?.grossMargins ?? null;
 
-  let costStructureSignal: 'Capital Light' | 'Asset Heavy' | 'Mixed' | null =
-    null;
+  let costStructureSignal: 'Capital Light' | 'Asset Heavy' | 'Mixed' | null = null;
 
   if (grossMargin !== null) {
     if (grossMargin > 0.45) costStructureSignal = 'Capital Light';
@@ -1598,12 +1577,13 @@ export const BusinessSegmentsCompetitivePositionSchema = z.object({
   }),
 });
 
-export async function getBusinessSegmentDataAboutCompany(symbol: string) {
-  const response = await getTrimmedBusinessSegmentsData(symbol);
+export async function getBusinessSegmentDataAboutCompany(
+  symbol: string,
+  options?: SectionGenerationOptions,
+) {
+  const response = await getTrimmedBusinessSegmentsData(symbol, undefined, options?.sourceBundle);
 
-  const analysis = await fetchSection<
-    z.infer<typeof BusinessSegmentsCompetitivePositionSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof BusinessSegmentsCompetitivePositionSchema>>({
     userPrompt: `
     Generate Section 6: Business Segments & Competitive Position
     Using the input: ${JSON.stringify(response)}
@@ -1616,6 +1596,7 @@ export async function getBusinessSegmentDataAboutCompany(symbol: string) {
     systemPrompt: BUSINESS_SEGMENT_DATA_PROMPT,
     schema: BusinessSegmentsCompetitivePositionSchema,
     schemaName: 'BusinessSegmentsCompetitivePosition',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;
@@ -1624,8 +1605,8 @@ export async function getBusinessSegmentDataAboutCompany(symbol: string) {
 interface InterimResultsData {
   context: {
     currency: string | null;
-    fiscalYearLabel: Date | null;
-    previousFiscalYearLabel: Date | null;
+    fiscalYearLabel: string | null;
+    previousFiscalYearLabel: string | null;
     marketType: 'UK' | 'US' | 'India' | 'Global';
   };
 
@@ -1691,19 +1672,10 @@ type ExtendedCashFlowStatement = {
 export async function getInterimResultsData(
   symbol: string,
   marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
+  sourceBundle?: ReportSourceBundle,
 ): Promise<InterimResultsData> {
-  const [summary, annualStatements] = await Promise.all([
-    yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'price',
-        'financialData',
-        'defaultKeyStatistics',
-        'earningsTrend',
-        'summaryDetail',
-      ],
-    }),
-    getAnnualFinancialStatements(symbol),
-  ]);
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary, annualStatements } = sharedBundle;
 
   const currency = summary.price?.currency ?? null;
 
@@ -1717,8 +1689,7 @@ export async function getInterimResultsData(
   const latestCF = cashFlows[0] as ExtendedCashFlowStatement;
   const previousCF = cashFlows[1] as ExtendedCashFlowStatement;
 
-  const growth = (c: number | null, p: number | null) =>
-    c && p ? (c - p) / p : null;
+  const growth = (c: number | null, p: number | null) => (c && p ? (c - p) / p : null);
 
   const revenueGrowthHistorical = summary.financialData?.revenueGrowth ?? null;
 
@@ -1737,27 +1708,21 @@ export async function getInterimResultsData(
       : null;
 
   const prevFCF =
-    previousCF?.totalCashFromOperatingActivities &&
-    previousCF?.capitalExpenditures
-      ? previousCF.totalCashFromOperatingActivities +
-        previousCF.capitalExpenditures
+    previousCF?.totalCashFromOperatingActivities && previousCF?.capitalExpenditures
+      ? previousCF.totalCashFromOperatingActivities + previousCF.capitalExpenditures
       : null;
 
   const shares = summary.defaultKeyStatistics?.sharesOutstanding ?? null;
 
-  const impliedShares =
-    summary.defaultKeyStatistics?.impliedSharesOutstanding ?? null;
+  const impliedShares = summary.defaultKeyStatistics?.impliedSharesOutstanding ?? null;
 
-  const shareCountChange =
-    shares && impliedShares ? impliedShares - shares : null;
+  const shareCountChange = shares && impliedShares ? impliedShares - shares : null;
 
   const epsCurrent = latestNet && shares ? latestNet / shares : null;
 
   const epsPrevious = prevNet && shares ? prevNet / shares : null;
 
-  const earningsTrend = summary.earningsTrend?.trend?.find(
-    (t) => t.period === '0y',
-  );
+  const earningsTrend = summary.earningsTrend?.trend?.find((t) => t.period === '0y');
 
   const revenueGrowthFY1 = earningsTrend?.revenueEstimate?.growth ?? null;
 
@@ -1780,8 +1745,7 @@ export async function getInterimResultsData(
         current: latestRevenue,
         previous: prevRevenue,
         growth: growth(latestRevenue, prevRevenue),
-        absoluteChange:
-          latestRevenue && prevRevenue ? latestRevenue - prevRevenue : null,
+        absoluteChange: latestRevenue && prevRevenue ? latestRevenue - prevRevenue : null,
       },
       netIncome: {
         current: latestNet,
@@ -1806,10 +1770,7 @@ export async function getInterimResultsData(
       },
       profitMargin,
       operatingMargin,
-      marginExpansion:
-        operatingMargin && previousMargin
-          ? operatingMargin - previousMargin
-          : null,
+      marginExpansion: operatingMargin && previousMargin ? operatingMargin - previousMargin : null,
     },
 
     leverageSignals: {
@@ -1838,8 +1799,7 @@ export async function getInterimResultsData(
         revenueGrowthFY1 && revenueGrowthHistorical
           ? revenueGrowthFY1 < revenueGrowthHistorical
           : false,
-      marginCompressionRisk:
-        revenueGrowthFY1 && revenueGrowthFY1 < 0.1 ? true : false,
+      marginCompressionRisk: revenueGrowthFY1 && revenueGrowthFY1 < 0.1 ? true : false,
     },
   };
 }
@@ -1850,14 +1810,7 @@ export const InterimResultsQuarterlyPerformanceSchema = z.object({
   recordFinancialPerformance: z
     .array(
       z.object({
-        metric: z.enum([
-          'Revenue',
-          'PBT',
-          'Net Income',
-          'Diluted EPS',
-          'Operating CF',
-          'FCF',
-        ]),
+        metric: z.enum(['Revenue', 'PBT', 'Net Income', 'Diluted EPS', 'Operating CF', 'FCF']),
         currentYearValue: z.string(), // "£317.8m", "25.56p"
         previousYearValue: z.string(), // "£269.4m"
         change: z.string(), // "+18%"
@@ -1894,12 +1847,11 @@ export type InterimResultsQuarterlyPerformanceSection = z.infer<
 
 export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   symbol: string,
+  options?: SectionGenerationOptions,
 ) {
-  const response = await getInterimResultsData(symbol);
+  const response = await getInterimResultsData(symbol, undefined, options?.sourceBundle);
 
-  const analysis = await fetchSection<
-    z.infer<typeof InterimResultsQuarterlyPerformanceSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof InterimResultsQuarterlyPerformanceSchema>>({
     userPrompt: `
     Generate Section 7: Interim Results & Quarterly Performance
     Using input: ${JSON.stringify(response)}
@@ -1912,6 +1864,7 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
     systemPrompt: INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
     schema: InterimResultsQuarterlyPerformanceSchema,
     schemaName: 'InterimResultsQuarterlyPerformance',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;
@@ -1996,26 +1949,10 @@ type ExtendedIncomeStatement = {
 export async function getContingentLiabilitiesData(
   symbol: string,
   marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
+  sourceBundle?: ReportSourceBundle,
 ): Promise<ContingentLiabilitiesRegulatoryRiskData> {
-  const [summary, chart, annualStatements] = await Promise.all([
-    yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'price',
-        'assetProfile',
-        'financialData',
-        'defaultKeyStatistics',
-        'summaryDetail',
-      ],
-    }),
-    yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 1 * 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
-      period2: new Date().toISOString().slice(0, 10),
-      interval: '1mo',
-    }),
-    getAnnualFinancialStatements(symbol),
-  ]);
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary, chart, annualStatements } = sharedBundle;
 
   /* ============================= */
   /* Context                       */
@@ -2042,9 +1979,7 @@ export async function getContingentLiabilitiesData(
 
   const balanceStatements = annualStatements.balanceSheetStatements;
 
-  const latestBalance = balanceStatements[0] as
-    | ExtendedBalanceSheet
-    | undefined;
+  const latestBalance = balanceStatements[0] as ExtendedBalanceSheet | undefined;
 
   const totalDebt = latestBalance?.totalDebt ?? null;
   const cash = latestBalance?.cash ?? null;
@@ -2075,14 +2010,11 @@ export async function getContingentLiabilitiesData(
 
   const incomeStatements = annualStatements.incomeStatements;
 
-  const latestIncome = incomeStatements[0] as
-    | ExtendedIncomeStatement
-    | undefined;
+  const latestIncome = incomeStatements[0] as ExtendedIncomeStatement | undefined;
 
   const netIncome = latestIncome?.netIncome ?? null;
 
-  const fcfToNetIncome =
-    freeCashFlow && netIncome ? freeCashFlow / netIncome : null;
+  const fcfToNetIncome = freeCashFlow && netIncome ? freeCashFlow / netIncome : null;
 
   /* ============================= */
   /* Leverage Strength             */
@@ -2120,22 +2052,13 @@ export async function getContingentLiabilitiesData(
   /* Market Risk Signals           */
   /* ============================= */
 
-  const quotes = chart.quotes ?? [];
-  const firstClose = quotes[0]?.adjclose ?? null;
-  const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
-
-  const oneYearReturnPercent =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+  const oneYearReturnPercent = calculateOneYearReturnPercent(chart);
 
   const beta = summary.defaultKeyStatistics?.beta ?? null;
 
   const volatilityProxy =
-    summary.summaryDetail?.fiftyTwoWeekHigh &&
-    summary.summaryDetail?.fiftyTwoWeekLow
-      ? ((summary.summaryDetail.fiftyTwoWeekHigh -
-          summary.summaryDetail.fiftyTwoWeekLow) /
+    summary.summaryDetail?.fiftyTwoWeekHigh && summary.summaryDetail?.fiftyTwoWeekLow
+      ? ((summary.summaryDetail.fiftyTwoWeekHigh - summary.summaryDetail.fiftyTwoWeekLow) /
           summary.summaryDetail.fiftyTwoWeekLow) *
         100
       : null;
@@ -2145,9 +2068,7 @@ export async function getContingentLiabilitiesData(
   /* ============================= */
 
   const litigationKeywordFlag =
-    summary.assetProfile?.longBusinessSummary
-      ?.toLowerCase()
-      .includes('litigation') ?? false;
+    summary.assetProfile?.longBusinessSummary?.toLowerCase().includes('litigation') ?? false;
 
   return {
     context: {
@@ -2240,12 +2161,11 @@ export const ContingentLiabilitiesRegulatoryRisksSchema = z.object({
 
 export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
   symbol: string,
+  options?: SectionGenerationOptions,
 ) {
-  const response = await getContingentLiabilitiesData(symbol);
+  const response = await getContingentLiabilitiesData(symbol, undefined, options?.sourceBundle);
 
-  const analysis = await fetchSection<
-    z.infer<typeof ContingentLiabilitiesRegulatoryRisksSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof ContingentLiabilitiesRegulatoryRisksSchema>>({
     userPrompt: `
     Generate Section 8: CONTINGENT LIABILITIES & REGULATORY RISKS 
     based strictly on the following structured input data.
@@ -2282,14 +2202,11 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
     systemPrompt: CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
     schema: ContingentLiabilitiesRegulatoryRisksSchema,
     schemaName: 'ContingentLiabilitiesRegulatoryRisks',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;
 }
-
-
-
-
 
 interface DcfValuationRecapData {
   company: {
@@ -2318,29 +2235,20 @@ interface DcfValuationRecapData {
 
 export async function getDcfValuationRecapData(
   symbol: string,
+  sourceBundle?: ReportSourceBundle,
 ): Promise<DcfValuationRecapData> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'assetProfile',
-      'price',
-      'summaryDetail',
-      'financialData',
-      'defaultKeyStatistics',
-    ],
-  });
+  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
 
-  const asNumber = (value: unknown): number | null =>
-    typeof value === 'number' ? value : null;
+  const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
 
   const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: DcfValuationRecapData['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: DcfValuationRecapData['company']['marketType'] = country.includes('india')
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
   return {
     company: {
@@ -2399,12 +2307,11 @@ export const DcfValuationRecapAndPriceTargetSchema = z.object({
 
 export async function getDcfValuationRecapAndPriceTargetAboutCompany(
   symbol: string,
+  options?: SectionGenerationOptions,
 ) {
-  const response = await getDcfValuationRecapData(symbol);
+  const response = await getDcfValuationRecapData(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<
-    z.infer<typeof DcfValuationRecapAndPriceTargetSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof DcfValuationRecapAndPriceTargetSchema>>({
     userPrompt: `
 Generate Section 9: DCF VALUATION RECAP & PRICE TARGET.
 Input Data: ${JSON.stringify(response)}
@@ -2419,6 +2326,7 @@ Requirements:
     systemPrompt: DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
     schema: DcfValuationRecapAndPriceTargetSchema,
     schemaName: 'DcfValuationRecapAndPriceTargetSchema',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;
@@ -2451,30 +2359,22 @@ interface AgmAndShareholderMattersData {
 
 export async function getAgmAndShareholderMattersData(
   symbol: string,
+  sourceBundle?: ReportSourceBundle,
 ): Promise<AgmAndShareholderMattersData> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: [
-      'price',
-      'calendarEvents',
-      'financialData',
-      'defaultKeyStatistics',
-      'assetProfile',
-      'summaryDetail',
-    ],
-  });
+  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
 
   const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: AgmAndShareholderMattersData['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: AgmAndShareholderMattersData['company']['marketType'] = country.includes(
+    'india',
+  )
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
-  const asNumber = (value: unknown): number | null =>
-    typeof value === 'number' ? value : null;
+  const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
 
   const exDividendTimestamp = asNumber(summary.calendarEvents?.exDividendDate);
   const exDividendDate = exDividendTimestamp
@@ -2496,8 +2396,7 @@ export async function getAgmAndShareholderMattersData(
       auditRisk: asNumber(summary.defaultKeyStatistics?.auditRisk),
       boardRisk: asNumber(summary.defaultKeyStatistics?.boardRisk),
       compensationRisk: asNumber(summary.defaultKeyStatistics?.compensationRisk),
-      shareholderRightsRisk:
-        asNumber(summary.defaultKeyStatistics?.shareHolderRightsRisk),
+      shareholderRightsRisk: asNumber(summary.defaultKeyStatistics?.shareHolderRightsRisk),
       overallRisk: asNumber(summary.defaultKeyStatistics?.overallRisk),
     },
     valuationSignals: {
@@ -2515,20 +2414,25 @@ export const AgmAndShareholderMattersSchema = z.object({
     location: z.string(),
     noticeFiled: z.string(),
   }),
-  expectedVotingAgenda: z.array(
-    z.object({
-      resolutionNumber: z.number(),
-      title: z.string(),
-      type: z.enum(['Ordinary', 'Advisory', 'Special']),
-      expectedResult: z.string(),
-    }),
-  ).min(5),
+  expectedVotingAgenda: z
+    .array(
+      z.object({
+        resolutionNumber: z.number(),
+        title: z.string(),
+        type: z.enum(['Ordinary', 'Advisory', 'Special']),
+        expectedResult: z.string(),
+      }),
+    )
+    .min(5),
   specialResolutionsExpected: z.array(z.string()).min(1),
   keyGovernanceNotes: z.array(z.string()).min(2),
 });
 
-export async function getAgmAndShareholderMattersAboutCompany(symbol: string) {
-  const response = await getAgmAndShareholderMattersData(symbol);
+export async function getAgmAndShareholderMattersAboutCompany(
+  symbol: string,
+  options?: SectionGenerationOptions,
+) {
+  const response = await getAgmAndShareholderMattersData(symbol, options?.sourceBundle);
 
   const analysis = await fetchSection<z.infer<typeof AgmAndShareholderMattersSchema>>({
     userPrompt: `
@@ -2544,12 +2448,11 @@ Requirements:
     systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
     schema: AgmAndShareholderMattersSchema,
     schemaName: 'AgmAndShareholderMattersSchema',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;
 }
-
-
 
 interface ForwardProjectionsValuationInput {
   company: {
@@ -2575,20 +2478,20 @@ interface ForwardProjectionsValuationInput {
 
 export async function getForwardProjectionsAndValuationInput(
   symbol: string,
+  sourceBundle?: ReportSourceBundle,
 ): Promise<ForwardProjectionsValuationInput> {
-  const summary = await yahooFinance.quoteSummary(symbol, {
-    modules: ['assetProfile', 'price', 'financialData', 'summaryDetail'],
-  });
+  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
 
   const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: ForwardProjectionsValuationInput['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: ForwardProjectionsValuationInput['company']['marketType'] = country.includes(
+    'india',
+  )
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
   return {
     company: {
@@ -2615,61 +2518,68 @@ export async function getForwardProjectionsAndValuationInput(
 
 export const ForwardProjectionsAndValuationSchema = z.object({
   sectionTitle: z.literal('FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION'),
-  projectedIncomeStatement: z.array(
-    z.object({
-      metric: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(8),
+  projectedIncomeStatement: z
+    .array(
+      z.object({
+        metric: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(8),
   keyProjectionDrivers: z.array(z.string()).min(3).max(5),
-  projectedBalanceSheet: z.array(
-    z.object({
-      item: z.string(),
-      fy25a: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(5),
+  projectedBalanceSheet: z
+    .array(
+      z.object({
+        item: z.string(),
+        fy25a: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(5),
   balanceSheetDynamics: z.array(z.string()).min(3).max(5),
-  projectedCashFlow: z.array(
-    z.object({
-      metric: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(5),
+  projectedCashFlow: z
+    .array(
+      z.object({
+        metric: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(5),
   keyObservations: z.array(z.string()).min(3).max(5),
-  creditMetricsProjection: z.array(
-    z.object({
-      metric: z.string(),
-      fy26e: z.string(),
-      fy27e: z.string(),
-      fy28e: z.string(),
-      fy29e: z.string(),
-      fy30e: z.string(),
-    }),
-  ).min(4),
+  creditMetricsProjection: z
+    .array(
+      z.object({
+        metric: z.string(),
+        fy26e: z.string(),
+        fy27e: z.string(),
+        fy28e: z.string(),
+        fy29e: z.string(),
+        fy30e: z.string(),
+      }),
+    )
+    .min(4),
   creditOutlook: z.string(),
 });
 
 export async function getForwardProjectionsAndValuationAboutCompany(
   symbol: string,
+  options?: SectionGenerationOptions,
 ) {
-  const response = await getForwardProjectionsAndValuationInput(symbol);
+  const response = await getForwardProjectionsAndValuationInput(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<
-    z.infer<typeof ForwardProjectionsAndValuationSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof ForwardProjectionsAndValuationSchema>>({
     userPrompt: `
 Generate section: FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION.
 Input Data: ${JSON.stringify(response)}
@@ -2684,6 +2594,7 @@ Requirements:
     systemPrompt: FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
     schema: ForwardProjectionsAndValuationSchema,
     schemaName: 'ForwardProjectionsAndValuationSchema',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;
@@ -2724,45 +2635,24 @@ interface ConclusionRecommendationData {
 
 export async function getConclusionRecommendationData(
   symbol: string,
+  sourceBundle?: ReportSourceBundle,
 ): Promise<ConclusionRecommendationData> {
-  const [summary, chart] = await Promise.all([
-    yahooFinance.quoteSummary(symbol, {
-      modules: [
-        'assetProfile',
-        'price',
-        'summaryDetail',
-        'financialData',
-        'defaultKeyStatistics',
-      ],
-    }),
-    yahooFinance.chart(symbol, {
-      period1: new Date(Date.now() - 365.25 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10),
-      period2: new Date().toISOString().slice(0, 10),
-      interval: '1mo',
-    }),
-  ]);
+  const { summary, chart } = sourceBundle ?? (await getReportSourceBundle(symbol));
 
   const profile = summary.assetProfile;
   const currency = summary.price?.currency ?? null;
   const country = profile?.country?.toLowerCase() ?? '';
-  const marketType: ConclusionRecommendationData['company']['marketType'] =
-    country.includes('india')
-      ? 'India'
-      : country.includes('united kingdom') || country.includes('uk')
-        ? 'UK'
-        : country.includes('united states') || country.includes('usa')
-          ? 'US'
-          : 'Global';
+  const marketType: ConclusionRecommendationData['company']['marketType'] = country.includes(
+    'india',
+  )
+    ? 'India'
+    : country.includes('united kingdom') || country.includes('uk')
+      ? 'UK'
+      : country.includes('united states') || country.includes('usa')
+        ? 'US'
+        : 'Global';
 
-  const quotes = chart.quotes ?? [];
-  const firstClose = quotes[0]?.adjclose ?? null;
-  const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
-  const oneYearReturnPercent =
-    firstClose && lastClose
-      ? ((lastClose - firstClose) / firstClose) * 100
-      : null;
+  const oneYearReturnPercent = calculateOneYearReturnPercent(chart);
 
   return {
     company: {
@@ -2818,13 +2708,11 @@ export const ConclusionAndRecommendationSchema = z.object({
 
 export async function getConclusionAndRecommendationAboutCompany(
   symbol: string,
+  options?: SectionGenerationOptions,
 ) {
+  const response = await getConclusionRecommendationData(symbol, options?.sourceBundle);
 
-  const response = await getConclusionRecommendationData(symbol);
-
-  const analysis = await fetchSection<
-    z.infer<typeof ConclusionAndRecommendationSchema>
-  >({
+  const analysis = await fetchSection<z.infer<typeof ConclusionAndRecommendationSchema>>({
     userPrompt: `
 Generate final Section 9: CONCLUSION.
 Input Data: ${JSON.stringify(response)}
@@ -2838,6 +2726,7 @@ Requirements:
     systemPrompt: CONCLUSION_AND_RECOMMENDATION_PROMPT,
     schema: ConclusionAndRecommendationSchema,
     schemaName: 'ConclusionAndRecommendationSchema',
+    options: { enableWebSearch: options?.enableWebSearch },
   });
 
   return analysis;

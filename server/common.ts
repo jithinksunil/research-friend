@@ -9,10 +9,10 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod.mjs';
 
 export function requireRBAC(role: ROLES) {
-  return function <T>(
-    action: (...args: any) => Promise<ServerActionResult<T>>,
+  return function <T, TArgs extends unknown[] = any[]>(
+    action: (...args: TArgs) => Promise<ServerActionResult<T>>,
   ) {
-    return async (...args: any): Promise<ServerActionResult<T>> => {
+    return async (...args: TArgs): Promise<ServerActionResult<T>> => {
       const user = await getSession();
       if (!user) {
         throw new Error(unauthorizedMessage);
@@ -40,12 +40,17 @@ export async function fetchSection<T>({
   schemaName,
   systemPrompt,
   userPrompt,
+  options,
 }: {
   schemaName: string;
-  schema: ZodObject<any>;
+  schema: ZodObject<ZodRawShape>;
   systemPrompt: string;
   userPrompt: string;
+  options?: {
+    enableWebSearch?: boolean;
+  };
 }): Promise<T> {
+  const enableWebSearch = options?.enableWebSearch ?? false;
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
@@ -55,8 +60,12 @@ export async function fetchSection<T>({
       format: zodTextFormat(schema, schemaName),
     },
     reasoning: { effort: 'low' },
-    tools: [{ type: 'web_search', search_context_size: 'high' }],
-    tool_choice: 'auto',
+    ...(enableWebSearch
+      ? {
+          tools: [{ type: 'web_search' as const, search_context_size: 'high' as const }],
+          tool_choice: 'auto' as const,
+        }
+      : {}),
     input: [
       { role: 'system', content: systemPrompt },
       {

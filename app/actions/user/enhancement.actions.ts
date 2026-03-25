@@ -67,9 +67,10 @@ export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
   };
 });
 
-export const enhanceCompanyOverviewAndStockMetricsSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
+export const enhanceCompanyOverviewAndStockMetricsSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
   const overviewData = (await prisma.overviewAndStockMetrics.findFirst({
     where: { report: { company: { symbol } } },
     select: { fiftyTwoWeekPerformance: true, stockMetrics: true, id: true },
@@ -108,106 +109,108 @@ export const enhanceCompanyOverviewAndStockMetricsSection = requireRBAC(
   };
 });
 
-export const enhanceShareholderStructureSection = requireRBAC(ROLES.USER)(
-  async (symbol: string, improvementNeeded) => {
-    const shareHolderData = (await prisma.shareHolderStructure.findFirst({
-      where: { report: { company: { symbol } } },
-      include: { majorShareholders: true },
-    }))!;
+export const enhanceShareholderStructureSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
+  const shareHolderData = (await prisma.shareHolderStructure.findFirst({
+    where: { report: { company: { symbol } } },
+    include: { majorShareholders: true },
+  }))!;
 
-    const shareHolderInfo = await improveSection({
-      sectionDetails: ` ${JSON.stringify(shareHolderData)}`,
-      systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
-      schema: ShareholderStructureSectionSchema,
-      schemaName: 'ShareHolderStructure',
-      improvementNeeded,
-    });
+  const shareHolderInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(shareHolderData)}`,
+    systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
+    schema: ShareholderStructureSectionSchema,
+    schemaName: 'ShareHolderStructure',
+    improvementNeeded,
+  });
 
-    const updated = await prisma.shareHolderStructure.update({
-      where: { id: shareHolderData.id },
-      data: {
-        totalShares: shareHolderInfo.shareCapitalStructure.totalShares,
-        shareCapitalNotes: shareHolderInfo.shareCapitalStructure.notes,
-        keyInsiderObservations: shareHolderInfo.keyInsiderObservations,
-        majorShareholders: {
-          deleteMany: {},
-          createMany: {
-            data: shareHolderInfo.majorShareholders.map((holder) => ({
-              shareHolderType: holder.shareHolderType,
-              ownership: holder.ownership,
-              notes: holder.notes,
-            })),
-          },
+  const updated = await prisma.shareHolderStructure.update({
+    where: { id: shareHolderData.id },
+    data: {
+      totalShares: shareHolderInfo.shareCapitalStructure.totalShares,
+      shareCapitalNotes: shareHolderInfo.shareCapitalStructure.notes,
+      keyInsiderObservations: shareHolderInfo.keyInsiderObservations,
+      majorShareholders: {
+        deleteMany: {},
+        createMany: {
+          data: shareHolderInfo.majorShareholders.map((holder) => ({
+            shareHolderType: holder.shareHolderType,
+            ownership: holder.ownership,
+            notes: holder.notes,
+          })),
         },
       },
-      select: {
-        totalShares: true,
-        shareCapitalNotes: true,
-        keyInsiderObservations: true,
-        majorShareholders: true,
-      },
-    });
+    },
+    select: {
+      totalShares: true,
+      shareCapitalNotes: true,
+      keyInsiderObservations: true,
+      majorShareholders: true,
+    },
+  });
 
-    return {
-      okay: true,
-      data: updated,
-    };
-  },
-);
+  return {
+    okay: true,
+    data: updated,
+  };
+});
 
-export const enhanceAnalystRecommendationSection = requireRBAC(ROLES.USER)(
-  async (symbol: string, improvementNeeded) => {
-    const analystData = (await prisma.analystRecommendation.findFirst({
-      where: { report: { company: { symbol } } },
-      include: { currentConsensus: true, consensusDetails: true },
-    }))!;
+export const enhanceAnalystRecommendationSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
+  const analystData = (await prisma.analystRecommendation.findFirst({
+    where: { report: { company: { symbol } } },
+    include: { currentConsensus: true, consensusDetails: true },
+  }))!;
 
-    const analystInfo = await improveSection({
-      sectionDetails: ` ${JSON.stringify(analystData)}`,
-      systemPrompt: ANALYST_RECOMMENDATION_PROMPT,
-      schema: AnalystRecommendationsSchema,
-      schemaName: 'AnalystRecommendations',
-      improvementNeeded,
-    });
+  const analystInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(analystData)}`,
+    systemPrompt: ANALYST_RECOMMENDATION_PROMPT,
+    schema: AnalystRecommendationsSchema,
+    schemaName: 'AnalystRecommendations',
+    improvementNeeded,
+  });
 
-    const updated = await prisma.analystRecommendation.update({
-      where: { id: analystData.id },
-      data: {
-        recentAnalystViews: analystInfo.recentAnalystViews,
-        currentConsensus: {
-          deleteMany: {},
-          createMany: {
-            data: analystInfo.currentConsensus.map((row) => ({
-              rating: row.rating,
-              count: row.count,
-              percentageOfTotal: row.percentageOfTotal,
-              trend: row.trend,
-            })),
-          },
-        },
-        consensusDetails: {
-          deleteMany: {},
-          createMany: {
-            data: analystInfo.consensusDetails.map((row) => ({
-              name: row.name,
-              value: row.value,
-            })),
-          },
+  const updated = await prisma.analystRecommendation.update({
+    where: { id: analystData.id },
+    data: {
+      recentAnalystViews: analystInfo.recentAnalystViews,
+      currentConsensus: {
+        deleteMany: {},
+        createMany: {
+          data: analystInfo.currentConsensus.map((row) => ({
+            rating: row.rating,
+            count: row.count,
+            percentageOfTotal: row.percentageOfTotal,
+            trend: row.trend,
+          })),
         },
       },
-      select: {
-        recentAnalystViews: true,
-        currentConsensus: true,
-        consensusDetails: true,
+      consensusDetails: {
+        deleteMany: {},
+        createMany: {
+          data: analystInfo.consensusDetails.map((row) => ({
+            name: row.name,
+            value: row.value,
+          })),
+        },
       },
-    });
+    },
+    select: {
+      recentAnalystViews: true,
+      currentConsensus: true,
+      consensusDetails: true,
+    },
+  });
 
-    return {
-      okay: true,
-      data: updated,
-    };
-  },
-);
+  return {
+    okay: true,
+    data: updated,
+  };
+});
 
 export const enhanceBusinessSegmentDataSection = requireRBAC(ROLES.USER)(async (
   symbol: string,
@@ -258,8 +261,7 @@ export const enhanceBusinessSegmentDataSection = requireRBAC(ROLES.USER)(async (
             },
             competitiveAdvantage: {
               createMany: {
-                data: businessSegmentInfo.competitivePosition
-                  .competitiveAdvantages,
+                data: businessSegmentInfo.competitivePosition.competitiveAdvantages,
               },
             },
           },
@@ -273,8 +275,7 @@ export const enhanceBusinessSegmentDataSection = requireRBAC(ROLES.USER)(async (
             competitiveAdvantage: {
               deleteMany: {},
               createMany: {
-                data: businessSegmentInfo.competitivePosition
-                  .competitiveAdvantages,
+                data: businessSegmentInfo.competitivePosition.competitiveAdvantages,
               },
             },
           },
@@ -302,19 +303,19 @@ export const enhanceBusinessSegmentDataSection = requireRBAC(ROLES.USER)(async (
   };
 });
 
-export const enhanceEquityValuationAndDcfAnalysisSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
-  const equityValuationData =
-    (await prisma.equityValuationAndDcfAnalysis.findFirst({
-      where: { report: { company: { symbol } } },
-      include: {
-        keyAssumptions: true,
-        projectedFinancialYears: { include: { projections: true } },
-        dcfValuationBuildup: true,
-        valuationSensitivities: { include: { values: true } },
-      },
-    }))!;
+export const enhanceEquityValuationAndDcfAnalysisSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
+  const equityValuationData = (await prisma.equityValuationAndDcfAnalysis.findFirst({
+    where: { report: { company: { symbol } } },
+    include: {
+      keyAssumptions: true,
+      projectedFinancialYears: { include: { projections: true } },
+      dcfValuationBuildup: true,
+      valuationSensitivities: { include: { values: true } },
+    },
+  }))!;
 
   const equityValuationInfo = await improveSection({
     sectionDetails: ` ${JSON.stringify(equityValuationData)}`,
@@ -355,32 +356,24 @@ export const enhanceEquityValuationAndDcfAnalysisSection = requireRBAC(
         upsert: {
           create: {
             pvOfFCF: equityValuationInfo.dcfValuationBuildups.pvOfFCF,
-            pvOfTerminalValue:
-              equityValuationInfo.dcfValuationBuildups.pvOfTerminalValue,
-            enterpriseValue:
-              equityValuationInfo.dcfValuationBuildups.enterpriseValue,
+            pvOfTerminalValue: equityValuationInfo.dcfValuationBuildups.pvOfTerminalValue,
+            enterpriseValue: equityValuationInfo.dcfValuationBuildups.enterpriseValue,
             netDebt: equityValuationInfo.dcfValuationBuildups.netDebt,
             equityValue: equityValuationInfo.dcfValuationBuildups.equityValue,
-            fairValuePerShare:
-              equityValuationInfo.dcfValuationBuildups.fairValuePerShare,
+            fairValuePerShare: equityValuationInfo.dcfValuationBuildups.fairValuePerShare,
             currentPrice: equityValuationInfo.dcfValuationBuildups.currentPrice,
-            impliedUpside:
-              equityValuationInfo.dcfValuationBuildups.impliedUpside,
+            impliedUpside: equityValuationInfo.dcfValuationBuildups.impliedUpside,
             note: equityValuationInfo.dcfValuationBuildups.note,
           },
           update: {
             pvOfFCF: equityValuationInfo.dcfValuationBuildups.pvOfFCF,
-            pvOfTerminalValue:
-              equityValuationInfo.dcfValuationBuildups.pvOfTerminalValue,
-            enterpriseValue:
-              equityValuationInfo.dcfValuationBuildups.enterpriseValue,
+            pvOfTerminalValue: equityValuationInfo.dcfValuationBuildups.pvOfTerminalValue,
+            enterpriseValue: equityValuationInfo.dcfValuationBuildups.enterpriseValue,
             netDebt: equityValuationInfo.dcfValuationBuildups.netDebt,
             equityValue: equityValuationInfo.dcfValuationBuildups.equityValue,
-            fairValuePerShare:
-              equityValuationInfo.dcfValuationBuildups.fairValuePerShare,
+            fairValuePerShare: equityValuationInfo.dcfValuationBuildups.fairValuePerShare,
             currentPrice: equityValuationInfo.dcfValuationBuildups.currentPrice,
-            impliedUpside:
-              equityValuationInfo.dcfValuationBuildups.impliedUpside,
+            impliedUpside: equityValuationInfo.dcfValuationBuildups.impliedUpside,
             note: equityValuationInfo.dcfValuationBuildups.note,
           },
         },
@@ -419,116 +412,114 @@ export const enhanceEquityValuationAndDcfAnalysisSection = requireRBAC(
   };
 });
 
-export const enhanceFinancialStatementAnalysisSection = requireRBAC(ROLES.USER)(
-  async (symbol: string, improvementNeeded) => {
-    const financialData = (await prisma.financialStatementAnalyasis.findFirst({
-      where: { report: { company: { symbol } } },
-      include: {
-        incomeStatementTrendRows: true,
-        balanceSheetStrengthRows: true,
-        cashFlowAnalysisRows: true,
-        financialRatioMetrics: { include: { values: true } },
-      },
-    }))!;
+export const enhanceFinancialStatementAnalysisSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
+  const financialData = (await prisma.financialStatementAnalyasis.findFirst({
+    where: { report: { company: { symbol } } },
+    include: {
+      incomeStatementTrendRows: true,
+      balanceSheetStrengthRows: true,
+      cashFlowAnalysisRows: true,
+      financialRatioMetrics: { include: { values: true } },
+    },
+  }))!;
 
-    const financialInfo = await improveSection({
-      sectionDetails: ` ${JSON.stringify(financialData)}`,
-      systemPrompt: FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
-      schema: FinancialStatementsAnalysisSchema,
-      schemaName: 'FinancialStatementAnalysis',
-      improvementNeeded,
-    });
+  const financialInfo = await improveSection({
+    sectionDetails: ` ${JSON.stringify(financialData)}`,
+    systemPrompt: FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
+    schema: FinancialStatementsAnalysisSchema,
+    schemaName: 'FinancialStatementAnalysis',
+    improvementNeeded,
+  });
 
-    const updated = await prisma.financialStatementAnalyasis.update({
-      where: { id: financialData.id },
-      data: {
-        keyObservations: financialInfo.incomeStatementTrend.keyObservations,
-        capitalPositionAnalysis:
-          financialInfo.balanceSheetStrength.capitalPositionAnalysis,
-        fcfQualityAnalysis: financialInfo.cashFlowAnalysis.fcfQualityAnalysis,
-        valuationObservations:
-          financialInfo.financialRatiosAndCreditMetrics.valuationObservations,
-        incomeStatementTrendRows: {
-          deleteMany: {},
-          createMany: {
-            data: financialInfo.incomeStatementTrend.table.map((row) => ({
-              fiscalYear: row.fiscalYear,
-              revenue: row.revenue,
-              yoyGrowth: row.yoyGrowth,
-              operatingIncome: row.operatingIncome,
-              netIncome: row.netIncome,
-              eps: row.eps,
-            })),
-          },
-        },
-        balanceSheetStrengthRows: {
-          deleteMany: {},
-          createMany: {
-            data: financialInfo.balanceSheetStrength.table.map((row) => ({
-              fiscalYear: row.fiscalYear,
-              cash: row.cash,
-              totalAssets: row.totalAssets,
-              totalDebt: row.totalDebt,
-              shareholdersEquity: row.shareholdersEquity,
-              debtToEquity: row.debtToEquity,
-            })),
-          },
-        },
-        cashFlowAnalysisRows: {
-          deleteMany: {},
-          createMany: {
-            data: financialInfo.cashFlowAnalysis.table.map((row) => ({
-              fiscalYear: row.fiscalYear,
-              operatingCF: row.operatingCF,
-              capex: row.capex,
-              freeCF: row.freeCF,
-              fcfMargin: row.fcfMargin,
-              dividendsPaid: row.dividendsPaid,
-              shareBuyback: row.shareBuyback,
-            })),
-          },
-        },
-        financialRatioMetrics: {
-          deleteMany: {},
-          create: financialInfo.financialRatiosAndCreditMetrics.table.map(
-            (row) => ({
-              metric: row.metric,
-              values: {
-                createMany: {
-                  data: Object.entries(row.values).map(([year, value]) => ({
-                    year: year as FinancialStatementYear,
-                    value,
-                  })),
-                },
-              },
-            }),
-          ),
+  const updated = await prisma.financialStatementAnalyasis.update({
+    where: { id: financialData.id },
+    data: {
+      keyObservations: financialInfo.incomeStatementTrend.keyObservations,
+      capitalPositionAnalysis: financialInfo.balanceSheetStrength.capitalPositionAnalysis,
+      fcfQualityAnalysis: financialInfo.cashFlowAnalysis.fcfQualityAnalysis,
+      valuationObservations: financialInfo.financialRatiosAndCreditMetrics.valuationObservations,
+      incomeStatementTrendRows: {
+        deleteMany: {},
+        createMany: {
+          data: financialInfo.incomeStatementTrend.table.map((row) => ({
+            fiscalYear: row.fiscalYear,
+            revenue: row.revenue,
+            yoyGrowth: row.yoyGrowth,
+            operatingIncome: row.operatingIncome,
+            netIncome: row.netIncome,
+            eps: row.eps,
+          })),
         },
       },
-      select: {
-        keyObservations: true,
-        capitalPositionAnalysis: true,
-        fcfQualityAnalysis: true,
-        valuationObservations: true,
-        incomeStatementTrendRows: true,
-        balanceSheetStrengthRows: true,
-        cashFlowAnalysisRows: true,
-        financialRatioMetrics: {
-          include: { values: true },
+      balanceSheetStrengthRows: {
+        deleteMany: {},
+        createMany: {
+          data: financialInfo.balanceSheetStrength.table.map((row) => ({
+            fiscalYear: row.fiscalYear,
+            cash: row.cash,
+            totalAssets: row.totalAssets,
+            totalDebt: row.totalDebt,
+            shareholdersEquity: row.shareholdersEquity,
+            debtToEquity: row.debtToEquity,
+          })),
         },
       },
-    });
+      cashFlowAnalysisRows: {
+        deleteMany: {},
+        createMany: {
+          data: financialInfo.cashFlowAnalysis.table.map((row) => ({
+            fiscalYear: row.fiscalYear,
+            operatingCF: row.operatingCF,
+            capex: row.capex,
+            freeCF: row.freeCF,
+            fcfMargin: row.fcfMargin,
+            dividendsPaid: row.dividendsPaid,
+            shareBuyback: row.shareBuyback,
+          })),
+        },
+      },
+      financialRatioMetrics: {
+        deleteMany: {},
+        create: financialInfo.financialRatiosAndCreditMetrics.table.map((row) => ({
+          metric: row.metric,
+          values: {
+            createMany: {
+              data: Object.entries(row.values).map(([year, value]) => ({
+                year: year as FinancialStatementYear,
+                value,
+              })),
+            },
+          },
+        })),
+      },
+    },
+    select: {
+      keyObservations: true,
+      capitalPositionAnalysis: true,
+      fcfQualityAnalysis: true,
+      valuationObservations: true,
+      incomeStatementTrendRows: true,
+      balanceSheetStrengthRows: true,
+      cashFlowAnalysisRows: true,
+      financialRatioMetrics: {
+        include: { values: true },
+      },
+    },
+  });
 
-    return {
-      okay: true,
-      data: updated,
-    };
-  },
-);
+  return {
+    okay: true,
+    data: updated,
+  };
+});
 
-export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
+export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
   const interimData = (await prisma.interimResultsAndQuarterlyPerformance.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -564,10 +555,8 @@ export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(
           create: {
             managementCommentary: {
               create: {
-                ceoName:
-                  interimInfo.forwardGuidance.managementCommentary.ceoName,
-                quotes:
-                  interimInfo.forwardGuidance.managementCommentary.quotes,
+                ceoName: interimInfo.forwardGuidance.managementCommentary.ceoName,
+                quotes: interimInfo.forwardGuidance.managementCommentary.quotes,
               },
             },
             analystConsensusFY1: {
@@ -580,16 +569,12 @@ export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(
             managementCommentary: {
               upsert: {
                 create: {
-                  ceoName:
-                    interimInfo.forwardGuidance.managementCommentary.ceoName,
-                  quotes:
-                    interimInfo.forwardGuidance.managementCommentary.quotes,
+                  ceoName: interimInfo.forwardGuidance.managementCommentary.ceoName,
+                  quotes: interimInfo.forwardGuidance.managementCommentary.quotes,
                 },
                 update: {
-                  ceoName:
-                    interimInfo.forwardGuidance.managementCommentary.ceoName,
-                  quotes:
-                    interimInfo.forwardGuidance.managementCommentary.quotes,
+                  ceoName: interimInfo.forwardGuidance.managementCommentary.ceoName,
+                  quotes: interimInfo.forwardGuidance.managementCommentary.quotes,
                 },
               },
             },
@@ -625,9 +610,10 @@ export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(
   };
 });
 
-export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
+export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
   const contingentData = (await prisma.contingentLiabilitiesAndRegulatoryRisk.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -662,8 +648,7 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
       keyRegulatoryConsiderations: {
         deleteMany: {},
         createMany: {
-          data:
-            contingentInfo.regulatoryEnvironment.keyRegulatoryConsiderations,
+          data: contingentInfo.regulatoryEnvironment.keyRegulatoryConsiderations,
         },
       },
     },
@@ -679,14 +664,10 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
   return { okay: true, data: updated };
 });
 
-
-
-
-
-
-export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
+export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
   const dcfRecapData = (await prisma.dcfValuationRecapAndPriceTarget.findFirst({
     where: { report: { company: { symbol } } },
     include: { sensitivityAnalysisRecap: true },
@@ -749,9 +730,10 @@ export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(
   return { okay: true, data: updated };
 });
 
-export const enhanceAgmAndShareholderMattersSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
+export const enhanceAgmAndShareholderMattersSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
   const agmData = (await prisma.agmAndShareholderMatters.findFirst({
     where: { report: { company: { symbol } } },
     include: { expectedVotingAgenda: true },
@@ -796,10 +778,10 @@ export const enhanceAgmAndShareholderMattersSection = requireRBAC(
   return { okay: true, data: updated };
 });
 
-
-export const enhanceForwardProjectionsAndValuationSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
+export const enhanceForwardProjectionsAndValuationSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
   const forwardData = (await prisma.forwardProjectionsAndValuation.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -859,9 +841,10 @@ export const enhanceForwardProjectionsAndValuationSection = requireRBAC(
   return { okay: true, data: updated };
 });
 
-export const enhanceConclusionAndRecommendationSection = requireRBAC(
-  ROLES.USER,
-)(async (symbol: string, improvementNeeded) => {
+export const enhanceConclusionAndRecommendationSection = requireRBAC(ROLES.USER)(async (
+  symbol: string,
+  improvementNeeded,
+) => {
   const conclusionData = (await prisma.conclusionAndRecommendation.findFirst({
     where: { report: { company: { symbol } } },
   }))!;

@@ -1,7 +1,7 @@
 'use server';
 import { ROLES } from '@/app/generated/prisma/enums';
 import { convertToErrorInstance } from '@/lib';
-import { getReportDetails } from '@/lib/server-only/repot';
+import { getReportDetails } from '@/lib/server-only/report';
 import { requireRBAC } from '@/server';
 
 export const getReport = requireRBAC(ROLES.USER)(async (symbol: string) => {

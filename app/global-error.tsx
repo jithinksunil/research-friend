@@ -1,13 +1,7 @@
 // app/global-error.tsx
 'use client';
 
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div>
       <h1>Something went wrong</h1>

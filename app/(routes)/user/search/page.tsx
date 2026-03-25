@@ -1,6 +1,6 @@
 'use client';
 
-import { searchForCompanies } from '@/app/actions/user';
+import { ensureCompanyFromSearch, searchForCompanies } from '@/app/actions/user';
 import { SearchBar } from '@/components/common';
 import { SearchSuggestion } from '@/interfaces';
 import { toastMessage } from '@/lib';
@@ -35,14 +35,19 @@ function Page() {
   };
 
   return (
-    <div className='min-h-screen w-full flex justify-center pt-[25vh]'>
-      <div className='w-full max-w-2xl px-4'>
+    <div className="min-h-screen w-full flex justify-center pt-[25vh]">
+      <div className="w-full max-w-2xl px-4">
         <SearchBar
-          placeholder='Search stocks, companies...'
+          placeholder="Search stocks, companies..."
           isLoading={isLoading}
           suggestions={suggestions}
           onSearch={handleSearch}
-          onSuggestionSelect={(suggestion) => {
+          onSuggestionSelect={async (suggestion) => {
+            const result = await ensureCompanyFromSearch(suggestion.symbol);
+            if (!result.okay) {
+              toastMessage.error(result.error.message);
+              return;
+            }
             push(`/user/dashboard/${suggestion.symbol}`);
           }}
         />
