@@ -40,12 +40,17 @@ export async function fetchSection<T>({
   schemaName,
   systemPrompt,
   userPrompt,
+  options,
 }: {
   schemaName: string;
   schema: ZodObject<ZodRawShape>;
   systemPrompt: string;
   userPrompt: string;
+  options?: {
+    enableWebSearch?: boolean;
+  };
 }): Promise<T> {
+  const enableWebSearch = options?.enableWebSearch ?? false;
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
@@ -55,8 +60,12 @@ export async function fetchSection<T>({
       format: zodTextFormat(schema, schemaName),
     },
     reasoning: { effort: 'low' },
-    tools: [{ type: 'web_search', search_context_size: 'high' }],
-    tool_choice: 'auto',
+    ...(enableWebSearch
+      ? {
+          tools: [{ type: 'web_search' as const, search_context_size: 'high' as const }],
+          tool_choice: 'auto' as const,
+        }
+      : {}),
     input: [
       { role: 'system', content: systemPrompt },
       {

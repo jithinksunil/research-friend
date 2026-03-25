@@ -12,6 +12,7 @@ import {
   getExecutiveInformationAboutCompany,
   getFinancialStatementsAnalysisAboutCompany,
   getForwardProjectionsAndValuationAboutCompany,
+  getReportSourceBundle,
   getOverviewMetricsAboutCompany,
   getShareholderStructureAboutCompany,
 } from '@/server';
@@ -170,20 +171,44 @@ export const getReportDetails = async (symbol: string) => {
       });
     console.log('started');
 
+    const sourceBundle = await getReportSourceBundle(symbol);
+    const generationOptions = {
+      sourceBundle,
+      enableWebSearch: false,
+    } as const;
+
     const sectionPromises = [
-      withSuccessLog('executiveSummary', getExecutiveInformationAboutCompany(symbol)),
-      withSuccessLog('overviewAndStockMetrics', getOverviewMetricsAboutCompany(symbol)),
-      withSuccessLog('shareHolderStructure', getShareholderStructureAboutCompany(symbol)),
-      withSuccessLog('analystRecommendation', getAnalystRecommendationsAboutCompany(symbol)),
-      withSuccessLog('equityValuationAndDcfAnalysis', getEquityValuationAboutCompany(symbol)),
+      withSuccessLog(
+        'executiveSummary',
+        getExecutiveInformationAboutCompany(symbol, generationOptions),
+      ),
+      withSuccessLog(
+        'overviewAndStockMetrics',
+        getOverviewMetricsAboutCompany(symbol, generationOptions),
+      ),
+      withSuccessLog(
+        'shareHolderStructure',
+        getShareholderStructureAboutCompany(symbol, generationOptions),
+      ),
+      withSuccessLog(
+        'analystRecommendation',
+        getAnalystRecommendationsAboutCompany(symbol, generationOptions),
+      ),
+      withSuccessLog(
+        'equityValuationAndDcfAnalysis',
+        getEquityValuationAboutCompany(symbol, generationOptions),
+      ),
       withSuccessLog(
         'financialStatementAnalyasis',
-        getFinancialStatementsAnalysisAboutCompany(symbol),
+        getFinancialStatementsAnalysisAboutCompany(symbol, generationOptions),
       ),
-      withSuccessLog('businessSegmentData', getBusinessSegmentDataAboutCompany(symbol)),
+      withSuccessLog(
+        'businessSegmentData',
+        getBusinessSegmentDataAboutCompany(symbol, generationOptions),
+      ),
       withSuccessLog(
         'forwardProjectionsAndValuation',
-        getForwardProjectionsAndValuationAboutCompany(symbol),
+        getForwardProjectionsAndValuationAboutCompany(symbol, generationOptions),
       ),
       // withSuccessLog(
       //   'interimResultsAndQuarterlyPerformance',
@@ -191,16 +216,19 @@ export const getReportDetails = async (symbol: string) => {
       // ),
       withSuccessLog(
         'contingentLiabilitiesAndRegulatoryRisk',
-        getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol),
+        getContingentLiabilitiesAndRegulatoryRiskAboutCompany(symbol, generationOptions),
       ),
-      withSuccessLog('agmAndShareholderMatters', getAgmAndShareholderMattersAboutCompany(symbol)),
+      withSuccessLog(
+        'agmAndShareholderMatters',
+        getAgmAndShareholderMattersAboutCompany(symbol, generationOptions),
+      ),
       withSuccessLog(
         'conclusionAndRecommendation',
-        getConclusionAndRecommendationAboutCompany(symbol),
+        getConclusionAndRecommendationAboutCompany(symbol, generationOptions),
       ),
       withSuccessLog(
         'dcfValuationRecapAndPriceTarget',
-        getDcfValuationRecapAndPriceTargetAboutCompany(symbol),
+        getDcfValuationRecapAndPriceTargetAboutCompany(symbol, generationOptions),
       ),
     ] as const;
     console.log(1);
