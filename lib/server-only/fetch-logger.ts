@@ -10,8 +10,6 @@ global.fetch = async (input, init) => {
     return originalFetch(input, init);
   }
 
-  const start = performance.now();
-
   try {
     const response = await originalFetch(input, init);
 
@@ -21,7 +19,7 @@ global.fetch = async (input, init) => {
     //   status: response.status,
     //   cache: init?.cache,
     //   revalidate: init?.next?.revalidate,
-    //   duration: `${Math.round(performance.now() - start)}ms`,
+    //   duration: '<duration-ms>',
     // });
 
     return response;
