@@ -1,4 +1,3 @@
-import { getDashboardData } from '@/app/actions/user';
 import StockChart from '@/components/common/StockChart';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
 import { cn, formatValue } from '@/lib';
@@ -6,6 +5,8 @@ import { Fragment } from 'react/jsx-runtime';
 import { ViewDetailedReport } from '@/components/dashbord/ViewDetailedReport';
 import { VoteButton } from './VoteButton';
 import { Suspense } from 'react';
+import { headers } from 'next/headers';
+import type { StockDashboardData } from '@/interfaces';
 
 interface PageProps {
   params: Promise<{
@@ -16,28 +17,51 @@ interface PageProps {
 export default async function Page({ params }: PageProps) {
   const { symbol } = await params;
 
-  const result = await getDashboardData(symbol);
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const headerStore = await headers();
+  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
+  const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
 
-  if (!result.okay) {
-    throw new Error(result.error.message);
+  if (!host) {
+    throw new Error('Unable to resolve request host');
   }
 
-  const company = result.data.keyMetrics;
+  const response = await fetch(
+    `${protocol}://${host}/api/dashboard/${encodeURIComponent(normalizedSymbol)}`,
+    {
+      next: { revalidate: 300, tags: [`dashboard-${normalizedSymbol}`] },
+    },
+  );
+
+  const responseJson = (await response.json()) as
+    | {
+        data: StockDashboardData;
+      }
+    | {
+        message: string;
+      };
+
+  if (!response.ok || !('data' in responseJson)) {
+    throw new Error('message' in responseJson ? responseJson.message : 'Failed to load dashboard');
+  }
+
+  const dashboard = responseJson.data;
+  const company = dashboard.keyMetrics;
 
   return (
     <div className="py-6">
       <div className="flex items-center justify-between mb-4">
         <div className="text-muted-foreground">
-          <span className="font-bold">{symbol}</span> {result.data?.quickMetrics?.name}
+          <span className="font-bold">{normalizedSymbol}</span> {dashboard?.quickMetrics?.name}
         </div>
-        <ViewDetailedReport symbol={symbol} />
+        <ViewDetailedReport symbol={normalizedSymbol} />
       </div>
       <Suspense fallback={<div>Loading...</div>}>
-        <VoteButton symbol={symbol} />
+        <VoteButton symbol={normalizedSymbol} />
       </Suspense>
-      {result.data.chartData ? <StockChart stock={result.data.chartData} /> : null}
+      {dashboard.chartData ? <StockChart stock={dashboard.chartData} /> : null}
       <div className="grid grid-cols-4 gap-4 py-16">
-        {result.data?.quickMetrics?.keyMetrics
+        {dashboard?.quickMetrics?.keyMetrics
           .filter((item: any) => item.value)
           .map((item: any) => {
             return (
@@ -84,7 +108,7 @@ export default async function Page({ params }: PageProps) {
         />
       </div>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4 py-6">
-        {result.data.riskMetrics?.map((metric) => (
+        {dashboard.riskMetrics?.map((metric) => (
           <div
             key={metric.label}
             className="bg-background p-4 rounded-2xl shadow-lg border border-gray-200"
@@ -110,7 +134,7 @@ export default async function Page({ params }: PageProps) {
         <h3 className="mb-2 text-lg font-semibold">About the Company</h3>
 
         <p className="text-sm leading-relaxed text-muted-foreground">
-          {result.data.quickMetrics?.description}
+          {dashboard.quickMetrics?.description}
         </p>
       </div>
       <div className="mt-6 bg-background p-4 rounded-2xl shadow-lg border border-gray-200 ">

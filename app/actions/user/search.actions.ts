@@ -3,6 +3,7 @@
 import { ROLES } from '@/app/generated/prisma/enums';
 import { SearchSuggestion } from '@/interfaces';
 import { convertToErrorInstance } from '@/lib';
+import prisma from '@/prisma';
 import { requireRBAC } from '@/server';
 
 export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(async (
@@ -45,6 +46,26 @@ export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(as
       .filter(Boolean);
 
     return { okay: true, data: suggestions };
+  } catch (error) {
+    return { okay: false, error: convertToErrorInstance(error) };
+  }
+});
+
+export const ensureCompanyFromSearch = requireRBAC(ROLES.USER)(async (symbol: string) => {
+  try {
+    const normalizedSymbol = symbol.trim().toUpperCase();
+    if (!normalizedSymbol) {
+      throw new Error('Symbol is required');
+    }
+
+    await prisma.company.upsert({
+      where: { symbol: normalizedSymbol },
+      update: {},
+      create: { symbol: normalizedSymbol },
+      select: { id: true },
+    });
+
+    return { okay: true, data: null };
   } catch (error) {
     return { okay: false, error: convertToErrorInstance(error) };
   }

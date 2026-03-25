@@ -1,6 +1,6 @@
 'use client';
 
-import { searchForCompanies } from '@/app/actions/user';
+import { ensureCompanyFromSearch, searchForCompanies } from '@/app/actions/user';
 import { SearchBar } from '@/components/common';
 import { SearchSuggestion } from '@/interfaces';
 import { toastMessage } from '@/lib';
@@ -42,7 +42,12 @@ function Page() {
           isLoading={isLoading}
           suggestions={suggestions}
           onSearch={handleSearch}
-          onSuggestionSelect={(suggestion) => {
+          onSuggestionSelect={async (suggestion) => {
+            const result = await ensureCompanyFromSearch(suggestion.symbol);
+            if (!result.okay) {
+              toastMessage.error(result.error.message);
+              return;
+            }
             push(`/user/dashboard/${suggestion.symbol}`);
           }}
         />

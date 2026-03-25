@@ -17,13 +17,19 @@ export type SectionFieldName =
   | 'financialStatementAnalyasis'
   | 'businessSegmentData'
   | 'interimResultsAndQuarterlyPerformance'
-  | 'contingentLiabilitiesAndRegulatoryRisk';
+  | 'contingentLiabilitiesAndRegulatoryRisk'
+  | 'dcfValuationRecapAndPriceTarget'
+  | 'forwardProjectionsAndValuation'
+  | 'agmAndShareholderMatters'
+  | 'conclusionAndRecommendation';
 
 interface SectionWrapperProps {
   heading: string;
   children: ReactNode;
   symbol?: string;
   onEnhanceSection?: (symbol: string, improvementNeeded: string) => Promise<void>;
+  visible?: boolean;
+  isLoading?: boolean;
 }
 
 export const SectionWrapper: React.FC<SectionWrapperProps> = ({
@@ -31,6 +37,8 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
   symbol,
   children,
   onEnhanceSection,
+  visible = true,
+  isLoading = false,
 }) => {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [improvementText, setImprovementText] = useState('');
@@ -38,6 +46,8 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
   const [showSources, setShowSources] = useState(false);
   const hasInput = improvementText.trim().length > 0;
   const canEnhance = Boolean(symbol && onEnhanceSection);
+
+  if (!visible) return null;
 
   const onEnhanceClick = async (close: () => void) => {
     setIsEnhancing(true);
@@ -128,7 +138,18 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
           </Popover>
         )}
       </div>
-      <div>{children}</div>
+      <div>
+        {isLoading ? (
+          <div className="space-y-3 animate-pulse">
+            <div className="h-4 w-2/5 rounded bg-gray-200" />
+            <div className="h-4 w-full rounded bg-gray-200" />
+            <div className="h-4 w-5/6 rounded bg-gray-200" />
+            <div className="h-4 w-3/4 rounded bg-gray-200" />
+          </div>
+        ) : (
+          children
+        )}
+      </div>
       <SectionSeparator />
     </div>
   );

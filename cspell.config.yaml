@@ -75,6 +75,7 @@ words:
   - postcss
   - prisma
   - apikey
+  - maxage
   - longname
   - sipp
   - ssas

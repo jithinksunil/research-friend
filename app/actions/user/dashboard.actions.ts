@@ -17,12 +17,20 @@ export const getDashboardData = requireRBAC(ROLES.USER)<StockDashboardData>(asyn
   symbol: string,
 ) => {
   try {
+    const normalizedSymbol = symbol.trim().toUpperCase();
+    await prisma.company.upsert({
+      where: { symbol: normalizedSymbol },
+      update: {},
+      create: { symbol: normalizedSymbol },
+      select: { id: true },
+    });
+
     const API_KEY = process.env.ALPHA_VANTAGE_API_KEY!;
     const BASE = 'https://www.alphavantage.co/query';
-    const keyMetrics = await getStockDashboardData(symbol, API_KEY, BASE);
-    const chartData = await getHistory(symbol);
-    const quickMetrics = await getQuickMetrics(symbol);
-    const riskMetrics = await getRiskMetrics(symbol);
+    const keyMetrics = await getStockDashboardData(normalizedSymbol, API_KEY, BASE);
+    const chartData = await getHistory(normalizedSymbol);
+    const quickMetrics = await getQuickMetrics(normalizedSymbol);
+    const riskMetrics = await getRiskMetrics(normalizedSymbol);
     return {
       okay: true,
       data: {

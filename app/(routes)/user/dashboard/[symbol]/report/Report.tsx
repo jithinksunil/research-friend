@@ -6,27 +6,11 @@ import { SectionWrapper } from './SectionWrapper';
 import { Description } from './Description';
 import { List } from './List';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
-import { FullScreenLoader } from '@/components/common';
 import { cn, formatDate } from '@/lib';
-import {
-  enhanceCompanyOverviewAndStockMetricsSection,
-  enhanceExecutiveSection,
-  enhanceShareholderStructureSection,
-  enhanceAnalystRecommendationSection,
-  enhanceEquityValuationAndDcfAnalysisSection,
-  enhanceFinancialStatementAnalysisSection,
-  enhanceBusinessSegmentDataSection,
-  enhanceInterimResultsAndQuarterlyPerformanceSection,
-  enhanceContingentLiabilitiesAndRegulatoryRiskSection,
-  enhanceDcfValuationRecapAndPriceTargetSection,
-  enhanceAgmAndShareholderMattersSection,
-  enhanceForwardProjectionsAndValuationSection,
-  enhanceConclusionAndRecommendationSection,
-} from '@/app/actions/user/enhancement.actions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { produce } from 'immer';
-import { getReportDetails } from '@/lib/server-only/report';
+import { useState } from 'react';
+import type { getReportDetails } from '@/lib/server-only/report';
 const FY_ORDER = ['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST'] as const;
 const FY_LABEL: Record<(typeof FY_ORDER)[number], string> = {
   FY20: 'FY20',
@@ -49,18 +33,157 @@ type FinancialStatementAnalysis = NonNullable<ReportModel['financialStatementAna
 type IncomeStatementTrendRow = FinancialStatementAnalysis['incomeStatementTrendRows'][number];
 type BalanceSheetStrengthRow = FinancialStatementAnalysis['balanceSheetStrengthRows'][number];
 type CashFlowAnalysisRow = FinancialStatementAnalysis['cashFlowAnalysisRows'][number];
-function Report({ symbol }: { symbol: string }) {
-  const { data: report, isLoading } = useQuery({
-    queryKey: ['report', symbol],
-    queryFn: async () => {
-      const res = await axios.get<ReportDetailsResponse>(`/api/report?symbol=${symbol}`);
-      return res.data;
-    },
-  });
-  const queryClient = useQueryClient();
 
-  if (isLoading) return <FullScreenLoader />;
-  if (!report) return <div>Report not found</div>;
+type ReportSectionKey =
+  | 'executiveSummary'
+  | 'overviewAndStockMetrics'
+  | 'shareHolderStructure'
+  | 'analystRecommendation'
+  | 'equityValuationAndDcfAnalysis'
+  | 'financialStatementAnalyasis'
+  | 'businessSegmentData'
+  | 'interimResultsAndQuarterlyPerformance'
+  | 'contingentLiabilitiesAndRegulatoryRisk'
+  | 'dcfValuationRecapAndPriceTarget'
+  | 'forwardProjectionsAndValuation'
+  | 'agmAndShareholderMatters'
+  | 'conclusionAndRecommendation';
+
+type ReportSectionResponse<K extends ReportSectionKey = ReportSectionKey> = {
+  sectionKey: K;
+  companyName: string;
+  data: ReportModel[K];
+};
+type EnhanceSectionResponse<K extends ReportSectionKey = ReportSectionKey> = {
+  data: {
+    sectionKey: K;
+    data: ReportModel[K];
+  };
+};
+
+function Report({ symbol }: { symbol: string }) {
+  const queryClient = useQueryClient();
+  const [enhancingSections, setEnhancingSections] = useState<
+    Partial<Record<ReportSectionKey, boolean>>
+  >({});
+
+  const useSectionQuery = <K extends ReportSectionKey>(sectionKey: K) =>
+    useQuery({
+      queryKey: ['report-section', symbol, sectionKey],
+      retry: false,
+      queryFn: async () => {
+        const res = await axios.get<{ data: ReportSectionResponse<K> }>(
+          `/api/report/${symbol}/sections/${sectionKey}`,
+        );
+        return res.data.data;
+      },
+    });
+
+  const executiveSummaryQuery = useSectionQuery('executiveSummary');
+  const overviewAndStockMetricsQuery = useSectionQuery('overviewAndStockMetrics');
+  const shareHolderStructureQuery = useSectionQuery('shareHolderStructure');
+  const analystRecommendationQuery = useSectionQuery('analystRecommendation');
+  const equityValuationAndDcfAnalysisQuery = useSectionQuery('equityValuationAndDcfAnalysis');
+  const financialStatementAnalyasisQuery = useSectionQuery('financialStatementAnalyasis');
+  const businessSegmentDataQuery = useSectionQuery('businessSegmentData');
+  const interimResultsAndQuarterlyPerformanceQuery = useSectionQuery(
+    'interimResultsAndQuarterlyPerformance',
+  );
+  const contingentLiabilitiesAndRegulatoryRiskQuery = useSectionQuery(
+    'contingentLiabilitiesAndRegulatoryRisk',
+  );
+  const dcfValuationRecapAndPriceTargetQuery = useSectionQuery('dcfValuationRecapAndPriceTarget');
+  const forwardProjectionsAndValuationQuery = useSectionQuery('forwardProjectionsAndValuation');
+  const agmAndShareholderMattersQuery = useSectionQuery('agmAndShareholderMatters');
+  const conclusionAndRecommendationQuery = useSectionQuery('conclusionAndRecommendation');
+
+  const sectionResponses = [
+    executiveSummaryQuery.data,
+    overviewAndStockMetricsQuery.data,
+    shareHolderStructureQuery.data,
+    analystRecommendationQuery.data,
+    equityValuationAndDcfAnalysisQuery.data,
+    financialStatementAnalyasisQuery.data,
+    businessSegmentDataQuery.data,
+    interimResultsAndQuarterlyPerformanceQuery.data,
+    contingentLiabilitiesAndRegulatoryRiskQuery.data,
+    dcfValuationRecapAndPriceTargetQuery.data,
+    forwardProjectionsAndValuationQuery.data,
+    agmAndShareholderMattersQuery.data,
+    conclusionAndRecommendationQuery.data,
+  ].filter(Boolean);
+
+  const companyName = sectionResponses[0]?.companyName ?? symbol;
+
+  const setSectionData = (sectionKey: ReportSectionKey, sectionData: unknown) => {
+    queryClient.setQueryData(
+      ['report-section', symbol, sectionKey],
+      (oldData: ReportSectionResponse | undefined) =>
+        ({
+          sectionKey,
+          companyName: oldData?.companyName ?? companyName,
+          data: sectionData,
+        }) as ReportSectionResponse,
+    );
+  };
+
+  const enhanceSectionByApi = async <K extends ReportSectionKey>(
+    sectionKey: K,
+    improvementText: string,
+  ) => {
+    setEnhancingSections((prev) => ({ ...prev, [sectionKey]: true }));
+    try {
+      const response = await axios.post<EnhanceSectionResponse<K>>(
+        `/api/report/${symbol}/sections/${sectionKey}/enhance`,
+        { improvementNeeded: improvementText },
+      );
+      setSectionData(sectionKey, response.data.data.data);
+    } finally {
+      setEnhancingSections((prev) => ({ ...prev, [sectionKey]: false }));
+    }
+  };
+
+  const isSectionEnhancing = (sectionKey: ReportSectionKey) =>
+    Boolean(enhancingSections[sectionKey]);
+
+  const report = {
+    data: {
+      companyName,
+      report: {
+        executiveSummary: executiveSummaryQuery.data?.data ?? null,
+        overviewAndStockMetrics: overviewAndStockMetricsQuery.data?.data ?? null,
+        shareHolderStructure: shareHolderStructureQuery.data?.data ?? null,
+        analystRecommendation: analystRecommendationQuery.data?.data ?? null,
+        equityValuationAndDcfAnalysis: equityValuationAndDcfAnalysisQuery.data?.data ?? null,
+        financialStatementAnalyasis: financialStatementAnalyasisQuery.data?.data ?? null,
+        businessSegmentData: businessSegmentDataQuery.data?.data ?? null,
+        interimResultsAndQuarterlyPerformance:
+          interimResultsAndQuarterlyPerformanceQuery.data?.data ?? null,
+        contingentLiabilitiesAndRegulatoryRisk:
+          contingentLiabilitiesAndRegulatoryRiskQuery.data?.data ?? null,
+        dcfValuationRecapAndPriceTarget: dcfValuationRecapAndPriceTargetQuery.data?.data ?? null,
+        forwardProjectionsAndValuation: forwardProjectionsAndValuationQuery.data?.data ?? null,
+        agmAndShareholderMatters: agmAndShareholderMattersQuery.data?.data ?? null,
+        conclusionAndRecommendation: conclusionAndRecommendationQuery.data?.data ?? null,
+      },
+    },
+  } as ReportDetailsResponse;
+
+  const executiveSummaryLoading = executiveSummaryQuery.isLoading;
+  const overviewAndStockMetricsLoading = overviewAndStockMetricsQuery.isLoading;
+  const shareHolderStructureLoading = shareHolderStructureQuery.isLoading;
+  const analystRecommendationLoading = analystRecommendationQuery.isLoading;
+  const equityValuationAndDcfAnalysisLoading = equityValuationAndDcfAnalysisQuery.isLoading;
+  const financialStatementAnalyasisLoading = financialStatementAnalyasisQuery.isLoading;
+  const businessSegmentDataLoading = businessSegmentDataQuery.isLoading;
+  const interimResultsAndQuarterlyPerformanceLoading =
+    interimResultsAndQuarterlyPerformanceQuery.isLoading;
+  const contingentLiabilitiesAndRegulatoryRiskLoading =
+    contingentLiabilitiesAndRegulatoryRiskQuery.isLoading;
+  const dcfValuationRecapAndPriceTargetLoading = dcfValuationRecapAndPriceTargetQuery.isLoading;
+  const forwardProjectionsAndValuationLoading = forwardProjectionsAndValuationQuery.isLoading;
+  const agmAndShareholderMattersLoading = agmAndShareholderMattersQuery.isLoading;
+  const conclusionAndRecommendationLoading = conclusionAndRecommendationQuery.isLoading;
 
   return (
     <div className="py-8">
@@ -74,15 +197,11 @@ function Report({ symbol }: { symbol: string }) {
 
       <SectionWrapper
         heading="EXECUTIVE SUMMARY"
+        visible={Boolean(report.data.report?.executiveSummary) || executiveSummaryLoading}
+        isLoading={executiveSummaryLoading || isSectionEnhancing('executiveSummary')}
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceExecutiveSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.executiveSummary = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('executiveSummary', improvementText);
         }}
       >
         <Description>{report.data.report?.executiveSummary?.summary}</Description>
@@ -97,18 +216,13 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
       <SectionWrapper
         heading="1. COMPANY OVERVIEW & STOCK METRICS"
+        visible={
+          Boolean(report.data.report?.overviewAndStockMetrics) || overviewAndStockMetricsLoading
+        }
+        isLoading={overviewAndStockMetricsLoading || isSectionEnhancing('overviewAndStockMetrics')}
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceCompanyOverviewAndStockMetricsSection(
-            symbol,
-            improvementText,
-          );
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.overviewAndStockMetrics = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('overviewAndStockMetrics', improvementText);
         }}
       >
         <SubHeading>Key Statistics</SubHeading>
@@ -146,15 +260,11 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
       <SectionWrapper
         heading="2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY"
+        visible={Boolean(report.data.report?.shareHolderStructure) || shareHolderStructureLoading}
+        isLoading={shareHolderStructureLoading || isSectionEnhancing('shareHolderStructure')}
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceShareholderStructureSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.shareHolderStructure = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('shareHolderStructure', improvementText);
         }}
       >
         <SubHeading>Major Shareholders (Latest Data)</SubHeading>
@@ -209,15 +319,11 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
       <SectionWrapper
         heading="3. ANALYST RECOMMENDATIONS & PRICE TARGETS"
+        visible={Boolean(report.data.report?.analystRecommendation) || analystRecommendationLoading}
+        isLoading={analystRecommendationLoading || isSectionEnhancing('analystRecommendation')}
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceAnalystRecommendationSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.analystRecommendation = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('analystRecommendation', improvementText);
         }}
       >
         <SubHeading>Current Consensus (Last 3 Months: Oct-Dec 2025)</SubHeading>
@@ -274,15 +380,17 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
       <SectionWrapper
         heading="4. EQUITY VALUATION & DCF ANALYSIS"
+        visible={
+          Boolean(report.data.report?.equityValuationAndDcfAnalysis) ||
+          equityValuationAndDcfAnalysisLoading
+        }
+        isLoading={
+          equityValuationAndDcfAnalysisLoading ||
+          isSectionEnhancing('equityValuationAndDcfAnalysis')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceEquityValuationAndDcfAnalysisSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.equityValuationAndDcfAnalysis = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('equityValuationAndDcfAnalysis', improvementText);
         }}
       >
         <SubHeading>DCF Valuation Model</SubHeading>
@@ -416,15 +524,16 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
       <SectionWrapper
         heading="5. FINANCIAL STATEMENTS ANALYSIS"
+        visible={
+          Boolean(report.data.report?.financialStatementAnalyasis) ||
+          financialStatementAnalyasisLoading
+        }
+        isLoading={
+          financialStatementAnalyasisLoading || isSectionEnhancing('financialStatementAnalyasis')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceFinancialStatementAnalysisSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.financialStatementAnalyasis = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('financialStatementAnalyasis', improvementText);
         }}
       >
         {/* Income Statement Trend */}
@@ -660,15 +769,11 @@ function Report({ symbol }: { symbol: string }) {
       {/* BUSINESS SEGMENTS & COMPETITIVE POSITION */}
       <SectionWrapper
         heading="6. BUSINESS SEGMENTS & COMPETITIVE POSITION"
+        visible={Boolean(report.data.report?.businessSegmentData) || businessSegmentDataLoading}
+        isLoading={businessSegmentDataLoading || isSectionEnhancing('businessSegmentData')}
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceBusinessSegmentDataSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.businessSegmentData = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('businessSegmentData', improvementText);
         }}
       >
         {(() => {
@@ -803,18 +908,17 @@ function Report({ symbol }: { symbol: string }) {
       </SectionWrapper>
       <SectionWrapper
         heading="7. INTERIM RESULTS & QUARTERLY PERFORMANCE"
+        visible={
+          Boolean(report.data.report?.interimResultsAndQuarterlyPerformance) ||
+          interimResultsAndQuarterlyPerformanceLoading
+        }
+        isLoading={
+          interimResultsAndQuarterlyPerformanceLoading ||
+          isSectionEnhancing('interimResultsAndQuarterlyPerformance')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceInterimResultsAndQuarterlyPerformanceSection(
-            symbol,
-            improvementText,
-          );
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.interimResultsAndQuarterlyPerformance = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('interimResultsAndQuarterlyPerformance', improvementText);
         }}
       >
         {(() => {
@@ -897,18 +1001,17 @@ function Report({ symbol }: { symbol: string }) {
 
       <SectionWrapper
         heading="8. CONTINGENT LIABILITIES & REGULATORY RISKS"
+        visible={
+          Boolean(report.data.report?.contingentLiabilitiesAndRegulatoryRisk) ||
+          contingentLiabilitiesAndRegulatoryRiskLoading
+        }
+        isLoading={
+          contingentLiabilitiesAndRegulatoryRiskLoading ||
+          isSectionEnhancing('contingentLiabilitiesAndRegulatoryRisk')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceContingentLiabilitiesAndRegulatoryRiskSection(
-            symbol,
-            improvementText,
-          );
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.contingentLiabilitiesAndRegulatoryRisk = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('contingentLiabilitiesAndRegulatoryRisk', improvementText);
         }}
       >
         {(() => {
@@ -984,18 +1087,17 @@ function Report({ symbol }: { symbol: string }) {
 
       <SectionWrapper
         heading="9. DCF VALUATION RECAP & PRICE TARGET"
+        visible={
+          Boolean(report.data.report?.dcfValuationRecapAndPriceTarget) ||
+          dcfValuationRecapAndPriceTargetLoading
+        }
+        isLoading={
+          dcfValuationRecapAndPriceTargetLoading ||
+          isSectionEnhancing('dcfValuationRecapAndPriceTarget')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceDcfValuationRecapAndPriceTargetSection(
-            symbol,
-            improvementText,
-          );
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.dcfValuationRecapAndPriceTarget = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('dcfValuationRecapAndPriceTarget', improvementText);
         }}
       >
         {(() => {
@@ -1063,18 +1165,17 @@ function Report({ symbol }: { symbol: string }) {
 
       <SectionWrapper
         heading="10. FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION"
+        visible={
+          Boolean(report.data.report?.forwardProjectionsAndValuation) ||
+          forwardProjectionsAndValuationLoading
+        }
+        isLoading={
+          forwardProjectionsAndValuationLoading ||
+          isSectionEnhancing('forwardProjectionsAndValuation')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceForwardProjectionsAndValuationSection(
-            symbol,
-            improvementText,
-          );
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.forwardProjectionsAndValuation = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('forwardProjectionsAndValuation', improvementText);
         }}
       >
         {(() => {
@@ -1228,15 +1329,15 @@ function Report({ symbol }: { symbol: string }) {
 
       <SectionWrapper
         heading="11. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS"
+        visible={
+          Boolean(report.data.report?.agmAndShareholderMatters) || agmAndShareholderMattersLoading
+        }
+        isLoading={
+          agmAndShareholderMattersLoading || isSectionEnhancing('agmAndShareholderMatters')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceAgmAndShareholderMattersSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.agmAndShareholderMatters = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('agmAndShareholderMatters', improvementText);
         }}
       >
         {(() => {
@@ -1299,15 +1400,16 @@ function Report({ symbol }: { symbol: string }) {
 
       <SectionWrapper
         heading="12. CONCLUSION"
+        visible={
+          Boolean(report.data.report?.conclusionAndRecommendation) ||
+          conclusionAndRecommendationLoading
+        }
+        isLoading={
+          conclusionAndRecommendationLoading || isSectionEnhancing('conclusionAndRecommendation')
+        }
         symbol={symbol}
-        onEnhanceSection={async (symbol: string, improvementText: string) => {
-          const result = await enhanceConclusionAndRecommendationSection(symbol, improvementText);
-          if (!result.okay) throw new Error(result.error.message);
-          await queryClient.setQueryData(['report', symbol], (oldData: ReportDetailsResponse) =>
-            produce(oldData, (draft) => {
-              draft.data.report!.conclusionAndRecommendation = result.data;
-            }),
-          );
+        onEnhanceSection={async (_symbol: string, improvementText: string) => {
+          await enhanceSectionByApi('conclusionAndRecommendation', improvementText);
         }}
       >
         {(() => {
