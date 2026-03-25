@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "bun run check && bunx prisma generate && next build",
+    "build": "bunx prisma generate && bun run check && next build",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
