@@ -1,16 +1,16 @@
 import { InfoOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
-import { Control, Controller } from 'react-hook-form';
-interface PropTypes {
-  control: Control<any>;
-  name: string;
+import { Control, Controller, FieldPath, FieldValues } from 'react-hook-form';
+interface PropTypes<TFieldValues extends FieldValues> {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   placeholder: string;
   inputContainerClass?: string;
   disabled?: boolean;
   description?: string;
 }
 
-export function TextAreaInput(props: PropTypes) {
+export function TextAreaInput<TFieldValues extends FieldValues>(props: PropTypes<TFieldValues>) {
   return (
     <Controller
       control={props.control}

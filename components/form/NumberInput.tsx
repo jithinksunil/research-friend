@@ -1,17 +1,17 @@
 import { InfoOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
-import { Control, Controller } from 'react-hook-form';
+import { Control, Controller, FieldPath, FieldValues } from 'react-hook-form';
 
-interface PropTypes {
-  control: Control<any>;
-  name: string;
+interface PropTypes<TFieldValues extends FieldValues> {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   placeholder: string;
   noAppend?: boolean;
   disabled?: boolean;
   description?: string;
 }
 
-export function NumberInput(props: PropTypes) {
+export function NumberInput<TFieldValues extends FieldValues>(props: PropTypes<TFieldValues>) {
   return (
     <>
       <Controller

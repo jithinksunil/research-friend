@@ -1,15 +1,15 @@
-import { Control, Controller } from 'react-hook-form';
+import { Control, Controller, FieldPath, FieldValues } from 'react-hook-form';
 import { useState } from 'react';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 
-interface PropTypes {
-  control: Control<any>;
-  name: string;
+interface PropTypes<TFieldValues extends FieldValues> {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   placeholder: string;
   inputContainer?: string;
 }
 
-export function PasswordInput(props: PropTypes) {
+export function PasswordInput<TFieldValues extends FieldValues>(props: PropTypes<TFieldValues>) {
   const [show, setShow] = useState(false);
 
   return (
