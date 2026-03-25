@@ -21,18 +21,31 @@ type SessionWithAppUser = Session & {
 
 const isClosedConnectionError = (error: unknown) => {
   if (!(error instanceof Error)) return false;
-  return /server has closed the connection/i.test(error.message);
+  const maybeCode = (error as { code?: string }).code;
+  if (maybeCode === 'P1017') return true;
+  return /server has closed the connection|connection closed/i.test(error.message);
 };
 
 const withPrismaReconnectRetry = async <T>(operation: () => Promise<T>): Promise<T> => {
-  try {
-    return await operation();
-  } catch (error) {
-    if (!isClosedConnectionError(error)) throw error;
-    await prisma.$disconnect();
-    await prisma.$connect();
-    return operation();
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      const shouldRetry = isClosedConnectionError(error) && attempt < maxAttempts;
+      if (!shouldRetry) throw error;
+
+      await prisma.$disconnect();
+      await prisma.$connect();
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 100 * attempt);
+      });
+    }
   }
+
+  throw new Error('Prisma reconnection retries exhausted');
 };
 
 export async function getSession(): Promise<SessionPayload | null> {
