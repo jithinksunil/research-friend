@@ -1,7 +1,7 @@
 import 'server-only';
+import { ROLES } from '@/app/generated/prisma/enums';
+import { TOKEN_NAMES } from '@/lib/enum';
 import { SessionPayload } from '@/interfaces';
-import { auth } from '@/auth';
-import { Session } from 'next-auth';
 import prisma from '@/prisma';
 import {
   ACCESS_TOKEN_EXPIRATION_S,
@@ -10,14 +10,7 @@ import {
   unauthorizedMessage,
   verifyJWTToken,
 } from '@/lib';
-
-type SessionWithAppUser = Session & {
-  accessToken?: string;
-  user?: Session['user'] & {
-    id?: string;
-    role?: SessionPayload['role'];
-  };
-};
+import { cookies, headers } from 'next/headers';
 
 const isClosedConnectionError = (error: unknown) => {
   if (!(error instanceof Error)) return false;
@@ -49,12 +42,44 @@ const withPrismaReconnectRetry = async <T>(operation: () => Promise<T>): Promise
 };
 
 export async function getSession(): Promise<SessionPayload | null> {
-  const session = (await auth()) as SessionWithAppUser | null;
-  if (!session?.user?.id || !session.user.role) return null;
+  const requestHeaders = await headers();
+  const userIdHeader = requestHeaders.get('x-user-id');
+  const roleHeader = requestHeaders.get('x-user-role');
+  if (userIdHeader && roleHeader) {
+    return {
+      userId: userIdHeader,
+      role: roleHeader as ROLES,
+    };
+  }
 
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get(TOKEN_NAMES.ACCESS_TOKEN)?.value;
+  if (!accessToken) return null;
+
+  try {
+    return await verifyJWTToken(accessToken, process.env.ACCESS_TOKEN_SECRET!);
+  } catch {
+    return null;
+  }
+}
+
+export async function issueTokensForUser({ userId, role }: { userId: string; role: ROLES }) {
+  const accessToken = await createJWTToken({
+    userId,
+    role,
+    secret: process.env.ACCESS_TOKEN_SECRET!,
+    expirationTime: ACCESS_TOKEN_EXPIRATION_S,
+  });
+  const refreshToken = await createJWTToken({
+    userId,
+    role,
+    secret: process.env.REFRESH_TOKEN_SECRET!,
+    expirationTime: REFRESH_TOKEN_EXPIRATION_S,
+  });
   return {
-    role: session.user.role,
-    userId: session.user.id,
+    accessToken,
+    refreshToken,
+    expires_at: Date.now() + ACCESS_TOKEN_EXPIRATION_S * 1000,
   };
 }
 
@@ -67,23 +92,7 @@ export async function refresh(token: string) {
     }),
   );
   if (!user) throw new Error(unauthorizedMessage);
-  const accessToken = await createJWTToken({
-    userId: user.id,
-    role: user.role,
-    secret: process.env.ACCESS_TOKEN_SECRET!,
-    expirationTime: ACCESS_TOKEN_EXPIRATION_S,
-  });
-  const refreshToken = await createJWTToken({
-    userId: user.id,
-    role: user.role,
-    secret: process.env.REFRESH_TOKEN_SECRET!,
-    expirationTime: REFRESH_TOKEN_EXPIRATION_S,
-  });
-  return {
-    accessToken,
-    refreshToken,
-    expires_at: Date.now() + ACCESS_TOKEN_EXPIRATION_S * 1000,
-  };
+  return await issueTokensForUser({ userId: user.id, role: user.role });
 }
 
 export const signinUser = async ({ email, password }: { email: string; password: string }) => {
@@ -95,17 +104,9 @@ export const signinUser = async ({ email, password }: { email: string; password:
   );
   if (!user) throw new Error('Not found');
   if (user.password !== password) throw new Error('Invalid credentials');
-  const accessToken = await createJWTToken({
+  const { accessToken, refreshToken, expires_at } = await issueTokensForUser({
     userId: user.id,
     role: user.role,
-    secret: process.env.ACCESS_TOKEN_SECRET!,
-    expirationTime: ACCESS_TOKEN_EXPIRATION_S,
-  });
-  const refreshToken = await createJWTToken({
-    userId: user.id,
-    role: user.role,
-    secret: process.env.REFRESH_TOKEN_SECRET!,
-    expirationTime: REFRESH_TOKEN_EXPIRATION_S, // 30 days
   });
   return {
     id: user.id,
@@ -113,6 +114,6 @@ export const signinUser = async ({ email, password }: { email: string; password:
     role: user.role,
     accessToken,
     refreshToken,
-    expires_at: Date.now() + ACCESS_TOKEN_EXPIRATION_S * 1000,
+    expires_at,
   };
 };

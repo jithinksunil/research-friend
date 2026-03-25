@@ -2,17 +2,24 @@
 import { Logout, Menu } from '@mui/icons-material';
 import { IconButton } from '@mui/material';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { HeaderListLink } from './HeaderListLink';
 import { Logo } from './Logo';
-import { signOut } from 'next-auth/react';
+import { TOKEN_NAMES } from '@/lib/enum';
 
 interface PropTypes {
   disableLogo?: boolean;
 }
 export function Header(props: PropTypes) {
   const [show, setShow] = useState(false);
+  const router = useRouter();
   const handleSignout = async () => {
-    await signOut();
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    localStorage.removeItem(TOKEN_NAMES.REFRESH_TOKEN);
+    router.replace('/');
   };
   const handleShow = () => {
     setShow((prev) => !prev);

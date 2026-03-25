@@ -105,7 +105,6 @@ Typical required variables:
 
 - `DATABASE_URL`
 - `OPENAI_API_KEY`
-- `NEXTAUTH_SECRET`
 - Any Yahoo/OpenAI related runtime keys needed by current implementation
 
 ## Prisma

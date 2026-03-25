@@ -15,14 +15,14 @@ global.fetch = async (input, init) => {
   try {
     const response = await originalFetch(input, init);
 
-    console.log('🌍 SERVER ACTION → 3RD PARTY', {
-      url,
-      method: init?.method ?? 'GET',
-      status: response.status,
-      cache: init?.cache,
-      revalidate: init?.next?.revalidate,
-      duration: `${Math.round(performance.now() - start)}ms`,
-    });
+    // console.log('🌍 SERVER ACTION → 3RD PARTY', {
+    //   url,
+    //   method: init?.method ?? 'GET',
+    //   status: response.status,
+    //   cache: init?.cache,
+    //   revalidate: init?.next?.revalidate,
+    //   duration: `${Math.round(performance.now() - start)}ms`,
+    // });
 
     return response;
   } catch (err) {

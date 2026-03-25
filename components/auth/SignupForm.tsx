@@ -5,10 +5,9 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toastMessage } from '@/lib/toast';
+import { TOKEN_NAMES } from '@/lib/enum';
 import { CheckBoxInput, PasswordInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
-import { signup } from '@/app/actions/auth';
-// import { signIn } from 'next-auth/react';
 
 const schema = yup.object().shape({
   firstName: yup.string().trim().required('First Name is required').defined(),
@@ -55,15 +54,30 @@ export function SignupForm() {
     try {
       setRegistering(true);
       if (!formData.termAndPrivacyPolicy) throw new Error('Must agree to terms and services');
-      const res = await signup({
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        password: formData.password,
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          password: formData.password,
+        }),
       });
-      if (!res.okay) throw res.error;
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(typeof payload?.message === 'string' ? payload.message : 'Sign up failed');
+      }
+      const refreshToken = payload?.data?.refreshToken;
+      if (typeof refreshToken !== 'string' || !refreshToken) {
+        throw new Error('Refresh token missing in register response');
+      }
+      localStorage.setItem(TOKEN_NAMES.REFRESH_TOKEN, refreshToken);
       toastMessage.success('Signed up successfully');
-      router.push('/user/search');
+      router.replace('/user/search');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Something went wrong';
       toastMessage.error(message);

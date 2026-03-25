@@ -3,12 +3,12 @@ import * as yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { SigninFormInterface } from '@/interfaces';
 import { toastMessage } from '@/lib/toast';
+import { TOKEN_NAMES } from '@/lib/enum';
 import { PasswordInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
-import { signIn, useSession } from 'next-auth/react';
 
 const schema = yup.object().shape({
   password: yup.string().trim().required('Password is required').defined(),
@@ -23,7 +23,6 @@ const defaultValues: SigninFormInterface = {
 export function SigninForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const { control, handleSubmit } = useForm<SigninFormInterface>({
     resolver: yupResolver(schema),
     defaultValues,
@@ -41,10 +40,25 @@ export function SigninForm() {
   const onSubmit = async (formData: SigninFormInterface) => {
     try {
       setLoading(true);
-      const res = await signIn('credentials', { ...formData, redirect: false });
-      if (res.error) throw new Error(res.error);
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(typeof payload?.message === 'string' ? payload.message : 'Sign in failed');
+      }
+      const refreshToken = payload?.data?.refreshToken;
+      if (typeof refreshToken !== 'string' || !refreshToken) {
+        throw new Error('Refresh token missing in login response');
+      }
+      localStorage.setItem(TOKEN_NAMES.REFRESH_TOKEN, refreshToken);
       toastMessage.success('Signed in successfully');
-      // replace('/user/search');
+      router.replace('/user/search');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Something went wrong';
       toastMessage.error(message);
@@ -52,19 +66,14 @@ export function SigninForm() {
       setLoading(false);
     }
   };
-  const session = useSession();
-  useEffect(() => {
-    if (session.data) {
-      startTransition(() => router.replace('/user/search'));
-    }
-  }, [router, session.data, startTransition]);
+
   return (
     <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
       <TextInput control={control} name="email" placeholder="Email" type="email" />
       <div>
         <PasswordInput control={control} name="password" placeholder="Password" />
       </div>
-      <PrimaryButton type="submit" isLoading={loading || isPending} className="mt-4">
+      <PrimaryButton type="submit" isLoading={loading} className="mt-4">
         Sign In
       </PrimaryButton>
 
