@@ -1,15 +1,15 @@
 import { ReactNode } from 'react';
-import { Control, Controller } from 'react-hook-form';
-interface PropTypes {
-  control: Control<any>;
-  name: string;
+import { Control, Controller, FieldPath, FieldValues } from 'react-hook-form';
+interface PropTypes<TFieldValues extends FieldValues> {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   label: string | ReactNode;
   disabled?: boolean;
   labelClassName?: string;
   inputContainer?: string;
 }
 
-export function CheckBoxInput(props: PropTypes) {
+export function CheckBoxInput<TFieldValues extends FieldValues>(props: PropTypes<TFieldValues>) {
   return (
     <Controller
       control={props.control}

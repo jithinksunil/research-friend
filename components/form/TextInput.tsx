@@ -1,11 +1,11 @@
 import { InfoOutlined } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import { HTMLInputTypeAttribute } from 'react';
-import { Control, Controller } from 'react-hook-form';
+import { Control, Controller, FieldPath, FieldValues } from 'react-hook-form';
 
-interface PropTypes {
-  control: Control<any>;
-  name: string;
+interface PropTypes<TFieldValues extends FieldValues> {
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   placeholder: string;
   disabled?: boolean;
   inputContainer?: string;
@@ -13,7 +13,7 @@ interface PropTypes {
   type?: HTMLInputTypeAttribute;
 }
 
-export function TextInput(props: PropTypes) {
+export function TextInput<TFieldValues extends FieldValues>(props: PropTypes<TFieldValues>) {
   return (
     <Controller
       control={props.control}
