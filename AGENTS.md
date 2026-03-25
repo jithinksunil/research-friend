@@ -43,24 +43,37 @@ Core engines:
 
 ## 3. Data Lifecycle Contract
 
+When user selects a company from search:
+
+1. Upsert company by normalized symbol.
+2. Navigate to dashboard route.
+
+When user opens dashboard page:
+
+1. Fetch dashboard data through `GET /api/dashboard/:symbol`.
+2. Upsert company (defensive) and fetch provider data.
+3. Render dashboard from API response (with cache/revalidate).
+
 When user opens report page:
 
-1. Check if report already exists in DB.
-2. If found: return cached data and render.
-3. If not found:
-   1. Fetch required raw datasets from yahoo-finance2.
-   2. Run separate OpenAI call per report section.
-   3. Normalize and validate data shape.
-   4. Save to PostgreSQL via Prisma.
-   5. Render report.
+1. UI requests each section independently via `GET /api/report/:symbol/sections/:sectionKey`.
+2. Server checks section in DB.
+3. If found: return cached section.
+4. If not found:
+   1. Build section inputs from yahoo-finance2 datasets.
+   2. Run OpenAI for that section only.
+   3. Validate/normalize output.
+   4. Persist section with Prisma.
+   5. Return section payload.
 
 Never skip DB lookup before regeneration.
 
 ## 4. Architecture Preferences
 
 - Next.js App Router.
-- Reads should move toward API routes.
-- Mutations should move toward Server Actions.
+- Reads are API-first.
+- Mutations can be Server Actions or API routes depending on caller needs.
+- Current report enhancement path is API (`POST /api/report/:symbol/sections/:sectionKey/enhance`) backed by existing server-side enhancement logic.
 - Keep business logic in server-side modules, not inside UI components.
 
 ## 5. Frontend Structure

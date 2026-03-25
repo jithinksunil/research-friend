@@ -18,6 +18,10 @@ Do not persist unvalidated model output.
 
 Use yahoo-finance2 as the primary market/company data source unless explicitly expanded by project owners.
 
+## 4a. Web Search Usage Rule
+
+Use web search only for section enhancement flows unless explicitly changed by project owners.
+
 ## 5. Interface Stability Rule
 
 Maintain stable contracts between:
@@ -31,6 +35,10 @@ Any contract changes must be documented.
 ## 6. Write Path Rule
 
 Use Prisma for DB writes. Avoid direct SQL unless a migration/performance need is explicit.
+
+## 6a. Section API Rule
+
+Report sections must support section-wise read/generate via API. Missing/failed sections must not render in the report UI.
 
 ## 7. Execution Quality Rule
 

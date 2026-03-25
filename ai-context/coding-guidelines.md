@@ -26,8 +26,12 @@
 
 ## API/Action Conventions
 
-- Reads: prefer API routes.
-- Writes/mutations: prefer Server Actions.
+- Reads: API routes by default.
+- Writes/mutations: choose transport based on caller and UX.
+- Current implemented rule:
+  - Dashboard/report section reads via API routes.
+  - Report enhancement via API route.
+  - Existing auth/search/vote writes may remain as Server Actions.
 - Keep transport layer thin; business logic should be reusable.
 
 ## UI Conventions
@@ -35,6 +39,9 @@
 - Report page should render from structured data only.
 - Avoid embedding transformation logic directly in presentation components.
 - Keep loading and error states explicit.
+- For report sections:
+  - Show skeleton while loading/enhancing.
+  - Hide section heading/body if section fetch fails or data is missing.
 
 ## Error Handling
 
@@ -45,7 +52,8 @@
 
 - Avoid unnecessary re-generation calls.
 - Cache/persist expensive outputs.
-- Keep section calls parallelizable where safe.
+- Keep section calls independent and parallelizable where safe.
+- Avoid hard throws in route server components when recoverable API failures can be shown as in-page fallback UI.
 
 ## Testing and Checks
 

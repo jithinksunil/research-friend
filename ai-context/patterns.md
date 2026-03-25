@@ -5,15 +5,15 @@ Reusable implementation patterns for this project.
 ## 1. Report Fetch-or-Generate Pattern
 
 ```text
-getReport(symbol):
-  existing = db.findReport(symbol)
+getOrGenerateReportSection(symbol, sectionKey):
+  existing = db.readSection(symbol, sectionKey)
   if existing:
     return existing
 
-  rawData = fetchYahooData(symbol)
-  sections = generateSections(rawData) // separate OpenAI call per section
-  validated = validateSections(sections)
-  saved = db.saveReport(symbol, validated)
+  input = buildSectionInput(symbol, sectionKey) // yahoo-finance2-backed
+  generated = generateSection(sectionKey, input)
+  validated = validateSection(sectionKey, generated)
+  saved = db.persistSection(symbol, sectionKey, validated)
   return saved
 ```
 
@@ -27,42 +27,48 @@ generateSection(sectionKey, sectionInput):
   return parsed
 ```
 
-## 3. API + Server Action Split Pattern
+## 3. Section Enhancement Pattern
 
-- GET endpoints in API routes:
-  - report retrieval
-  - dashboard reads
-  - search reads
-- Mutations in Server Actions:
-  - auth/session-bound writes
-  - user actions (votes/comments/saves)
-  - report regeneration triggers
+```text
+POST /api/report/:symbol/sections/:sectionKey/enhance
+  -> validate input improvementNeeded
+  -> run section-specific enhancement logic (web search enabled)
+  -> persist updated section
+  -> return updated section data
+```
 
-## 4. UI Section Rendering Pattern
+## 4. API + Action Split Pattern
+
+- Reads: API routes (`/api/dashboard/:symbol`, `/api/report/:symbol/sections/:sectionKey`).
+- Mutations:
+  - Server Actions for auth/session-bound write flows already in use.
+  - API route for report section enhancement to support client HTTP updates.
+
+## 5. UI Section Rendering Pattern
 
 ```text
 ReportPage
-  -> fetch structured report payload
-  -> map each section key to dedicated UI component
+  -> fetch each section independently (react-query)
   -> render only if section data exists
-  -> show fallback placeholder if section missing
+  -> hide section entirely if request fails/missing
+  -> show skeleton while loading or enhancing that section
 ```
 
-## 5. Prisma Persistence Pattern
+## 6. Prisma Persistence Pattern
 
 - Persist report at root level.
-- Persist sections as child records or structured fields.
+- Persist section data in related report section models/relations.
 - Include timestamps and source metadata.
 - Upsert by company + report identity to avoid duplicates.
 
-## 6. Failure Handling Pattern
+## 7. Failure Handling Pattern
 
 - If a section fails generation:
-  - mark section status as failed/pending
-  - keep other valid sections
-  - allow retry for failed section only
+  - return non-200 for that section API call
+  - keep other sections available
+  - render no heading/body for failed section
 
-## 7. Agent Session Pattern
+## 8. Agent Session Pattern
 
 1. Read context docs.
 2. Locate relevant code path.
