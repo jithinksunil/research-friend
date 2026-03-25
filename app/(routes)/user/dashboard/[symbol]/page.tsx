@@ -7,6 +7,7 @@ import { VoteButton } from './VoteButton';
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
 import type { StockDashboardData } from '@/interfaces';
+import Link from 'next/link';
 
 interface PageProps {
   params: Promise<{
@@ -14,38 +15,76 @@ interface PageProps {
   }>;
 }
 
+type DashboardApiResponse =
+  | {
+      data: StockDashboardData;
+    }
+  | {
+      message: string;
+    };
+
 export default async function Page({ params }: PageProps) {
   const { symbol } = await params;
 
   const normalizedSymbol = symbol.trim().toUpperCase();
-  const headerStore = await headers();
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
-  const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
+  let dashboard: StockDashboardData | null = null;
+  let errorMessage: string | null = null;
 
-  if (!host) {
-    throw new Error('Unable to resolve request host');
+  try {
+    const headerStore = await headers();
+    const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host');
+    const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
+    const fallbackHost = process.env.VERCEL_URL ?? 'localhost:3000';
+    const baseUrl = `${protocol}://${host ?? fallbackHost}`;
+
+    const response = await fetch(
+      `${baseUrl}/api/dashboard/${encodeURIComponent(normalizedSymbol)}`,
+      {
+        next: { revalidate: 300, tags: [`dashboard-${normalizedSymbol}`] },
+      },
+    );
+
+    const responseJson = (await response.json().catch(() => null)) as DashboardApiResponse | null;
+
+    if (!response.ok || !responseJson || !('data' in responseJson)) {
+      errorMessage =
+        responseJson && 'message' in responseJson
+          ? responseJson.message
+          : 'Unable to load dashboard right now.';
+    } else {
+      dashboard = responseJson.data;
+    }
+  } catch {
+    errorMessage = 'Unable to load dashboard right now.';
   }
 
-  const response = await fetch(
-    `${protocol}://${host}/api/dashboard/${encodeURIComponent(normalizedSymbol)}`,
-    {
-      next: { revalidate: 300, tags: [`dashboard-${normalizedSymbol}`] },
-    },
-  );
-
-  const responseJson = (await response.json()) as
-    | {
-        data: StockDashboardData;
-      }
-    | {
-        message: string;
-      };
-
-  if (!response.ok || !('data' in responseJson)) {
-    throw new Error('message' in responseJson ? responseJson.message : 'Failed to load dashboard');
+  if (!dashboard) {
+    return (
+      <div className="py-8">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <h2 className="text-lg font-semibold text-red-700">Dashboard Unavailable</h2>
+          <p className="mt-2 text-sm text-red-700">
+            {errorMessage ?? 'Unable to load dashboard right now.'}
+          </p>
+          <div className="mt-4 flex gap-3">
+            <Link
+              href={`/user/dashboard/${normalizedSymbol}`}
+              className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white"
+            >
+              Retry
+            </Link>
+            <Link
+              href="/user/search"
+              className="rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700"
+            >
+              Back To Search
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  const dashboard = responseJson.data;
   const company = dashboard.keyMetrics;
 
   return (
