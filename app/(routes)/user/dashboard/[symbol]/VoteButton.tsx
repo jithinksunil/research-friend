@@ -1,18 +1,41 @@
 'use client';
 
-import { getVotes, registerVote } from '@/app/actions/user';
+import { registerVote } from '@/app/actions/user';
 import { toastMessage } from '@/lib';
 import { KeyboardDoubleArrowDown, KeyboardDoubleArrowUp } from '@mui/icons-material';
 import { useCallback, useEffect, useState } from 'react';
+
+type VotesResponse =
+  | {
+      data: {
+        upVotes: number;
+        downVotes: number;
+      };
+    }
+  | {
+      message: string;
+    };
 
 export const VoteButton = ({ symbol }: { symbol: string }) => {
   const [votes, setVotes] = useState({ upVotes: 0, downVotes: 0 });
 
   const fetchVotes = useCallback(async () => {
     try {
-      const res = await getVotes(symbol);
-      if (!res.okay) return;
-      setVotes(res.data);
+      const response = await fetch(`/api/dashboard/${encodeURIComponent(symbol)}/votes`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const responseJson = (await response.json().catch(() => null)) as VotesResponse | null;
+
+      if (!response.ok || !responseJson || !('data' in responseJson)) {
+        throw new Error(
+          responseJson && 'message' in responseJson
+            ? responseJson.message
+            : 'Failed to fetch votes',
+        );
+      }
+
+      setVotes(responseJson.data);
     } catch {
       toastMessage.error('Error while fetching votes');
     }
