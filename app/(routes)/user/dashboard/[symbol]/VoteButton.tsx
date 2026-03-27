@@ -204,7 +204,7 @@ export const VoteButton = ({ symbol }: { symbol: string }) => {
               </div>
               <button
                 type="button"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                className="hover:cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground"
                 onClick={() => setIsCommentsOpen(false)}
               >
                 Close
