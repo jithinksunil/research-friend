@@ -6,7 +6,7 @@ import { ViewDetailedReport } from '@/components/dashbord/ViewDetailedReport';
 import { VoteButton } from './VoteButton';
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
-import type { StockDashboardData } from '@/interfaces';
+import type { Metric, StockDashboardData } from '@/interfaces';
 import Link from 'next/link';
 
 interface PageProps {
@@ -86,6 +86,23 @@ export default async function Page({ params }: PageProps) {
   }
 
   const company = dashboard.keyMetrics;
+  const quickMetrics = dashboard.quickMetrics?.keyMetrics ?? [];
+  const fundamentals = company.fundamentals ?? [];
+  const companyProfile = company.companyProfile;
+  const companyDetails = [
+    { label: 'Country', value: companyProfile?.country ?? null },
+    { label: 'Sector', value: companyProfile?.sector ?? null },
+    { label: 'Industry', value: companyProfile?.industry ?? null },
+    { label: 'Exchange', value: companyProfile?.exchange ?? null },
+    {
+      label: 'Employees',
+      value:
+        typeof companyProfile?.employees === 'number'
+          ? new Intl.NumberFormat('en-US').format(companyProfile.employees)
+          : null,
+    },
+    { label: 'Website', value: companyProfile?.website ?? null },
+  ].filter((detail) => detail.value);
 
   return (
     <div className="py-6">
@@ -100,9 +117,9 @@ export default async function Page({ params }: PageProps) {
       </Suspense>
       {dashboard.chartData ? <StockChart stock={dashboard.chartData} /> : null}
       <div className="grid grid-cols-4 gap-4 py-16">
-        {dashboard?.quickMetrics?.keyMetrics
-          .filter((item: any) => item.value)
-          .map((item: any) => {
+        {quickMetrics
+          .filter((item: Metric) => item.value)
+          .map((item: Metric) => {
             return (
               <div
                 key={item.label}
@@ -118,7 +135,7 @@ export default async function Page({ params }: PageProps) {
       <div className="py-6 bg-background rounded-2xl shadow-lg border border-gray-200">
         <TableWithoutPagination
           headings={[]}
-          rows={company.fundamentals.map((metric, index) => [
+          rows={fundamentals.map((metric, index) => [
             <div
               className="px-[20px] py-[10px] text-sm text-muted-foreground"
               key={`col1-${index}`}
@@ -180,24 +197,16 @@ export default async function Page({ params }: PageProps) {
         <h3 className="mb-4 text-lg font-semibold">Company Details</h3>
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-          {company.companyProfile.country ? (
-            <Fragment>
-              <div className="text-muted-foreground">Country</div>
-              <div className="font-medium">{company.companyProfile.country}</div>
-            </Fragment>
-          ) : null}
-          {company.companyProfile.sector ? (
-            <Fragment>
-              <div className="text-muted-foreground">Sector</div>
-              <div className="font-medium">{company.companyProfile.sector}</div>
-            </Fragment>
-          ) : null}
-          {company.companyProfile.industry ? (
-            <Fragment>
-              <div className="text-muted-foreground">Industry</div>
-              <div className="font-medium">{company.companyProfile.industry}</div>
-            </Fragment>
-          ) : null}
+          {companyDetails.length ? (
+            companyDetails.map((detail) => (
+              <Fragment key={detail.label}>
+                <div className="text-muted-foreground">{detail.label}</div>
+                <div className="font-medium break-all">{detail.value}</div>
+              </Fragment>
+            ))
+          ) : (
+            <div className="col-span-2 text-muted-foreground">No company details available.</div>
+          )}
         </div>
       </div>
     </div>

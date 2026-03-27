@@ -1,322 +1,169 @@
 import 'server-only';
-import { BasicStockInfo, KeyMetrics, QuickMetric, RiskMetric } from '@/interfaces';
+
+import type {
+  BasicStockInfo,
+  KeyMetrics,
+  QuickMetric,
+  RiskMetric,
+  StockDashboardData,
+} from '@/interfaces';
 import YahooFinance from 'yahoo-finance2';
+import type {
+  HistoricalHistoryResult,
+  HistoricalRowHistory,
+} from 'yahoo-finance2/modules/historical';
+import type { ChartResultArrayQuote } from 'yahoo-finance2/modules/chart';
+import type { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary-iface';
 
 const yahooFinance = new YahooFinance();
 
-export async function getStockDashboardData(
-  symbol: string,
-  API_KEY: string,
-  BASE: string,
-): Promise<KeyMetrics> {
-  const safeFetch = async (url: string) => {
-    try {
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json?.Note || json?.Error || Object.keys(json).length === 0) {
-        return null;
-      }
-      return json;
-    } catch {
-      return null;
-    }
-  };
+const DASHBOARD_QUOTE_SUMMARY_MODULES = [
+  'assetProfile',
+  'price',
+  'summaryDetail',
+  'financialData',
+  'defaultKeyStatistics',
+] as const;
 
-  // -----------------------------
-  // 1. Fetch all endpoints safely
-  // -----------------------------
-  const [overview, prices, income, balance, cashflow] = await Promise.all([
-    safeFetch(`${BASE}?function=OVERVIEW&symbol=${symbol}&apikey=${API_KEY}`),
-    safeFetch(
-      `${BASE}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=compact&apikey=${API_KEY}`,
-    ),
-    safeFetch(`${BASE}?function=INCOME_STATEMENT&symbol=${symbol}&apikey=${API_KEY}`),
-    safeFetch(`${BASE}?function=BALANCE_SHEET&symbol=${symbol}&apikey=${API_KEY}`),
-    safeFetch(`${BASE}?function=CASH_FLOW&symbol=${symbol}&apikey=${API_KEY}`),
-  ]);
+const ONE_YEAR_IN_MS = 365.25 * 24 * 60 * 60 * 1000;
 
-  const timeSeries = prices?.['Time Series (Daily)'] ?? null;
-  const incomeQ = income?.quarterlyReports ?? null;
-  const balanceQ = balance?.quarterlyReports ?? null;
-  const cashflowQ = cashflow?.quarterlyReports ?? null;
+type DashboardQuoteSummary = QuoteSummaryResult;
+type DashboardHistory = HistoricalHistoryResult | null;
 
-  // -----------------------------
-  // 2. Safe helpers
-  // -----------------------------
-  const safeNumber = (v: any) => (v === undefined || v === null || v === 'None' ? null : Number(v));
-
-  const ttm = (reports: any[] | null, field: string) => {
-    if (!reports || reports.length < 4) return null;
-    return reports.slice(0, 4).reduce((s, r) => s + safeNumber(r[field])!, 0);
-  };
-
-  const calcYTD = () => {
-    if (!timeSeries) return null;
-    const entries = Object.entries(timeSeries);
-    //@ts-ignore
-    const current = safeNumber(entries[0][1]['4. close']);
-    const jan = entries.find(([d]) => d.startsWith(new Date().getFullYear().toString()));
-    if (!current || !jan) return null;
-    //@ts-ignore
-    const janPrice = safeNumber(jan[1]['4. close']);
-    return janPrice ? ((current - janPrice) / janPrice) * 100 : null;
-  };
-
-  const calcVolatility = () => {
-    if (!timeSeries) return null;
-    const prices = Object.values(timeSeries)
-      .slice(0, 252)
-      .map((d: any) => safeNumber(d['4. close']))
-      .filter(Boolean) as number[];
-    if (prices.length < 2) return null;
-    const returns = prices.slice(1).map((p, i) => (p - prices[i]) / prices[i]);
-    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-    return Math.sqrt(returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length) * 100;
-  };
-
-  const calcMaxDrawdown = () => {
-    if (!timeSeries) return null;
-    const prices = Object.values(timeSeries)
-      .slice(0, 252)
-      .map((d: any) => safeNumber(d['4. close']))
-      .filter(Boolean)
-      .reverse() as number[];
-    if (!prices.length) return null;
-    let peak = prices[0];
-    let max = 0;
-    for (const p of prices) {
-      if (p > peak) peak = p;
-      max = Math.min(max, (p - peak) / peak);
-    }
-    return max * 100;
-  };
-
-  // -----------------------------
-  // 3. UI-ready response
-  // -----------------------------
-  return {
-    header: {
-      symbol,
-      name: overview?.Name ?? null,
-      exchange: overview?.Exchange ?? null,
-    },
-
-    keyMetrics: [
-      {
-        label: 'Market Cap',
-        value: safeNumber(overview?.MarketCapitalization),
-        unit: 'USD',
-        format: 'currencyCompact',
-      },
-      {
-        label: 'P/E Ratio',
-        value: safeNumber(overview?.PERatio),
-        format: 'number',
-      },
-      {
-        label: '52W High',
-        value: safeNumber(overview?.['52WeekHigh']),
-        unit: 'USD',
-        format: 'currency',
-      },
-      {
-        label: '52W Low',
-        value: safeNumber(overview?.['52WeekLow']),
-        unit: 'USD',
-        format: 'currency',
-      },
-      {
-        label: 'Avg Volume',
-        value: safeNumber(overview?.AverageVolume),
-        format: 'compact',
-      },
-      {
-        label: 'EPS (TTM)',
-        value: safeNumber(overview?.EPS),
-        unit: 'USD',
-        format: 'currency',
-      },
-      {
-        label: 'YTD Return',
-        value: calcYTD(),
-        unit: '%',
-        format: 'percentage',
-      },
-    ],
-
-    fundamentals: [
-      {
-        label: 'Revenue (TTM)',
-        value: ttm(incomeQ, 'totalRevenue'),
-        unit: 'USD',
-        format: 'currencyCompact',
-      },
-      {
-        label: 'Net Income (TTM)',
-        value: ttm(incomeQ, 'netIncome'),
-        unit: 'USD',
-        format: 'currencyCompact',
-      },
-      {
-        label: 'Free Cash Flow',
-        value: cashflowQ
-          ? ttm(cashflowQ, 'operatingCashflow')! - ttm(cashflowQ, 'capitalExpenditures')!
-          : null,
-        unit: 'USD',
-        format: 'currencyCompact',
-      },
-      {
-        label: 'Operating Margin',
-        value: incomeQ
-          ? (ttm(incomeQ, 'operatingIncome')! / ttm(incomeQ, 'totalRevenue')!) * 100
-          : null,
-        unit: '%',
-        format: 'percentage',
-      },
-      {
-        label: 'Debt / Equity',
-        value: balanceQ
-          ? safeNumber(balanceQ[0]?.totalLiabilities)! /
-            safeNumber(balanceQ[0]?.totalShareholderEquity)!
-          : null,
-        format: 'number',
-      },
-    ],
-
-    riskMetrics: [
-      {
-        label: 'Beta',
-        value: safeNumber(overview?.Beta),
-        format: 'number',
-        description:
-          'Measures how volatile the stock is compared to the overall market. Beta > 1 means higher risk.',
-      },
-      {
-        label: 'Volatility (1Y)',
-        value: calcVolatility(),
-        unit: '%',
-        format: 'percentage',
-        description:
-          'Annualized price fluctuation over the past year. Higher volatility means larger price swings.',
-      },
-      {
-        label: 'Max Drawdown (1Y)',
-        value: calcMaxDrawdown(),
-        unit: '%',
-        format: 'percentage',
-        description: 'Maximum observed loss from peak to trough over the past year.',
-      },
-      {
-        label: 'Debt Ratio',
-        value: balanceQ
-          ? safeNumber(balanceQ[0]?.totalLiabilities)! / safeNumber(balanceQ[0]?.totalAssets)!
-          : null,
-        format: 'number',
-        description:
-          'Proportion of assets financed by debt. Higher values indicate higher financial leverage.',
-      },
-    ],
-
-    companyProfile: {
-      description: overview?.Description ?? null,
-      sector: overview?.Sector ?? null,
-      industry: overview?.Industry ?? null,
-      country: overview?.Country ?? null,
-      name: overview?.Name ?? null,
-    },
-  };
+function asNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-export async function getHistory(symbol: string) {
+function safePercentage(value: number | null): number | null {
+  return value === null ? null : value * 100;
+}
+
+function getCurrency(summary: DashboardQuoteSummary): string {
+  return (
+    summary.price?.currency ??
+    summary.summaryDetail?.currency ??
+    summary.financialData?.financialCurrency ??
+    'USD'
+  );
+}
+
+function getValidPriceHistory(history: DashboardHistory): HistoricalRowHistory[] {
+  if (!history?.length) {
+    return [];
+  }
+
+  return [...history]
+    .filter(
+      (item: HistoricalRowHistory) =>
+        item.date instanceof Date && typeof item.close === 'number' && Number.isFinite(item.close),
+    )
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+function calculateYtdReturn(history: DashboardHistory): number | null {
+  const sortedHistory = getValidPriceHistory(history);
+
+  if (!sortedHistory.length) {
+    return null;
+  }
+
+  const yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+  const startPoint =
+    sortedHistory.find((item: HistoricalRowHistory) => item.date.getTime() >= yearStart) ??
+    sortedHistory[0] ??
+    null;
+  const endPoint = sortedHistory[sortedHistory.length - 1] ?? null;
+
+  if (!startPoint?.close || !endPoint?.close) {
+    return null;
+  }
+
+  return ((endPoint.close - startPoint.close) / startPoint.close) * 100;
+}
+
+function calculateVolatility(history: DashboardHistory): number | null {
+  const closes = getValidPriceHistory(history).map((item: HistoricalRowHistory) => item.close);
+
+  if (closes.length < 2) {
+    return null;
+  }
+
+  const returns = closes
+    .slice(1)
+    .map((price: number, index: number) => (price - closes[index]) / closes[index]);
+  const mean = returns.reduce((sum: number, value: number) => sum + value, 0) / returns.length;
+  const variance =
+    returns.reduce((sum: number, value: number) => sum + (value - mean) ** 2, 0) / returns.length;
+
+  return Math.sqrt(variance) * Math.sqrt(252) * 100;
+}
+
+function calculateMaxDrawdown(history: DashboardHistory): number | null {
+  const closes = getValidPriceHistory(history).map((item: HistoricalRowHistory) => item.close);
+
+  if (!closes.length) {
+    return null;
+  }
+
+  let peak = closes[0];
+  let maxDrawdown = 0;
+
+  for (const close of closes) {
+    if (close > peak) {
+      peak = close;
+    }
+
+    const drawdown = (close - peak) / peak;
+    if (drawdown < maxDrawdown) {
+      maxDrawdown = drawdown;
+    }
+  }
+
+  return maxDrawdown * 100;
+}
+
+async function getDashboardQuoteSummary(symbol: string): Promise<DashboardQuoteSummary> {
+  return yahooFinance.quoteSummary(symbol, {
+    modules: [...DASHBOARD_QUOTE_SUMMARY_MODULES],
+  });
+}
+
+export async function getHistory(symbol: string): Promise<DashboardHistory> {
   try {
-    return await yahooFinance.historical(symbol, {
-      period1: '2023-01-01',
+    const chart = await yahooFinance.chart(symbol, {
+      period1: new Date(Date.now() - 2 * ONE_YEAR_IN_MS),
       period2: new Date(),
       interval: '1d',
     });
+
+    return (chart.quotes ?? [])
+      .filter(
+        (quote: ChartResultArrayQuote) =>
+          quote.date instanceof Date &&
+          typeof quote.open === 'number' &&
+          typeof quote.high === 'number' &&
+          typeof quote.low === 'number' &&
+          typeof quote.close === 'number' &&
+          typeof quote.volume === 'number',
+      )
+      .map(
+        (quote: ChartResultArrayQuote): HistoricalRowHistory => ({
+          date: quote.date,
+          open: quote.open as number,
+          high: quote.high as number,
+          low: quote.low as number,
+          close: quote.close as number,
+          volume: quote.volume as number,
+          adjClose: typeof quote.adjclose === 'number' ? quote.adjclose : undefined,
+        }),
+      );
   } catch {
     return null;
   }
 }
 
-export async function getBasicInfo(symbol: string): Promise<BasicStockInfo | null> {
-  try {
-    const quote = await yahooFinance.quote(symbol);
-    if (!quote) {
-      return null;
-    }
-
-    return {
-      symbol: quote.symbol,
-      name: quote.longName || quote.shortName || null,
-      price: quote.regularMarketPrice || null,
-      currency: quote.currency || 'USD',
-      exchange: quote.exchange || null,
-      marketCap: quote.marketCap || null,
-      trailingPE: quote.trailingPE || null,
-      forwardPE: quote.forwardPE || null,
-      eps: quote.trailingEps || null,
-      fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh || null,
-      fiftyTwoWeekLow: quote.fiftyTwoWeekLow || null,
-      fiftyDayAverage: quote.fiftyDayAverage || null,
-      twoHundredDayAverage: quote.twoHundredDayAverage || null,
-      avgVolume: quote.averageVolume || null,
-      beta: quote.beta || null,
-      sector: quote.sector || null,
-      industry: quote.industry || null,
-      website: quote.website || null,
-      description: quote.longBusinessSummary || null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export async function getQuickMetrics(symbol: string): Promise<QuickMetric | null> {
-  try {
-    const info = await getBasicInfo(symbol);
-
-    if (!info) {
-      return null;
-    }
-
-    return {
-      keyMetrics: [
-        {
-          label: 'Market Cap',
-          value: formatMetricValue(info.marketCap, 'currencyCompact', 'USD'),
-        },
-        {
-          label: 'P/E Ratio',
-          value: formatMetricValue(info.trailingPE, 'number'),
-        },
-        {
-          label: '52W High',
-          value: formatMetricValue(info.fiftyTwoWeekHigh, 'currency', 'USD'),
-        },
-        {
-          label: '52W Low',
-          value: formatMetricValue(info.fiftyTwoWeekLow, 'currency', 'USD'),
-        },
-        {
-          label: 'Avg Volume',
-          value: formatMetricValue(info.avgVolume, 'compact'),
-        },
-        {
-          label: 'EPS (TTM)',
-          value: formatMetricValue(info.eps, 'currency', 'USD'),
-        },
-      ],
-      name: info.name,
-      description: info.description,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function formatMetricValue(value: number | null, format: string, unit?: string): string {
-  if (value === null || value === undefined) {
+function formatMetricValue(value: number | null, format: string, unit?: string | null): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
     return '';
   }
 
@@ -326,36 +173,26 @@ export function formatMetricValue(value: number | null, format: string, unit?: s
     case 'currency':
       formattedValue = new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'USD',
+        currency: unit || 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }).format(value);
       break;
 
     case 'currencyCompact':
-      if (value >= 1e12) {
-        formattedValue = `$${(value / 1e12).toFixed(2)}T`;
-      } else if (value >= 1e9) {
-        formattedValue = `$${(value / 1e9).toFixed(2)}B`;
-      } else if (value >= 1e6) {
-        formattedValue = `$${(value / 1e6).toFixed(2)}M`;
-      } else if (value >= 1e3) {
-        formattedValue = `$${(value / 1e3).toFixed(2)}K`;
-      } else {
-        formattedValue = `$${value.toFixed(2)}`;
-      }
+      formattedValue = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: unit || 'USD',
+        notation: 'compact',
+        maximumFractionDigits: 2,
+      }).format(value);
       break;
 
     case 'compact':
-      if (value >= 1e9) {
-        formattedValue = `${(value / 1e9).toFixed(2)}B`;
-      } else if (value >= 1e6) {
-        formattedValue = `${(value / 1e6).toFixed(2)}M`;
-      } else if (value >= 1e3) {
-        formattedValue = `${(value / 1e3).toFixed(2)}K`;
-      } else {
-        formattedValue = value.toFixed(0);
-      }
+      formattedValue = new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 2,
+      }).format(value);
       break;
 
     case 'percentage':
@@ -368,127 +205,329 @@ export function formatMetricValue(value: number | null, format: string, unit?: s
       break;
   }
 
-  return unit && format !== 'currency' && format !== 'currencyCompact'
+  return unit && !['currency', 'currencyCompact'].includes(format)
     ? `${formattedValue} ${unit}`
     : formattedValue;
 }
 
-export async function getFundamentalsMetrics(symbol: string): Promise<QuickMetric | null> {
-  try {
-    const quote = await yahooFinance.quote(symbol);
+function buildQuickMetrics(
+  summary: DashboardQuoteSummary,
+  history: DashboardHistory,
+): QuickMetric | null {
+  const currency = getCurrency(summary);
 
-    if (!quote) {
-      return null;
-    }
-
-    const formattedMetrics = [
+  return {
+    keyMetrics: [
       {
-        label: 'Revenue (TTM)',
-        value:
-          quote.lastFiscalYearEndDate && quote.trailingAnnualRevenuePerShare
-            ? formatMetricValue(
-                Math.abs(quote.trailingAnnualRevenuePerShare) * 1e9,
-                'currencyCompact',
-              )
-            : '',
+        label: 'Current Price',
+        value: formatMetricValue(asNumber(summary.price?.regularMarketPrice), 'currency', currency),
       },
       {
-        label: 'Net Income (TTM)',
-        value: quote.trailingEps
-          ? formatMetricValue(quote.trailingEps * 1e8, 'currencyCompact')
-          : '',
+        label: 'Market Cap',
+        value: formatMetricValue(asNumber(summary.price?.marketCap), 'currencyCompact', currency),
+      },
+      {
+        label: 'P/E Ratio',
+        value: formatMetricValue(asNumber(summary.summaryDetail?.trailingPE), 'number'),
+      },
+      {
+        label: '52W High',
+        value: formatMetricValue(
+          asNumber(summary.summaryDetail?.fiftyTwoWeekHigh),
+          'currency',
+          currency,
+        ),
+      },
+      {
+        label: '52W Low',
+        value: formatMetricValue(
+          asNumber(summary.summaryDetail?.fiftyTwoWeekLow),
+          'currency',
+          currency,
+        ),
+      },
+      {
+        label: 'Avg Volume',
+        value: formatMetricValue(asNumber(summary.summaryDetail?.averageVolume), 'compact'),
+      },
+      {
+        label: 'Dividend Yield',
+        value: formatMetricValue(
+          safePercentage(asNumber(summary.summaryDetail?.dividendYield)),
+          'percentage',
+        ),
+      },
+      {
+        label: 'YTD Return',
+        value: formatMetricValue(calculateYtdReturn(history), 'percentage'),
+      },
+    ],
+    name: summary.price?.longName ?? summary.price?.shortName ?? null,
+    description:
+      summary.assetProfile?.longBusinessSummary ?? summary.assetProfile?.description ?? null,
+  };
+}
+
+function buildRiskMetrics(summary: DashboardQuoteSummary, history: DashboardHistory): RiskMetric[] {
+  const totalDebt = asNumber(summary.financialData?.totalDebt);
+  const marketCap = asNumber(summary.price?.marketCap);
+  const debtBurden = totalDebt !== null && marketCap ? (totalDebt / marketCap) * 100 : null;
+
+  return [
+    {
+      label: 'Beta',
+      value: formatMetricValue(asNumber(summary.defaultKeyStatistics?.beta), 'number'),
+      description:
+        'Measures how volatile the stock is compared to the overall market. Beta above 1 usually means larger swings than the index.',
+    },
+    {
+      label: 'Volatility (1Y)',
+      value: formatMetricValue(calculateVolatility(history), 'percentage'),
+      description:
+        'Annualized share-price volatility over the last year based on daily price changes.',
+    },
+    {
+      label: 'Max Drawdown (1Y)',
+      value: formatMetricValue(calculateMaxDrawdown(history), 'percentage'),
+      description:
+        'Largest peak-to-trough decline in the last year, useful for understanding downside risk.',
+    },
+    {
+      label: 'Debt Burden',
+      value: formatMetricValue(debtBurden, 'percentage'),
+      description:
+        'Total debt as a share of market capitalization. Higher values indicate more balance-sheet pressure.',
+    },
+  ];
+}
+
+function buildKeyMetrics(
+  symbol: string,
+  summary: DashboardQuoteSummary,
+  history: DashboardHistory,
+): KeyMetrics {
+  const currency = getCurrency(summary);
+
+  return {
+    header: {
+      symbol: summary.price?.symbol ?? symbol,
+      name: summary.price?.longName ?? summary.price?.shortName ?? null,
+      exchange: summary.price?.exchangeName ?? null,
+    },
+    keyMetrics: [
+      {
+        label: 'Current Price',
+        value: asNumber(summary.price?.regularMarketPrice),
+        unit: currency,
+        format: 'currency',
+      },
+      {
+        label: 'Market Cap',
+        value: asNumber(summary.price?.marketCap),
+        unit: currency,
+        format: 'currencyCompact',
+      },
+      {
+        label: 'Trailing P/E',
+        value: asNumber(summary.summaryDetail?.trailingPE),
+        format: 'number',
+      },
+      {
+        label: 'Forward P/E',
+        value: asNumber(summary.summaryDetail?.forwardPE),
+        format: 'number',
+      },
+      {
+        label: '52W High',
+        value: asNumber(summary.summaryDetail?.fiftyTwoWeekHigh),
+        unit: currency,
+        format: 'currency',
+      },
+      {
+        label: '52W Low',
+        value: asNumber(summary.summaryDetail?.fiftyTwoWeekLow),
+        unit: currency,
+        format: 'currency',
+      },
+      {
+        label: 'YTD Return',
+        value: calculateYtdReturn(history),
+        unit: '%',
+        format: 'percentage',
+      },
+    ],
+    fundamentals: [
+      {
+        label: 'Revenue (TTM)',
+        value: asNumber(summary.financialData?.totalRevenue),
+        unit: currency,
+        format: 'currencyCompact',
+      },
+      {
+        label: 'EBITDA',
+        value: asNumber(summary.financialData?.ebitda),
+        unit: currency,
+        format: 'currencyCompact',
       },
       {
         label: 'Free Cash Flow',
-        value: quote.operatingCashflow
-          ? formatMetricValue(quote.operatingCashflow, 'currencyCompact')
-          : '',
+        value: asNumber(summary.financialData?.freeCashflow),
+        unit: currency,
+        format: 'currencyCompact',
       },
       {
         label: 'Operating Margin',
-        value: quote.profitMargins
-          ? formatMetricValue(quote.profitMargins * 100, 'percentage')
-          : '',
+        value: safePercentage(asNumber(summary.financialData?.operatingMargins)),
+        unit: '%',
+        format: 'percentage',
+      },
+      {
+        label: 'Profit Margin',
+        value: safePercentage(asNumber(summary.financialData?.profitMargins)),
+        unit: '%',
+        format: 'percentage',
       },
       {
         label: 'Debt / Equity',
-        value: quote.debtToEquity ? formatMetricValue(quote.debtToEquity, 'number') : '',
+        value: asNumber(summary.financialData?.debtToEquity),
+        format: 'number',
       },
-    ];
+      {
+        label: 'Current Ratio',
+        value: asNumber(summary.financialData?.currentRatio),
+        format: 'number',
+      },
+      {
+        label: 'Return on Equity',
+        value: safePercentage(asNumber(summary.financialData?.returnOnEquity)),
+        unit: '%',
+        format: 'percentage',
+      },
+    ],
+    riskMetrics: [
+      {
+        label: 'Beta',
+        value: asNumber(summary.defaultKeyStatistics?.beta),
+        format: 'number',
+        description:
+          'Measures how volatile the stock is compared to the overall market. Beta above 1 usually means larger swings than the index.',
+      },
+      {
+        label: 'Volatility (1Y)',
+        value: calculateVolatility(history),
+        unit: '%',
+        format: 'percentage',
+        description:
+          'Annualized share-price volatility over the last year based on daily price changes.',
+      },
+      {
+        label: 'Max Drawdown (1Y)',
+        value: calculateMaxDrawdown(history),
+        unit: '%',
+        format: 'percentage',
+        description:
+          'Largest peak-to-trough decline in the last year, useful for understanding downside risk.',
+      },
+      {
+        label: 'Debt / Equity',
+        value: asNumber(summary.financialData?.debtToEquity),
+        format: 'number',
+        description:
+          'Compares total debt to shareholder equity. Higher values can mean a more leveraged balance sheet.',
+      },
+    ],
+    companyProfile: {
+      description:
+        summary.assetProfile?.longBusinessSummary ?? summary.assetProfile?.description ?? null,
+      sector: summary.assetProfile?.sector ?? null,
+      industry: summary.assetProfile?.industry ?? null,
+      country: summary.assetProfile?.country ?? null,
+      name: summary.price?.longName ?? summary.price?.shortName ?? null,
+      website: summary.assetProfile?.website ?? null,
+      exchange: summary.price?.exchangeName ?? null,
+      employees: asNumber(summary.assetProfile?.fullTimeEmployees),
+    },
+  };
+}
+
+export async function getBasicInfo(symbol: string): Promise<BasicStockInfo | null> {
+  try {
+    const summary = await getDashboardQuoteSummary(symbol);
+    const currency = getCurrency(summary);
 
     return {
-      keyMetrics: formattedMetrics,
-      name: quote.longName || quote.shortName || null,
-      description: quote.longBusinessSummary || null,
+      symbol: summary.price?.symbol ?? symbol,
+      name: summary.price?.longName ?? summary.price?.shortName ?? null,
+      price: asNumber(summary.price?.regularMarketPrice),
+      currency,
+      exchange: summary.price?.exchangeName ?? null,
+      marketCap: asNumber(summary.price?.marketCap),
+      trailingPE: asNumber(summary.summaryDetail?.trailingPE),
+      forwardPE: asNumber(summary.summaryDetail?.forwardPE),
+      eps: asNumber(summary.defaultKeyStatistics?.trailingEps),
+      fiftyTwoWeekHigh: asNumber(summary.summaryDetail?.fiftyTwoWeekHigh),
+      fiftyTwoWeekLow: asNumber(summary.summaryDetail?.fiftyTwoWeekLow),
+      fiftyDayAverage: asNumber(summary.summaryDetail?.fiftyDayAverage),
+      twoHundredDayAverage: asNumber(summary.summaryDetail?.twoHundredDayAverage),
+      avgVolume: asNumber(summary.summaryDetail?.averageVolume),
+      beta: asNumber(summary.defaultKeyStatistics?.beta),
+      sector: summary.assetProfile?.sector ?? null,
+      industry: summary.assetProfile?.industry ?? null,
+      website: summary.assetProfile?.website ?? null,
+      description:
+        summary.assetProfile?.longBusinessSummary ?? summary.assetProfile?.description ?? null,
     };
   } catch {
     return null;
   }
 }
-export async function getRiskMetrics(symbol: string): Promise<RiskMetric[] | null> {
+
+export async function getQuickMetrics(symbol: string): Promise<QuickMetric | null> {
   try {
-    const [quote, history] = await Promise.all([
-      yahooFinance.quote(symbol),
-      yahooFinance.historical(symbol, {
-        period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
-        period2: new Date(),
-        interval: '1d',
-      }),
+    const [summary, history] = await Promise.all([
+      getDashboardQuoteSummary(symbol),
+      getHistory(symbol),
     ]);
 
-    if (!quote || !history || history.length === 0) {
-      return null;
-    }
-
-    // Calculate volatility (1Y)
-    const prices = history.map((h) => h.close).filter(Boolean) as number[];
-    let volatility: number | null = null;
-    if (prices.length >= 2) {
-      const returns = prices.slice(1).map((p, i) => (p - prices[i]) / prices[i]);
-      const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-      const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
-      volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
-    }
-
-    // Calculate max drawdown (1Y)
-    let maxDrawdown: number | null = null;
-    if (prices.length > 0) {
-      let peak = prices[0];
-      let maxDD = 0;
-      for (const price of prices) {
-        if (price > peak) peak = price;
-        const dd = (price - peak) / peak;
-        if (dd < maxDD) maxDD = dd;
-      }
-      maxDrawdown = maxDD * 100;
-    }
-
-    return [
-      {
-        label: 'Beta',
-        value: formatMetricValue(quote.beta || null, 'number'),
-        description:
-          'Measures how volatile the stock is compared to the overall market. Beta > 1 means higher risk.',
-      },
-      {
-        label: 'Volatility (1Y)',
-        value: formatMetricValue(volatility, 'percentage'),
-        description:
-          'Annualized price fluctuation over the past year. Higher volatility means larger price swings.',
-      },
-      {
-        label: 'Max Drawdown (1Y)',
-        value: formatMetricValue(maxDrawdown, 'percentage'),
-        description: 'Maximum observed loss from peak to trough over the past year.',
-      },
-      {
-        label: 'Debt Ratio',
-        value: quote.debtToEquity ? formatMetricValue(quote.debtToEquity, 'number') : '',
-        description:
-          'Proportion of assets financed by debt. Higher values indicate higher financial leverage.',
-      },
-    ];
+    return buildQuickMetrics(summary, history);
   } catch {
     return null;
   }
+}
+
+export async function getRiskMetrics(symbol: string): Promise<RiskMetric[] | null> {
+  try {
+    const [summary, history] = await Promise.all([
+      getDashboardQuoteSummary(symbol),
+      getHistory(symbol),
+    ]);
+
+    return buildRiskMetrics(summary, history);
+  } catch {
+    return null;
+  }
+}
+
+export async function getStockDashboardData(symbol: string): Promise<KeyMetrics> {
+  const [summary, history] = await Promise.all([
+    getDashboardQuoteSummary(symbol),
+    getHistory(symbol),
+  ]);
+
+  return buildKeyMetrics(symbol, summary, history);
+}
+
+export async function getDashboardData(symbol: string): Promise<StockDashboardData> {
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const [summary, chartData] = await Promise.all([
+    getDashboardQuoteSummary(normalizedSymbol),
+    getHistory(normalizedSymbol),
+  ]);
+
+  return {
+    keyMetrics: buildKeyMetrics(normalizedSymbol, summary, chartData),
+    chartData,
+    quickMetrics: buildQuickMetrics(summary, chartData),
+    riskMetrics: buildRiskMetrics(summary, chartData),
+  };
 }
