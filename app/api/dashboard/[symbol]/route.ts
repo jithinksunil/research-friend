@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/prisma';
-import { getHistory, getQuickMetrics, getRiskMetrics, getStockDashboardData } from '@/server';
+import { getDashboardData } from '@/server';
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ symbol: string }> }) {
   const { symbol } = await context.params;
@@ -17,25 +17,11 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ sy
       create: { symbol: normalizedSymbol },
       select: { id: true },
     });
-
-    const API_KEY = process.env.ALPHA_VANTAGE_API_KEY!;
-    const BASE = 'https://www.alphavantage.co/query';
-
-    const [keyMetrics, chartData, quickMetrics, riskMetrics] = await Promise.all([
-      getStockDashboardData(normalizedSymbol, API_KEY, BASE),
-      getHistory(normalizedSymbol),
-      getQuickMetrics(normalizedSymbol),
-      getRiskMetrics(normalizedSymbol),
-    ]);
+    const dashboardData = await getDashboardData(normalizedSymbol);
 
     return NextResponse.json(
       {
-        data: {
-          keyMetrics,
-          chartData,
-          quickMetrics,
-          riskMetrics,
-        },
+        data: dashboardData,
       },
       {
         status: 200,

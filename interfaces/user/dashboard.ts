@@ -3,7 +3,7 @@ import { HistoricalHistoryResult } from 'yahoo-finance2/modules/historical';
 export interface MetricItem {
   label: string;
   value: number | null;
-  unit?: 'USD' | '%' | 'shares' | null;
+  unit?: string | null;
   description?: string;
   format: 'currency' | 'currencyCompact' | 'percentage' | 'compact' | 'number';
 }
@@ -20,6 +20,9 @@ export interface CompanyProfile {
   industry: string | null;
   country: string | null;
   name: string | null;
+  website: string | null;
+  exchange: string | null;
+  employees: number | null;
 }
 
 export interface KeyMetrics {
