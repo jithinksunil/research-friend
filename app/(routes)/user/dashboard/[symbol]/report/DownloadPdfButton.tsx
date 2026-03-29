@@ -5,6 +5,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { PictureAsPdf } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
+import { PrimaryButton } from '@/components/common';
 
 interface DownloadPdfButtonProps {
   targetRef: React.RefObject<HTMLDivElement | null>;
@@ -182,23 +183,11 @@ export function DownloadPdfButton({ targetRef, companyName, symbol }: DownloadPd
 
   return (
     <Tooltip title={isGenerating ? 'Generating PDF...' : 'Download Report as PDF'}>
-      <button
-        id="download-pdf-button"
-        onClick={handleDownload}
-        disabled={isGenerating}
-        className={`
-          outline-none bg-[#F2F2F2] hover:cursor-pointer rounded-md px-3 py-1.5
-          active:scale-95 flex items-center justify-center gap-1.5
-          text-sm font-medium text-gray-700 hover:bg-gray-200
-          disabled:opacity-50 disabled:cursor-not-allowed
-          transition-all duration-150
-        `}
-      >
-        <PictureAsPdf
-          className={`text-[18px]! ${isGenerating ? 'text-gray-400 animate-pulse' : 'text-[#d32f2f]'}`}
-        />
-        <span className="hidden sm:inline">{isGenerating ? 'Generating...' : 'Download PDF'}</span>
-      </button>
+      <PrimaryButton onClick={handleDownload} disabled={isGenerating}>
+        <span className="hidden sm:inline">
+          {isGenerating ? 'Generating...' : 'Download Report'}
+        </span>
+      </PrimaryButton>
     </Tooltip>
   );
 }
