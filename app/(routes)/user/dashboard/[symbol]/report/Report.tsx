@@ -9,7 +9,8 @@ import { TableWithoutPagination } from '@/components/common/TableWithoutPaginati
 import { cn, formatDate } from '@/lib';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { DownloadPdfButton } from './DownloadPdfButton';
 import type { getReportDetails } from '@/lib/server-only/report';
 const FY_ORDER = ['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST'] as const;
 const FY_LABEL: Record<(typeof FY_ORDER)[number], string> = {
@@ -63,6 +64,7 @@ type EnhanceSectionResponse<K extends ReportSectionKey = ReportSectionKey> = {
 
 function Report({ symbol }: { symbol: string }) {
   const queryClient = useQueryClient();
+  const reportContentRef = useRef<HTMLDivElement>(null);
   const [enhancingSections, setEnhancingSections] = useState<
     Partial<Record<ReportSectionKey, boolean>>
   >({});
@@ -187,672 +189,692 @@ function Report({ symbol }: { symbol: string }) {
 
   return (
     <div className="py-8">
-      <Heading className="!text-3xl">{report.data.companyName}</Heading>
-      <SubHeading className="!mb-1">
-        Comprehensive Investment Analysis & Valuation Report
-      </SubHeading>
-      <TertiaryHeading className="!mb-8">
-        Date: {formatDate(new Date().toISOString(), 'January 1, 2000')}
-      </TertiaryHeading>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <Heading className="!text-3xl">{report.data.companyName}</Heading>
+          <SubHeading className="!mb-1">
+            Comprehensive Investment Analysis & Valuation Report
+          </SubHeading>
+          <TertiaryHeading className="mb-0!">
+            Date: {formatDate(new Date().toISOString(), 'January 1, 2000')}
+          </TertiaryHeading>
+        </div>
+        {sectionResponses.length > 0 && (
+          <DownloadPdfButton
+            targetRef={reportContentRef}
+            companyName={companyName}
+            symbol={symbol}
+          />
+        )}
+      </div>
+      <div ref={reportContentRef}>
+        <SectionWrapper
+          heading="EXECUTIVE SUMMARY"
+          visible={Boolean(report.data.report?.executiveSummary) || executiveSummaryLoading}
+          isLoading={executiveSummaryLoading || isSectionEnhancing('executiveSummary')}
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('executiveSummary', improvementText);
+          }}
+        >
+          <Description>{report.data.report?.executiveSummary?.summary}</Description>
+          <SubHeading>Investment Thesis</SubHeading>
+          <List
+            items={[
+              `<span style='font-weight: bold' >Positives</span>: ${report.data.report?.executiveSummary?.positive}`,
+              `<span style='font-weight: bold' >Risks</span>: ${report.data.report?.executiveSummary?.risk}`,
+              `<span style='font-weight: bold' >Current Price: ${report.data.report?.executiveSummary?.currentPrice} | DCF Fair Value: ${report.data.report?.executiveSummary?.dcfFairValue} | Analyst Consensus: ${report.data.report?.executiveSummary?.analystConsensus} | Upside: ${report.data.report?.executiveSummary?.upside}</span>`,
+            ]}
+          />
+        </SectionWrapper>
+        <SectionWrapper
+          heading="1. COMPANY OVERVIEW & STOCK METRICS"
+          visible={
+            Boolean(report.data.report?.overviewAndStockMetrics) || overviewAndStockMetricsLoading
+          }
+          isLoading={
+            overviewAndStockMetricsLoading || isSectionEnhancing('overviewAndStockMetrics')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('overviewAndStockMetrics', improvementText);
+          }}
+        >
+          <SubHeading>Key Statistics</SubHeading>
 
-      <SectionWrapper
-        heading="EXECUTIVE SUMMARY"
-        visible={Boolean(report.data.report?.executiveSummary) || executiveSummaryLoading}
-        isLoading={executiveSummaryLoading || isSectionEnhancing('executiveSummary')}
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('executiveSummary', improvementText);
-        }}
-      >
-        <Description>{report.data.report?.executiveSummary?.summary}</Description>
-        <SubHeading>Investment Thesis</SubHeading>
-        <List
-          items={[
-            `<span style='font-weight: bold' >Positives</span>: ${report.data.report?.executiveSummary?.positive}`,
-            `<span style='font-weight: bold' >Risks</span>: ${report.data.report?.executiveSummary?.risk}`,
-            `<span style='font-weight: bold' >Current Price: ${report.data.report?.executiveSummary?.currentPrice} | DCF Fair Value: ${report.data.report?.executiveSummary?.dcfFairValue} | Analyst Consensus: ${report.data.report?.executiveSummary?.analystConsensus} | Upside: ${report.data.report?.executiveSummary?.upside}</span>`,
-          ]}
-        />
-      </SectionWrapper>
-      <SectionWrapper
-        heading="1. COMPANY OVERVIEW & STOCK METRICS"
-        visible={
-          Boolean(report.data.report?.overviewAndStockMetrics) || overviewAndStockMetricsLoading
-        }
-        isLoading={overviewAndStockMetricsLoading || isSectionEnhancing('overviewAndStockMetrics')}
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('overviewAndStockMetrics', improvementText);
-        }}
-      >
-        <SubHeading>Key Statistics</SubHeading>
-
-        <TableWithoutPagination
-          headings={[
-            <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
-              Metric
-            </div>,
-            <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
-              Value
-            </div>,
-            <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
-              Note
-            </div>,
-          ]}
-          rows={report.data.report?.overviewAndStockMetrics?.stockMetrics.map((metric, index) => [
-            <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
-              {metric.name}
-            </div>,
-
-            <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
-              {metric.value}
-            </div>,
-            <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
-              {metric.note}
-            </div>,
-          ])}
-          noData="No fundamentals available"
-        />
-        <SubHeading className="mt-8">52-Week Performance</SubHeading>
-        <Description>
-          {report.data.report?.overviewAndStockMetrics?.fiftyTwoWeekPerformance}
-        </Description>
-      </SectionWrapper>
-      <SectionWrapper
-        heading="2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY"
-        visible={Boolean(report.data.report?.shareHolderStructure) || shareHolderStructureLoading}
-        isLoading={shareHolderStructureLoading || isSectionEnhancing('shareHolderStructure')}
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('shareHolderStructure', improvementText);
-        }}
-      >
-        <SubHeading>Major Shareholders (Latest Data)</SubHeading>
-
-        <TableWithoutPagination
-          headings={[
-            <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
-              Shareholder Type
-            </div>,
-            <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
-              Ownership
-            </div>,
-            <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
-              Notes
-            </div>,
-          ]}
-          rows={[
-            ...(report.data.report?.shareHolderStructure?.majorShareholders || []).map(
-              (shareHolder, index) => [
-                <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
-                  {shareHolder.shareHolderType}
-                </div>,
-
-                <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
-                  {shareHolder.ownership}
-                </div>,
-                <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
-                  {shareHolder.notes}
-                </div>,
-              ],
-            ),
-            [
-              <div
-                className="py-[10px] text-sm text-muted-foreground"
-                key={`col1-Share Capital Structure`}
-              >
-                Share Capital Structure
-              </div>,
-
-              <div key={`col2-Share Capital Structure`} className={cn('py-[10px] font-medium')}>
-                {report.data.report?.shareHolderStructure?.totalShares}
-              </div>,
-              <div key={`col3-Share Capital Structure`} className={cn('py-[10px] font-medium')}>
-                {report.data.report?.shareHolderStructure?.shareCapitalNotes}
-              </div>,
-            ],
-          ]}
-          noData="No fundamentals available"
-        />
-        <SubHeading className="mt-8">Key Insider Observations:</SubHeading>
-        <List items={report.data.report?.shareHolderStructure?.keyInsiderObservations || []} />
-      </SectionWrapper>
-      <SectionWrapper
-        heading="3. ANALYST RECOMMENDATIONS & PRICE TARGETS"
-        visible={Boolean(report.data.report?.analystRecommendation) || analystRecommendationLoading}
-        isLoading={analystRecommendationLoading || isSectionEnhancing('analystRecommendation')}
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('analystRecommendation', improvementText);
-        }}
-      >
-        <SubHeading>Current Consensus (Last 3 Months: Oct-Dec 2025)</SubHeading>
-        <div className="mx-auto max-w-[900px]">
           <TableWithoutPagination
             headings={[
               <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
-                Rating
+                Metric
               </div>,
               <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
-                Count
+                Value
               </div>,
               <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
-                % of Total
+                Note
               </div>,
-              <div key={`h4`} className={cn('px-[26px] py-[10px] font-medium')}>
-                Trend
+            ]}
+            rows={report.data.report?.overviewAndStockMetrics?.stockMetrics.map((metric, index) => [
+              <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
+                {metric.name}
+              </div>,
+
+              <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
+                {metric.value}
+              </div>,
+              <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
+                {metric.note}
+              </div>,
+            ])}
+            noData="No fundamentals available"
+          />
+          <SubHeading className="mt-8">52-Week Performance</SubHeading>
+          <Description>
+            {report.data.report?.overviewAndStockMetrics?.fiftyTwoWeekPerformance}
+          </Description>
+        </SectionWrapper>
+        <SectionWrapper
+          heading="2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY"
+          visible={Boolean(report.data.report?.shareHolderStructure) || shareHolderStructureLoading}
+          isLoading={shareHolderStructureLoading || isSectionEnhancing('shareHolderStructure')}
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('shareHolderStructure', improvementText);
+          }}
+        >
+          <SubHeading>Major Shareholders (Latest Data)</SubHeading>
+
+          <TableWithoutPagination
+            headings={[
+              <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
+                Shareholder Type
+              </div>,
+              <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
+                Ownership
+              </div>,
+              <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
+                Notes
               </div>,
             ]}
             rows={[
-              ...(report.data.report?.analystRecommendation?.currentConsensus || []).map(
-                (consensus, index) => [
+              ...(report.data.report?.shareHolderStructure?.majorShareholders || []).map(
+                (shareHolder, index) => [
                   <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
-                    {consensus.rating}
+                    {shareHolder.shareHolderType}
                   </div>,
 
                   <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
-                    {consensus.count}
+                    {shareHolder.ownership}
                   </div>,
                   <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
-                    {consensus.percentageOfTotal}
-                  </div>,
-                  <div key={`col4-${index}`} className={cn('py-[10px] font-medium')}>
-                    {consensus.trend}
+                    {shareHolder.notes}
                   </div>,
                 ],
               ),
+              [
+                <div
+                  className="py-[10px] text-sm text-muted-foreground"
+                  key={`col1-Share Capital Structure`}
+                >
+                  Share Capital Structure
+                </div>,
+
+                <div key={`col2-Share Capital Structure`} className={cn('py-[10px] font-medium')}>
+                  {report.data.report?.shareHolderStructure?.totalShares}
+                </div>,
+                <div key={`col3-Share Capital Structure`} className={cn('py-[10px] font-medium')}>
+                  {report.data.report?.shareHolderStructure?.shareCapitalNotes}
+                </div>,
+              ],
             ]}
             noData="No fundamentals available"
           />
-        </div>
-        <SubHeading>Consensus Details:</SubHeading>
-        <List
-          items={(report.data.report?.analystRecommendation?.consensusDetails || []).map(
-            (item) => `<span style="font-weight: bold">${item.name}</span>: ${item.value}`,
-          )}
-        />
-        {report.data.report?.analystRecommendation?.recentAnalystViews.length ? (
-          <>
-            <SubHeading>Recent Analyst Views</SubHeading>
-            <List items={report.data.report?.analystRecommendation.recentAnalystViews} />
-          </>
-        ) : null}
-      </SectionWrapper>
-      <SectionWrapper
-        heading="4. EQUITY VALUATION & DCF ANALYSIS"
-        visible={
-          Boolean(report.data.report?.equityValuationAndDcfAnalysis) ||
-          equityValuationAndDcfAnalysisLoading
-        }
-        isLoading={
-          equityValuationAndDcfAnalysisLoading ||
-          isSectionEnhancing('equityValuationAndDcfAnalysis')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('equityValuationAndDcfAnalysis', improvementText);
-        }}
-      >
-        <SubHeading>DCF Valuation Model</SubHeading>
-        <TertiaryHeading>Key Assumptions</TertiaryHeading>
-        <List
-          items={(report.data.report?.equityValuationAndDcfAnalysis?.keyAssumptions || []).map(
-            (a) => `<span style='font-weight: bold'>${a.modelName}</span>: ${a.assumption}`,
-          )}
-        />
-        <TertiaryHeading>Projected Financials (FY26-FY30E):</TertiaryHeading>
-        <TableWithoutPagination
-          noData="No data"
-          headings={(() => {
-            const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'] as const;
-            const label: Record<string, string> = {
-              FY_2026: 'FY26E',
-              FY_2027: 'FY27E',
-              FY_2028: 'FY28E',
-              FY_2029: 'FY29E',
-              FY_2030: 'FY30E',
-            };
-            return [
-              <div key={`h-metric`} className={cn('px-[26px] py-[10px] font-medium')}>
-                Metric
-              </div>,
-              ...fyOrder.map((fy) => (
-                <div key={`h-${fy}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                  {label[fy]}
-                </div>
-              )),
-            ];
-          })()}
-          rows={(() => {
-            const pfy =
-              report.data.report?.equityValuationAndDcfAnalysis?.projectedFinancialYears || [];
-            const byYear: Record<string, { metric: string; value: string }[]> = {};
-            pfy.forEach((y) => {
-              byYear[y.financialYear] = (y.projections || []).map((p: ProjectionMetricRow) => ({
-                metric: p.metric,
-                value: p.value,
-              }));
-            });
-
-            const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'];
-            const metricOrder: { key: string; label: string }[] = [
-              { key: 'REVENUE_GBP_M', label: 'Revenue (£m)' },
-              { key: 'REVENUE_GROWTH', label: 'Revenue Growth' },
-              { key: 'PBT_MARGIN_PERCENT', label: 'PBT Margin %' },
-              { key: 'PBT_GBP_M', label: 'PBT (£m)' },
-              { key: 'TAX_RATE', label: 'Tax Rate' },
-              { key: 'NET_INCOME_GBP_M', label: 'Net Income (£m)' },
-              { key: 'DILUTED_SHARES_M', label: 'Diluted Shares (m)' },
-              { key: 'DILUTED_EPS_P', label: 'Diluted EPS (p)' },
-            ];
-
-            return metricOrder.map((m, mi) => [
-              <div className="py-[10px] text-sm text-muted-foreground" key={`met-name-${mi}`}>
-                {m.label}
-              </div>,
-              ...fyOrder.map((fy, yi) => {
-                const list = byYear[fy] || [];
-                const found = list.find((it) => it.metric === m.key);
-                return (
-                  <div className={cn('py-[10px] font-medium')} key={`met-val-${mi}-${yi}`}>
-                    {found?.value ?? '-'}
-                  </div>
-                );
-              }),
-            ]);
-          })()}
-        />
-        <TertiaryHeading>DCF Valuation Build-up:</TertiaryHeading>
-        {(() => {
-          const b = report.data.report?.equityValuationAndDcfAnalysis?.dcfValuationBuildup;
-          if (!b) return <div className="text-sm text-muted-foreground">No data</div>;
-          const items = [
-            `<span class='font-semibold'>PV of FCF</span>: ${b.pvOfFCF}`,
-            `<span class='font-semibold'>PV of Terminal Value</span>: ${b.pvOfTerminalValue}`,
-            `<span class='font-semibold'>Enterprise Value</span>: ${b.enterpriseValue}`,
-            `<span class='font-semibold'>Less: Net Debt</span>: ${b.netDebt}`,
-            `<span class='font-semibold'>Equity Value</span>: ${b.equityValue}`,
-            `<span class='font-semibold'>Fair Value per Share</span>: ${b.fairValuePerShare}`,
-            `<span class='font-semibold'>Current Price</span>: ${b.currentPrice}`,
-            `<span class='font-semibold'>Implied Upside</span>: ${b.impliedUpside}`,
-          ];
-          return (
-            <>
-              <List items={items} />
-              {b.note ? (
-                <p className="-mt-4 pt-0 text-xs text-muted-foreground">*Note: {b.note}</p>
-              ) : null}
-            </>
-          );
-        })()}
-        <SubHeading>Valuation Sensitivity Analysis</SubHeading>
-        <TableWithoutPagination
-          noData="No data"
-          headings={(() => {
-            const tg = ['2.5%', '3.0%', '3.5%', '4.0%', '4.5%'];
-            return [
-              <div key={`h-wacc`} className={cn('px-[26px] py-[10px] font-medium')}>
-                WACC \\ Growth
-              </div>,
-              ...tg.map((t, i) => (
-                <div key={`h-tg-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                  {t}
-                </div>
-              )),
-            ];
-          })()}
-          rows={(() => {
-            const rows =
-              report.data.report?.equityValuationAndDcfAnalysis?.valuationSensitivities || [];
-            const tgOrder = ['2.5%', '3.0%', '3.5%', '4.0%', '4.5%'];
-            return rows.map((r, idx) => [
-              <div className="py-[10px] text-sm text-muted-foreground" key={`sen-w-${idx}`}>
-                {r.wacc}
-              </div>,
-              ...tgOrder.map((tg, j) => {
-                const found = (r.values || []).find((v) => v.terminalGrowth === tg);
-                return (
-                  <div className={cn('py-[10px] font-medium')} key={`sen-v-${idx}-${j}`}>
-                    {found?.value ?? '-'}
-                  </div>
-                );
-              }),
-            ]);
-          })()}
-        />
-        <p>Key Takeaway: {report.data.report?.equityValuationAndDcfAnalysis?.keyTakeAway || ''}</p>
-      </SectionWrapper>
-      <SectionWrapper
-        heading="5. FINANCIAL STATEMENTS ANALYSIS"
-        visible={
-          Boolean(report.data.report?.financialStatementAnalyasis) ||
-          financialStatementAnalyasisLoading
-        }
-        isLoading={
-          financialStatementAnalyasisLoading || isSectionEnhancing('financialStatementAnalyasis')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('financialStatementAnalyasis', improvementText);
-        }}
-      >
-        {/* Income Statement Trend */}
-        <SubHeading>Income Statement Trend (FY20–FY25)</SubHeading>
-        <TableWithoutPagination
-          noData="No data"
-          headings={(() => {
-            const cols = [
-              'Fiscal Year',
-              'Revenue (£m)',
-              'Y/Y Growth',
-              'Operating Income (£m)',
-              'Net Income (£m)',
-              'EPS (p)',
-            ];
-            return cols.map((c, i) => (
-              <div key={`ist-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                {c}
-              </div>
-            ));
-          })()}
-          rows={(() => {
-            const rows =
-              report.data.report?.financialStatementAnalyasis?.incomeStatementTrendRows || [];
-            return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
-              .filter((r): r is IncomeStatementTrendRow => Boolean(r))
-              .slice(0, 6)
-              .map((r, idx: number) => [
-                <div className="py-[10px] text-sm text-muted-foreground" key={`ist-fy-${idx}`}>
-                  {FY_LABEL[r.fiscalYear as keyof typeof FY_LABEL]}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`ist-rev-${idx}`}>
-                  {r.revenue}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`ist-yoy-${idx}`}>
-                  {r.yoyGrowth}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`ist-oi-${idx}`}>
-                  {r.operatingIncome}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`ist-ni-${idx}`}>
-                  {r.netIncome}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`ist-eps-${idx}`}>
-                  {r.eps}
-                </div>,
-              ]);
-          })()}
-        />
-        <TertiaryHeading>Key Observations:</TertiaryHeading>
-        <List items={report.data.report?.financialStatementAnalyasis?.keyObservations || []} />
-
-        {/* Balance Sheet Strength */}
-        <SubHeading>Balance Sheet Strength (FY20–FY25)</SubHeading>
-        <TableWithoutPagination
-          noData="No data"
-          headings={(() => {
-            const cols = [
-              'Fiscal Year',
-              'Cash (£m)',
-              'Total Assets (£m)',
-              'Total Debt (£m)',
-              "Shareholders' Equity (£m)",
-              'Debt/Equity',
-            ];
-            return cols.map((c, i) => (
-              <div key={`bss-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                {c}
-              </div>
-            ));
-          })()}
-          rows={(() => {
-            const rows =
-              report.data.report?.financialStatementAnalyasis?.balanceSheetStrengthRows || [];
-            return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
-              .filter((r): r is BalanceSheetStrengthRow => Boolean(r))
-              .slice(0, 6)
-              .map((r, idx: number) => [
-                <div className="py-[10px] text-sm text-muted-foreground" key={`bss-fy-${idx}`}>
-                  {FY_LABEL[r.fiscalYear as keyof typeof FY_LABEL]}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`bss-cash-${idx}`}>
-                  {r.cash}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`bss-ta-${idx}`}>
-                  {r.totalAssets}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`bss-td-${idx}`}>
-                  {r.totalDebt}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`bss-se-${idx}`}>
-                  {r.shareholdersEquity}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`bss-de-${idx}`}>
-                  {r.debtToEquity}
-                </div>,
-              ]);
-          })()}
-        />
-        <TertiaryHeading>Capital Position Analysis:</TertiaryHeading>
-        <List
-          items={report.data.report?.financialStatementAnalyasis?.capitalPositionAnalysis || []}
-        />
-
-        {/* Cash Flow Analysis */}
-        <SubHeading>Cash Flow Analysis</SubHeading>
-        <TableWithoutPagination
-          noData="No data"
-          headings={(() => {
-            const cols = [
-              'Fiscal Year',
-              'Operating CF (£m)',
-              'CapEx (£m)',
-              'Free CF (£m)',
-              'FCF Margin',
-              'Dividends Paid (£m)',
-              'Share Buyback (£m)',
-            ];
-            return cols.map((c, i) => (
-              <div key={`cfa-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                {c}
-              </div>
-            ));
-          })()}
-          rows={(() => {
-            const rows =
-              report.data.report?.financialStatementAnalyasis?.cashFlowAnalysisRows || [];
-            return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
-              .filter((r): r is CashFlowAnalysisRow => Boolean(r))
-              .slice(0, 6)
-              .map((r, idx: number) => [
-                <div className="py-[10px] text-sm text-muted-foreground" key={`cfa-fy-${idx}`}>
-                  {FY_LABEL[r.fiscalYear as keyof typeof FY_LABEL]}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`cfa-ocf-${idx}`}>
-                  {r.operatingCF}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`cfa-capex-${idx}`}>
-                  {r.capex}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`cfa-fcf-${idx}`}>
-                  {r.freeCF}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`cfa-margin-${idx}`}>
-                  {r.fcfMargin}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`cfa-div-${idx}`}>
-                  {r.dividendsPaid}
-                </div>,
-                <div className={cn('py-[10px] font-medium')} key={`cfa-buy-${idx}`}>
-                  {r.shareBuyback}
-                </div>,
-              ]);
-          })()}
-        />
-        <TertiaryHeading>FCF Quality Analysis:</TertiaryHeading>
-        <List items={report.data.report?.financialStatementAnalyasis?.fcfQualityAnalysis || []} />
-
-        {/* Financial Ratios & Credit Metrics */}
-        <SubHeading>Financial Ratios & Credit Metrics</SubHeading>
-        {(() => {
-          const ratioRows =
-            report.data.report?.financialStatementAnalyasis?.financialRatioMetrics || [];
-          const yearOrder = ['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25'];
-          const yearLabel: Record<string, string> = {
-            FY20: 'FY20',
-            FY21: 'FY21',
-            FY22: 'FY22',
-            FY23: 'FY23',
-            FY24: 'FY24',
-            FY25: 'FY25',
-          };
-          const labelMap: Record<string, string> = {
-            P_E_RATIO: 'P/E Ratio',
-            PEG_RATIO: 'PEG Ratio',
-            EV_REVENUE: 'EV/Revenue',
-            EV_EBITDA: 'EV/EBITDA',
-            DEBT_EQUITY: 'Debt/Equity',
-            INTEREST_COVERAGE: 'Interest Coverage',
-            CURRENT_RATIO: 'Current Ratio',
-            ROE: 'ROE',
-            ROIC: 'ROIC',
-          };
-
-          const buildTable = (metricKeys: string[]) => (
+          <SubHeading className="mt-8">Key Insider Observations:</SubHeading>
+          <List items={report.data.report?.shareHolderStructure?.keyInsiderObservations || []} />
+        </SectionWrapper>
+        <SectionWrapper
+          heading="3. ANALYST RECOMMENDATIONS & PRICE TARGETS"
+          visible={
+            Boolean(report.data.report?.analystRecommendation) || analystRecommendationLoading
+          }
+          isLoading={analystRecommendationLoading || isSectionEnhancing('analystRecommendation')}
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('analystRecommendation', improvementText);
+          }}
+        >
+          <SubHeading>Current Consensus (Last 3 Months: Oct-Dec 2025)</SubHeading>
+          <div className="mx-auto max-w-[900px]">
             <TableWithoutPagination
-              noData="No data"
               headings={[
-                <div key={`frcm-h-m`} className={cn('px-[26px] py-[10px] font-medium')}>
+                <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  Rating
+                </div>,
+                <div key={`h2`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  Count
+                </div>,
+                <div key={`h3`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  % of Total
+                </div>,
+                <div key={`h4`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  Trend
+                </div>,
+              ]}
+              rows={[
+                ...(report.data.report?.analystRecommendation?.currentConsensus || []).map(
+                  (consensus, index) => [
+                    <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
+                      {consensus.rating}
+                    </div>,
+
+                    <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
+                      {consensus.count}
+                    </div>,
+                    <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
+                      {consensus.percentageOfTotal}
+                    </div>,
+                    <div key={`col4-${index}`} className={cn('py-[10px] font-medium')}>
+                      {consensus.trend}
+                    </div>,
+                  ],
+                ),
+              ]}
+              noData="No fundamentals available"
+            />
+          </div>
+          <SubHeading>Consensus Details:</SubHeading>
+          <List
+            items={(report.data.report?.analystRecommendation?.consensusDetails || []).map(
+              (item) => `<span style="font-weight: bold">${item.name}</span>: ${item.value}`,
+            )}
+          />
+          {report.data.report?.analystRecommendation?.recentAnalystViews.length ? (
+            <>
+              <SubHeading>Recent Analyst Views</SubHeading>
+              <List items={report.data.report?.analystRecommendation.recentAnalystViews} />
+            </>
+          ) : null}
+        </SectionWrapper>
+        <SectionWrapper
+          heading="4. EQUITY VALUATION & DCF ANALYSIS"
+          visible={
+            Boolean(report.data.report?.equityValuationAndDcfAnalysis) ||
+            equityValuationAndDcfAnalysisLoading
+          }
+          isLoading={
+            equityValuationAndDcfAnalysisLoading ||
+            isSectionEnhancing('equityValuationAndDcfAnalysis')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('equityValuationAndDcfAnalysis', improvementText);
+          }}
+        >
+          <SubHeading>DCF Valuation Model</SubHeading>
+          <TertiaryHeading>Key Assumptions</TertiaryHeading>
+          <List
+            items={(report.data.report?.equityValuationAndDcfAnalysis?.keyAssumptions || []).map(
+              (a) => `<span style='font-weight: bold'>${a.modelName}</span>: ${a.assumption}`,
+            )}
+          />
+          <TertiaryHeading>Projected Financials (FY26-FY30E):</TertiaryHeading>
+          <TableWithoutPagination
+            noData="No data"
+            headings={(() => {
+              const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'] as const;
+              const label: Record<string, string> = {
+                FY_2026: 'FY26E',
+                FY_2027: 'FY27E',
+                FY_2028: 'FY28E',
+                FY_2029: 'FY29E',
+                FY_2030: 'FY30E',
+              };
+              return [
+                <div key={`h-metric`} className={cn('px-[26px] py-[10px] font-medium')}>
                   Metric
                 </div>,
-                ...yearOrder.map((y) => (
-                  <div key={`frcm-h-${y}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                    {yearLabel[y]}
+                ...fyOrder.map((fy) => (
+                  <div key={`h-${fy}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                    {label[fy]}
                   </div>
                 )),
-              ]}
-              rows={metricKeys.map((key, mi) => {
-                const row = ratioRows.find((r) => r.metric === key);
-                const vByYear: Record<string, string> = {};
-                (row?.values || []).forEach((v) => (vByYear[v.year] = v.value));
-                return [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`frcm-name-${mi}`}>
-                    {labelMap[key] || key}
-                  </div>,
-                  ...yearOrder.map((y, yi) => (
-                    <div key={`frcm-v-${mi}-${yi}`} className={cn('py-[10px] font-medium')}>
-                      {vByYear[y] ?? '-'}
+              ];
+            })()}
+            rows={(() => {
+              const pfy =
+                report.data.report?.equityValuationAndDcfAnalysis?.projectedFinancialYears || [];
+              const byYear: Record<string, { metric: string; value: string }[]> = {};
+              pfy.forEach((y) => {
+                byYear[y.financialYear] = (y.projections || []).map((p: ProjectionMetricRow) => ({
+                  metric: p.metric,
+                  value: p.value,
+                }));
+              });
+
+              const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'];
+              const metricOrder: { key: string; label: string }[] = [
+                { key: 'REVENUE_GBP_M', label: 'Revenue (£m)' },
+                { key: 'REVENUE_GROWTH', label: 'Revenue Growth' },
+                { key: 'PBT_MARGIN_PERCENT', label: 'PBT Margin %' },
+                { key: 'PBT_GBP_M', label: 'PBT (£m)' },
+                { key: 'TAX_RATE', label: 'Tax Rate' },
+                { key: 'NET_INCOME_GBP_M', label: 'Net Income (£m)' },
+                { key: 'DILUTED_SHARES_M', label: 'Diluted Shares (m)' },
+                { key: 'DILUTED_EPS_P', label: 'Diluted EPS (p)' },
+              ];
+
+              return metricOrder.map((m, mi) => [
+                <div className="py-[10px] text-sm text-muted-foreground" key={`met-name-${mi}`}>
+                  {m.label}
+                </div>,
+                ...fyOrder.map((fy, yi) => {
+                  const list = byYear[fy] || [];
+                  const found = list.find((it) => it.metric === m.key);
+                  return (
+                    <div className={cn('py-[10px] font-medium')} key={`met-val-${mi}-${yi}`}>
+                      {found?.value ?? '-'}
                     </div>
-                  )),
-                ];
-              })}
-            />
-          );
+                  );
+                }),
+              ]);
+            })()}
+          />
+          <TertiaryHeading>DCF Valuation Build-up:</TertiaryHeading>
+          {(() => {
+            const b = report.data.report?.equityValuationAndDcfAnalysis?.dcfValuationBuildup;
+            if (!b) return <div className="text-sm text-muted-foreground">No data</div>;
+            const items = [
+              `<span class='font-semibold'>PV of FCF</span>: ${b.pvOfFCF}`,
+              `<span class='font-semibold'>PV of Terminal Value</span>: ${b.pvOfTerminalValue}`,
+              `<span class='font-semibold'>Enterprise Value</span>: ${b.enterpriseValue}`,
+              `<span class='font-semibold'>Less: Net Debt</span>: ${b.netDebt}`,
+              `<span class='font-semibold'>Equity Value</span>: ${b.equityValue}`,
+              `<span class='font-semibold'>Fair Value per Share</span>: ${b.fairValuePerShare}`,
+              `<span class='font-semibold'>Current Price</span>: ${b.currentPrice}`,
+              `<span class='font-semibold'>Implied Upside</span>: ${b.impliedUpside}`,
+            ];
+            return (
+              <>
+                <List items={items} />
+                {b.note ? (
+                  <p className="-mt-4 pt-0 text-xs text-muted-foreground">*Note: {b.note}</p>
+                ) : null}
+              </>
+            );
+          })()}
+          <SubHeading>Valuation Sensitivity Analysis</SubHeading>
+          <TableWithoutPagination
+            noData="No data"
+            headings={(() => {
+              const tg = ['2.5%', '3.0%', '3.5%', '4.0%', '4.5%'];
+              return [
+                <div key={`h-wacc`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  WACC \\ Growth
+                </div>,
+                ...tg.map((t, i) => (
+                  <div key={`h-tg-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                    {t}
+                  </div>
+                )),
+              ];
+            })()}
+            rows={(() => {
+              const rows =
+                report.data.report?.equityValuationAndDcfAnalysis?.valuationSensitivities || [];
+              const tgOrder = ['2.5%', '3.0%', '3.5%', '4.0%', '4.5%'];
+              return rows.map((r, idx) => [
+                <div className="py-[10px] text-sm text-muted-foreground" key={`sen-w-${idx}`}>
+                  {r.wacc}
+                </div>,
+                ...tgOrder.map((tg, j) => {
+                  const found = (r.values || []).find((v) => v.terminalGrowth === tg);
+                  return (
+                    <div className={cn('py-[10px] font-medium')} key={`sen-v-${idx}-${j}`}>
+                      {found?.value ?? '-'}
+                    </div>
+                  );
+                }),
+              ]);
+            })()}
+          />
+          <p>
+            Key Takeaway: {report.data.report?.equityValuationAndDcfAnalysis?.keyTakeAway || ''}
+          </p>
+        </SectionWrapper>
+        <SectionWrapper
+          heading="5. FINANCIAL STATEMENTS ANALYSIS"
+          visible={
+            Boolean(report.data.report?.financialStatementAnalyasis) ||
+            financialStatementAnalyasisLoading
+          }
+          isLoading={
+            financialStatementAnalyasisLoading || isSectionEnhancing('financialStatementAnalyasis')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('financialStatementAnalyasis', improvementText);
+          }}
+        >
+          {/* Income Statement Trend */}
+          <SubHeading>Income Statement Trend (FY20–FY25)</SubHeading>
+          <TableWithoutPagination
+            noData="No data"
+            headings={(() => {
+              const cols = [
+                'Fiscal Year',
+                'Revenue (£m)',
+                'Y/Y Growth',
+                'Operating Income (£m)',
+                'Net Income (£m)',
+                'EPS (p)',
+              ];
+              return cols.map((c, i) => (
+                <div key={`ist-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  {c}
+                </div>
+              ));
+            })()}
+            rows={(() => {
+              const rows =
+                report.data.report?.financialStatementAnalyasis?.incomeStatementTrendRows || [];
+              return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
+                .filter((r): r is IncomeStatementTrendRow => Boolean(r))
+                .slice(0, 6)
+                .map((r, idx: number) => [
+                  <div className="py-[10px] text-sm text-muted-foreground" key={`ist-fy-${idx}`}>
+                    {FY_LABEL[r.fiscalYear as keyof typeof FY_LABEL]}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`ist-rev-${idx}`}>
+                    {r.revenue}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`ist-yoy-${idx}`}>
+                    {r.yoyGrowth}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`ist-oi-${idx}`}>
+                    {r.operatingIncome}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`ist-ni-${idx}`}>
+                    {r.netIncome}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`ist-eps-${idx}`}>
+                    {r.eps}
+                  </div>,
+                ]);
+            })()}
+          />
+          <TertiaryHeading>Key Observations:</TertiaryHeading>
+          <List items={report.data.report?.financialStatementAnalyasis?.keyObservations || []} />
 
-          return buildTable([
-            'P_E_RATIO',
-            'PEG_RATIO',
-            'EV_REVENUE',
-            'EV_EBITDA',
-            'DEBT_EQUITY',
-            'INTEREST_COVERAGE',
-            'CURRENT_RATIO',
-            'ROE',
-            'ROIC',
-          ]);
-        })()}
-        <TertiaryHeading>Valuation Observations:</TertiaryHeading>
-        <List
-          items={report.data.report?.financialStatementAnalyasis?.valuationObservations || []}
-        />
-      </SectionWrapper>
-      {/* BUSINESS SEGMENTS & COMPETITIVE POSITION */}
-      <SectionWrapper
-        heading="6. BUSINESS SEGMENTS & COMPETITIVE POSITION"
-        visible={Boolean(report.data.report?.businessSegmentData) || businessSegmentDataLoading}
-        isLoading={businessSegmentDataLoading || isSectionEnhancing('businessSegmentData')}
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('businessSegmentData', improvementText);
-        }}
-      >
-        {(() => {
-          const bs = report.data.report?.businessSegmentData;
-          if (!bs) return <div className="text-sm text-muted-foreground">No data</div>;
+          {/* Balance Sheet Strength */}
+          <SubHeading>Balance Sheet Strength (FY20–FY25)</SubHeading>
+          <TableWithoutPagination
+            noData="No data"
+            headings={(() => {
+              const cols = [
+                'Fiscal Year',
+                'Cash (£m)',
+                'Total Assets (£m)',
+                'Total Debt (£m)',
+                "Shareholders' Equity (£m)",
+                'Debt/Equity',
+              ];
+              return cols.map((c, i) => (
+                <div key={`bss-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  {c}
+                </div>
+              ));
+            })()}
+            rows={(() => {
+              const rows =
+                report.data.report?.financialStatementAnalyasis?.balanceSheetStrengthRows || [];
+              return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
+                .filter((r): r is BalanceSheetStrengthRow => Boolean(r))
+                .slice(0, 6)
+                .map((r, idx: number) => [
+                  <div className="py-[10px] text-sm text-muted-foreground" key={`bss-fy-${idx}`}>
+                    {FY_LABEL[r.fiscalYear as keyof typeof FY_LABEL]}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`bss-cash-${idx}`}>
+                    {r.cash}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`bss-ta-${idx}`}>
+                    {r.totalAssets}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`bss-td-${idx}`}>
+                    {r.totalDebt}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`bss-se-${idx}`}>
+                    {r.shareholdersEquity}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`bss-de-${idx}`}>
+                    {r.debtToEquity}
+                  </div>,
+                ]);
+            })()}
+          />
+          <TertiaryHeading>Capital Position Analysis:</TertiaryHeading>
+          <List
+            items={report.data.report?.financialStatementAnalyasis?.capitalPositionAnalysis || []}
+          />
 
-          // Revenue Model Breakdown
-          const rmb = bs.revenueModelBreakdown || [];
-          const rmbRows = rmb.map((row, i) => [
-            <div className="py-[10px] text-sm text-muted-foreground" key={`rmb-rs-${i}`}>
-              {row.revenueStream}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`rmb-amt-${i}`}>
-              {row.amount}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`rmb-pct-${i}`}>
-              {row.percentOfTotal}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`rmb-gr-${i}`}>
-              {row.growth}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`rmb-dr-${i}`}>
-              {row.driver}
-            </div>,
-          ]);
+          {/* Cash Flow Analysis */}
+          <SubHeading>Cash Flow Analysis</SubHeading>
+          <TableWithoutPagination
+            noData="No data"
+            headings={(() => {
+              const cols = [
+                'Fiscal Year',
+                'Operating CF (£m)',
+                'CapEx (£m)',
+                'Free CF (£m)',
+                'FCF Margin',
+                'Dividends Paid (£m)',
+                'Share Buyback (£m)',
+              ];
+              return cols.map((c, i) => (
+                <div key={`cfa-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                  {c}
+                </div>
+              ));
+            })()}
+            rows={(() => {
+              const rows =
+                report.data.report?.financialStatementAnalyasis?.cashFlowAnalysisRows || [];
+              return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
+                .filter((r): r is CashFlowAnalysisRow => Boolean(r))
+                .slice(0, 6)
+                .map((r, idx: number) => [
+                  <div className="py-[10px] text-sm text-muted-foreground" key={`cfa-fy-${idx}`}>
+                    {FY_LABEL[r.fiscalYear as keyof typeof FY_LABEL]}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`cfa-ocf-${idx}`}>
+                    {r.operatingCF}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`cfa-capex-${idx}`}>
+                    {r.capex}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`cfa-fcf-${idx}`}>
+                    {r.freeCF}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`cfa-margin-${idx}`}>
+                    {r.fcfMargin}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`cfa-div-${idx}`}>
+                    {r.dividendsPaid}
+                  </div>,
+                  <div className={cn('py-[10px] font-medium')} key={`cfa-buy-${idx}`}>
+                    {r.shareBuyback}
+                  </div>,
+                ]);
+            })()}
+          />
+          <TertiaryHeading>FCF Quality Analysis:</TertiaryHeading>
+          <List items={report.data.report?.financialStatementAnalyasis?.fcfQualityAnalysis || []} />
 
-          // Platform Segments Performance
-          const psp = bs.platformSegmentPerformance || [];
-          const pspRows = psp.map((row, i) => [
-            <div className="py-[10px] text-sm text-muted-foreground" key={`psp-sg-${i}`}>
-              {row.segment}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`psp-cus-${i}`}>
-              {row.customers}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`psp-aua-${i}`}>
-              {row.aua}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`psp-gr-${i}`}>
-              {row.growth}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`psp-ni-${i}`}>
-              {row.netInflows}
-            </div>,
-            <div className={cn('py-[10px] font-medium')} key={`psp-cm-${i}`}>
-              {row.comments}
-            </div>,
-          ]);
+          {/* Financial Ratios & Credit Metrics */}
+          <SubHeading>Financial Ratios & Credit Metrics</SubHeading>
+          {(() => {
+            const ratioRows =
+              report.data.report?.financialStatementAnalyasis?.financialRatioMetrics || [];
+            const yearOrder = ['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25'];
+            const yearLabel: Record<string, string> = {
+              FY20: 'FY20',
+              FY21: 'FY21',
+              FY22: 'FY22',
+              FY23: 'FY23',
+              FY24: 'FY24',
+              FY25: 'FY25',
+            };
+            const labelMap: Record<string, string> = {
+              P_E_RATIO: 'P/E Ratio',
+              PEG_RATIO: 'PEG Ratio',
+              EV_REVENUE: 'EV/Revenue',
+              EV_EBITDA: 'EV/EBITDA',
+              DEBT_EQUITY: 'Debt/Equity',
+              INTEREST_COVERAGE: 'Interest Coverage',
+              CURRENT_RATIO: 'Current Ratio',
+              ROE: 'ROE',
+              ROIC: 'ROIC',
+            };
 
-          const comp = bs.competitivePosition;
-          const competitors = comp?.keyCompetitors || [];
-          const advantages = comp?.competitiveAdvantage || [];
-
-          return (
-            <>
-              <TertiaryHeading>Revenue Model Breakdown</TertiaryHeading>
+            const buildTable = (metricKeys: string[]) => (
               <TableWithoutPagination
                 noData="No data"
                 headings={[
-                  <div key="rmb-h-rs" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Revenue Stream
+                  <div key={`frcm-h-m`} className={cn('px-[26px] py-[10px] font-medium')}>
+                    Metric
                   </div>,
-                  <div key="rmb-h-am" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Amount
-                  </div>,
-                  <div key="rmb-h-pt" className={cn('px-[26px] py-[10px] font-medium')}>
-                    % of Total
-                  </div>,
-                  <div key="rmb-h-gr" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Growth
-                  </div>,
-                  <div key="rmb-h-dr" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Driver
-                  </div>,
+                  ...yearOrder.map((y) => (
+                    <div key={`frcm-h-${y}`} className={cn('px-[26px] py-[10px] font-medium')}>
+                      {yearLabel[y]}
+                    </div>
+                  )),
                 ]}
-                rows={rmbRows}
+                rows={metricKeys.map((key, mi) => {
+                  const row = ratioRows.find((r) => r.metric === key);
+                  const vByYear: Record<string, string> = {};
+                  (row?.values || []).forEach((v) => (vByYear[v.year] = v.value));
+                  return [
+                    <div
+                      className="py-[10px] text-sm text-muted-foreground"
+                      key={`frcm-name-${mi}`}
+                    >
+                      {labelMap[key] || key}
+                    </div>,
+                    ...yearOrder.map((y, yi) => (
+                      <div key={`frcm-v-${mi}-${yi}`} className={cn('py-[10px] font-medium')}>
+                        {vByYear[y] ?? '-'}
+                      </div>
+                    )),
+                  ];
+                })}
               />
+            );
 
-              {/* <TertiaryHeading className="mt-8">Platform Segments Performance</TertiaryHeading>
+            return buildTable([
+              'P_E_RATIO',
+              'PEG_RATIO',
+              'EV_REVENUE',
+              'EV_EBITDA',
+              'DEBT_EQUITY',
+              'INTEREST_COVERAGE',
+              'CURRENT_RATIO',
+              'ROE',
+              'ROIC',
+            ]);
+          })()}
+          <TertiaryHeading>Valuation Observations:</TertiaryHeading>
+          <List
+            items={report.data.report?.financialStatementAnalyasis?.valuationObservations || []}
+          />
+        </SectionWrapper>
+        {/* BUSINESS SEGMENTS & COMPETITIVE POSITION */}
+        <SectionWrapper
+          heading="6. BUSINESS SEGMENTS & COMPETITIVE POSITION"
+          visible={Boolean(report.data.report?.businessSegmentData) || businessSegmentDataLoading}
+          isLoading={businessSegmentDataLoading || isSectionEnhancing('businessSegmentData')}
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('businessSegmentData', improvementText);
+          }}
+        >
+          {(() => {
+            const bs = report.data.report?.businessSegmentData;
+            if (!bs) return <div className="text-sm text-muted-foreground">No data</div>;
+
+            // Revenue Model Breakdown
+            const rmb = bs.revenueModelBreakdown || [];
+            const rmbRows = rmb.map((row, i) => [
+              <div className="py-[10px] text-sm text-muted-foreground" key={`rmb-rs-${i}`}>
+                {row.revenueStream}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`rmb-amt-${i}`}>
+                {row.amount}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`rmb-pct-${i}`}>
+                {row.percentOfTotal}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`rmb-gr-${i}`}>
+                {row.growth}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`rmb-dr-${i}`}>
+                {row.driver}
+              </div>,
+            ]);
+
+            // Platform Segments Performance
+            const psp = bs.platformSegmentPerformance || [];
+            const pspRows = psp.map((row, i) => [
+              <div className="py-[10px] text-sm text-muted-foreground" key={`psp-sg-${i}`}>
+                {row.segment}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`psp-cus-${i}`}>
+                {row.customers}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`psp-aua-${i}`}>
+                {row.aua}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`psp-gr-${i}`}>
+                {row.growth}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`psp-ni-${i}`}>
+                {row.netInflows}
+              </div>,
+              <div className={cn('py-[10px] font-medium')} key={`psp-cm-${i}`}>
+                {row.comments}
+              </div>,
+            ]);
+
+            const comp = bs.competitivePosition;
+            const competitors = comp?.keyCompetitors || [];
+            const advantages = comp?.competitiveAdvantage || [];
+
+            return (
+              <>
+                <TertiaryHeading>Revenue Model Breakdown</TertiaryHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={[
+                    <div key="rmb-h-rs" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Revenue Stream
+                    </div>,
+                    <div key="rmb-h-am" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Amount
+                    </div>,
+                    <div key="rmb-h-pt" className={cn('px-[26px] py-[10px] font-medium')}>
+                      % of Total
+                    </div>,
+                    <div key="rmb-h-gr" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Growth
+                    </div>,
+                    <div key="rmb-h-dr" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Driver
+                    </div>,
+                  ]}
+                  rows={rmbRows}
+                />
+
+                {/* <TertiaryHeading className="mt-8">Platform Segments Performance</TertiaryHeading>
               <TableWithoutPagination
                 noData="No data"
                 headings={[
@@ -878,590 +900,621 @@ function Report({ symbol }: { symbol: string }) {
                 rows={pspRows}
               /> */}
 
-              <SubHeading className="mt-8">Business Model Dynamics</SubHeading>
-              <List items={bs.businessModelDynamics || []} />
+                <SubHeading className="mt-8">Business Model Dynamics</SubHeading>
+                <List items={bs.businessModelDynamics || []} />
 
-              <SubHeading className="mt-8">Competitive Position</SubHeading>
-              {competitors.length ? (
-                <>
-                  <TertiaryHeading>Key Competitors &amp; Market Share</TertiaryHeading>
-                  <List
-                    items={competitors.map(
-                      (c) => `<span class='font-semibold'>${c.name}</span> — ${c.description}`,
-                    )}
-                  />
-                </>
-              ) : null}
-              {advantages.length ? (
-                <>
-                  <TertiaryHeading>Competitive Advantages</TertiaryHeading>
-                  <List
-                    items={advantages.map(
-                      (a) => `<span class='font-semibold'>${a.title}</span>: ${a.description}`,
-                    )}
-                  />
-                </>
-              ) : null}
-            </>
-          );
-        })()}
-      </SectionWrapper>
-      <SectionWrapper
-        heading="7. INTERIM RESULTS & QUARTERLY PERFORMANCE"
-        visible={
-          Boolean(report.data.report?.interimResultsAndQuarterlyPerformance) ||
-          interimResultsAndQuarterlyPerformanceLoading
-        }
-        isLoading={
-          interimResultsAndQuarterlyPerformanceLoading ||
-          isSectionEnhancing('interimResultsAndQuarterlyPerformance')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('interimResultsAndQuarterlyPerformance', improvementText);
-        }}
-      >
-        {(() => {
-          const interim = report.data.report?.interimResultsAndQuarterlyPerformance;
-          if (!interim) return <div className="text-sm text-muted-foreground">No data</div>;
+                <SubHeading className="mt-8">Competitive Position</SubHeading>
+                {competitors.length ? (
+                  <>
+                    <TertiaryHeading>Key Competitors &amp; Market Share</TertiaryHeading>
+                    <List
+                      items={competitors.map(
+                        (c) => `<span class='font-semibold'>${c.name}</span> — ${c.description}`,
+                      )}
+                    />
+                  </>
+                ) : null}
+                {advantages.length ? (
+                  <>
+                    <TertiaryHeading>Competitive Advantages</TertiaryHeading>
+                    <List
+                      items={advantages.map(
+                        (a) => `<span class='font-semibold'>${a.title}</span>: ${a.description}`,
+                      )}
+                    />
+                  </>
+                ) : null}
+              </>
+            );
+          })()}
+        </SectionWrapper>
+        <SectionWrapper
+          heading="7. INTERIM RESULTS & QUARTERLY PERFORMANCE"
+          visible={
+            Boolean(report.data.report?.interimResultsAndQuarterlyPerformance) ||
+            interimResultsAndQuarterlyPerformanceLoading
+          }
+          isLoading={
+            interimResultsAndQuarterlyPerformanceLoading ||
+            isSectionEnhancing('interimResultsAndQuarterlyPerformance')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('interimResultsAndQuarterlyPerformance', improvementText);
+          }}
+        >
+          {(() => {
+            const interim = report.data.report?.interimResultsAndQuarterlyPerformance;
+            if (!interim) return <div className="text-sm text-muted-foreground">No data</div>;
 
-          return (
-            <>
-              <TertiaryHeading>{interim.title}</TertiaryHeading>
+            return (
+              <>
+                <TertiaryHeading>{interim.title}</TertiaryHeading>
 
-              <TertiaryHeading>Record Financial Performance</TertiaryHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={[
-                  <div key="irfp-metric" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Metric
-                  </div>,
-                  <div key="irfp-curr" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Current Year
-                  </div>,
-                  <div key="irfp-prev" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Previous Year
-                  </div>,
-                  <div key="irfp-change" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Change
-                  </div>,
-                  <div key="irfp-margin" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Margin
-                  </div>,
-                ]}
-                rows={
-                  interim.recordFinancialPerformance?.map((row, idx) => [
+                <TertiaryHeading>Record Financial Performance</TertiaryHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={[
+                    <div key="irfp-metric" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Metric
+                    </div>,
+                    <div key="irfp-curr" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Current Year
+                    </div>,
+                    <div key="irfp-prev" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Previous Year
+                    </div>,
+                    <div key="irfp-change" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Change
+                    </div>,
+                    <div key="irfp-margin" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Margin
+                    </div>,
+                  ]}
+                  rows={
+                    interim.recordFinancialPerformance?.map((row, idx) => [
+                      <div
+                        className="py-[10px] text-sm text-muted-foreground"
+                        key={`irfp-metric-${idx}`}
+                      >
+                        {row.metric}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`irfp-curr-${idx}`}>
+                        {row.currentYearValue}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`irfp-prev-${idx}`}>
+                        {row.previousYearValue}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`irfp-change-${idx}`}>
+                        {row.change}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`irfp-margin-${idx}`}>
+                        {row.margin}
+                      </div>,
+                    ]) || []
+                  }
+                />
+
+                <TertiaryHeading className="mt-8">Key Positives</TertiaryHeading>
+                <List items={interim.keyPositives || []} />
+
+                <TertiaryHeading className="mt-8">Key Negatives</TertiaryHeading>
+                <List items={interim.keyNegatives || []} />
+
+                <TertiaryHeading className="mt-8">Forward Guidance & Assumptions</TertiaryHeading>
+                <SubHeading>
+                  Management Commentary ({interim.forwardGuidance?.managementCommentary?.ceoName})
+                </SubHeading>
+                <List items={interim.forwardGuidance?.managementCommentary?.quotes || []} />
+
+                <SubHeading className="mt-4">Analyst Consensus FY1</SubHeading>
+                <List
+                  items={
+                    interim.forwardGuidance?.analystConsensusFY1?.map(
+                      (row) =>
+                        `<span style="font-weight: bold">${row.metric}</span>: ${row.forecastValue} (${row.growth}) — ${row.commentary}`,
+                    ) || []
+                  }
+                />
+              </>
+            );
+          })()}
+        </SectionWrapper>
+
+        <SectionWrapper
+          heading="8. CONTINGENT LIABILITIES & REGULATORY RISKS"
+          visible={
+            Boolean(report.data.report?.contingentLiabilitiesAndRegulatoryRisk) ||
+            contingentLiabilitiesAndRegulatoryRiskLoading
+          }
+          isLoading={
+            contingentLiabilitiesAndRegulatoryRiskLoading ||
+            isSectionEnhancing('contingentLiabilitiesAndRegulatoryRisk')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('contingentLiabilitiesAndRegulatoryRisk', improvementText);
+          }}
+        >
+          {(() => {
+            const contingent = report.data.report?.contingentLiabilitiesAndRegulatoryRisk;
+            if (!contingent) return <div className="text-sm text-muted-foreground">No data</div>;
+
+            return (
+              <>
+                <SubHeading>Balance Sheet Contingencies</SubHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={[
+                    <div key="bsc-item" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Item
+                    </div>,
+                    <div key="bsc-amount" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Amount
+                    </div>,
+                    <div key="bsc-status" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Status
+                    </div>,
+                    <div key="bsc-risk" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Risk Level
+                    </div>,
+                    <div key="bsc-impact" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Impact
+                    </div>,
+                  ]}
+                  rows={
+                    contingent.balanceSheetContingencies?.map((row, idx) => [
+                      <div
+                        className="py-[10px] text-sm text-muted-foreground"
+                        key={`bsc-item-${idx}`}
+                      >
+                        {row.item}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`bsc-amount-${idx}`}>
+                        {row.amount}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`bsc-status-${idx}`}>
+                        {row.status}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`bsc-risk-${idx}`}>
+                        {row.riskLevel}
+                      </div>,
+                      <div className={cn('py-[10px] font-medium')} key={`bsc-impact-${idx}`}>
+                        {row.impact}
+                      </div>,
+                    ]) || []
+                  }
+                />
+
+                <Description>
+                  <strong>Net Contingent Position:</strong>{' '}
+                  {contingent.netContingentPosition?.quantifiedAnnualLiabilities}{' '}
+                  {contingent.netContingentPosition?.oneTimeCosts} —{' '}
+                  {contingent.netContingentPosition?.valuationImpact}
+                </Description>
+
+                <SubHeading className="mt-8">Regulatory Environment</SubHeading>
+                <List
+                  items={
+                    contingent.keyRegulatoryConsiderations?.map(
+                      (row) =>
+                        `<span style="font-weight: bold">${row.title}</span>: ${row.description}`,
+                    ) || []
+                  }
+                />
+              </>
+            );
+          })()}
+        </SectionWrapper>
+
+        <SectionWrapper
+          heading="9. DCF VALUATION RECAP & PRICE TARGET"
+          visible={
+            Boolean(report.data.report?.dcfValuationRecapAndPriceTarget) ||
+            dcfValuationRecapAndPriceTargetLoading
+          }
+          isLoading={
+            dcfValuationRecapAndPriceTargetLoading ||
+            isSectionEnhancing('dcfValuationRecapAndPriceTarget')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('dcfValuationRecapAndPriceTarget', improvementText);
+          }}
+        >
+          {(() => {
+            const dcfRecap = report.data.report?.dcfValuationRecapAndPriceTarget;
+            if (!dcfRecap) return <div className="text-sm text-muted-foreground">No data</div>;
+
+            return (
+              <>
+                <SubHeading>{dcfRecap.valuationSummaryTitle}</SubHeading>
+                <Description>
+                  <strong>Base Case DCF:</strong> {dcfRecap.baseCaseAssumption}
+                </Description>
+
+                <List
+                  items={[
+                    `<span style="font-weight: bold">PV of FCF</span>: ${dcfRecap.pvOfFcf}`,
+                    `<span style="font-weight: bold">PV of Terminal Value</span>: ${dcfRecap.pvOfTerminalValue}`,
+                    `<span style="font-weight: bold">Enterprise Value</span>: ${dcfRecap.enterpriseValue}`,
+                    `<span style="font-weight: bold">Less: Net Debt</span>: ${dcfRecap.netDebt}`,
+                    `<span style="font-weight: bold">Equity Value</span>: ${dcfRecap.equityValue}`,
+                    `<span style="font-weight: bold">Shares Diluted</span>: ${dcfRecap.sharesDiluted}`,
+                    `<span style="font-weight: bold">Fair Value per Share</span>: ${dcfRecap.fairValuePerShare}`,
+                    `<span style="font-weight: bold">Current Price</span>: ${dcfRecap.currentPrice}`,
+                    `<span style="font-weight: bold">Upside</span>: ${dcfRecap.upside}`,
+                    `<span style="font-weight: bold">Recommendation</span>: ${dcfRecap.recommendation}`,
+                  ]}
+                />
+
+                <SubHeading className="mt-6">Sensitivity Analysis Recap</SubHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={[
+                    <div key="dcf-scenario" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Scenario
+                    </div>,
+                    <div key="dcf-assumption" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Assumption
+                    </div>,
+                    <div key="dcf-value" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Value
+                    </div>,
+                  ]}
+                  rows={(dcfRecap.sensitivityAnalysisRecap || []).map((row: any, idx: number) => [
+                    <div className="py-[10px] text-sm text-muted-foreground" key={`dcf-s-${idx}`}>
+                      {row.scenario}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`dcf-a-${idx}`}>
+                      {row.assumption}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`dcf-v-${idx}`}>
+                      {row.value}
+                    </div>,
+                  ])}
+                />
+
+                <SubHeading className="mt-6">12-Month Price Target</SubHeading>
+                <Description>{dcfRecap.twelveMonthPriceTarget}</Description>
+
+                <SubHeading className="mt-6">Rationale for Price Target</SubHeading>
+                <List items={dcfRecap.rationaleForPriceTarget || []} />
+              </>
+            );
+          })()}
+        </SectionWrapper>
+
+        <SectionWrapper
+          heading="10. FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION"
+          visible={
+            Boolean(report.data.report?.forwardProjectionsAndValuation) ||
+            forwardProjectionsAndValuationLoading
+          }
+          isLoading={
+            forwardProjectionsAndValuationLoading ||
+            isSectionEnhancing('forwardProjectionsAndValuation')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('forwardProjectionsAndValuation', improvementText);
+          }}
+        >
+          {(() => {
+            const forward = report.data.report?.forwardProjectionsAndValuation;
+            if (!forward) return <div className="text-sm text-muted-foreground">No data</div>;
+
+            return (
+              <>
+                <SubHeading>Projected Income Statement (FY26-FY30E)</SubHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map(
+                    (h, idx) => (
+                      <div
+                        key={`fwd-is-h-${idx}`}
+                        className={cn('px-[26px] py-[10px] font-medium')}
+                      >
+                        {h}
+                      </div>
+                    ),
+                  )}
+                  rows={(forward.projectedIncomeStatementRows || []).map((row, idx) => [
                     <div
                       className="py-[10px] text-sm text-muted-foreground"
-                      key={`irfp-metric-${idx}`}
+                      key={`fwd-is-m-${idx}`}
                     >
                       {row.metric}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`irfp-curr-${idx}`}>
-                      {row.currentYearValue}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-is-26-${idx}`}>
+                      {row.fy26e}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`irfp-prev-${idx}`}>
-                      {row.previousYearValue}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-is-27-${idx}`}>
+                      {row.fy27e}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`irfp-change-${idx}`}>
-                      {row.change}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-is-28-${idx}`}>
+                      {row.fy28e}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`irfp-margin-${idx}`}>
-                      {row.margin}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-is-29-${idx}`}>
+                      {row.fy29e}
                     </div>,
-                  ]) || []
-                }
-              />
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-is-30-${idx}`}>
+                      {row.fy30e}
+                    </div>,
+                  ])}
+                />
 
-              <TertiaryHeading className="mt-8">Key Positives</TertiaryHeading>
-              <List items={interim.keyPositives || []} />
+                <SubHeading className="mt-6">Key Projection Drivers</SubHeading>
+                <List items={forward.keyProjectionDrivers || []} />
 
-              <TertiaryHeading className="mt-8">Key Negatives</TertiaryHeading>
-              <List items={interim.keyNegatives || []} />
-
-              <TertiaryHeading className="mt-8">Forward Guidance & Assumptions</TertiaryHeading>
-              <SubHeading>
-                Management Commentary ({interim.forwardGuidance?.managementCommentary?.ceoName})
-              </SubHeading>
-              <List items={interim.forwardGuidance?.managementCommentary?.quotes || []} />
-
-              <SubHeading className="mt-4">Analyst Consensus FY1</SubHeading>
-              <List
-                items={
-                  interim.forwardGuidance?.analystConsensusFY1?.map(
-                    (row) =>
-                      `<span style="font-weight: bold">${row.metric}</span>: ${row.forecastValue} (${row.growth}) — ${row.commentary}`,
-                  ) || []
-                }
-              />
-            </>
-          );
-        })()}
-      </SectionWrapper>
-
-      <SectionWrapper
-        heading="8. CONTINGENT LIABILITIES & REGULATORY RISKS"
-        visible={
-          Boolean(report.data.report?.contingentLiabilitiesAndRegulatoryRisk) ||
-          contingentLiabilitiesAndRegulatoryRiskLoading
-        }
-        isLoading={
-          contingentLiabilitiesAndRegulatoryRiskLoading ||
-          isSectionEnhancing('contingentLiabilitiesAndRegulatoryRisk')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('contingentLiabilitiesAndRegulatoryRisk', improvementText);
-        }}
-      >
-        {(() => {
-          const contingent = report.data.report?.contingentLiabilitiesAndRegulatoryRisk;
-          if (!contingent) return <div className="text-sm text-muted-foreground">No data</div>;
-
-          return (
-            <>
-              <SubHeading>Balance Sheet Contingencies</SubHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={[
-                  <div key="bsc-item" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Item
-                  </div>,
-                  <div key="bsc-amount" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Amount
-                  </div>,
-                  <div key="bsc-status" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Status
-                  </div>,
-                  <div key="bsc-risk" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Risk Level
-                  </div>,
-                  <div key="bsc-impact" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Impact
-                  </div>,
-                ]}
-                rows={
-                  contingent.balanceSheetContingencies?.map((row, idx) => [
+                <SubHeading className="mt-6">
+                  Projected Balance Sheet (Simplified, FY26-FY30E)
+                </SubHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={['Item', 'FY25A', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map(
+                    (h, idx) => (
+                      <div
+                        key={`fwd-bs-h-${idx}`}
+                        className={cn('px-[26px] py-[10px] font-medium')}
+                      >
+                        {h}
+                      </div>
+                    ),
+                  )}
+                  rows={(forward.projectedBalanceSheetRows || []).map((row, idx) => [
                     <div
                       className="py-[10px] text-sm text-muted-foreground"
-                      key={`bsc-item-${idx}`}
+                      key={`fwd-bs-i-${idx}`}
                     >
                       {row.item}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`bsc-amount-${idx}`}>
-                      {row.amount}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-bs-25-${idx}`}>
+                      {row.fy25a}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`bsc-status-${idx}`}>
-                      {row.status}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-bs-26-${idx}`}>
+                      {row.fy26e}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`bsc-risk-${idx}`}>
-                      {row.riskLevel}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-bs-27-${idx}`}>
+                      {row.fy27e}
                     </div>,
-                    <div className={cn('py-[10px] font-medium')} key={`bsc-impact-${idx}`}>
-                      {row.impact}
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-bs-28-${idx}`}>
+                      {row.fy28e}
                     </div>,
-                  ]) || []
-                }
-              />
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-bs-29-${idx}`}>
+                      {row.fy29e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-bs-30-${idx}`}>
+                      {row.fy30e}
+                    </div>,
+                  ])}
+                />
 
-              <Description>
-                <strong>Net Contingent Position:</strong>{' '}
-                {contingent.netContingentPosition?.quantifiedAnnualLiabilities}{' '}
-                {contingent.netContingentPosition?.oneTimeCosts} —{' '}
-                {contingent.netContingentPosition?.valuationImpact}
-              </Description>
+                <SubHeading className="mt-6">Balance Sheet Dynamics</SubHeading>
+                <List items={forward.balanceSheetDynamics || []} />
 
-              <SubHeading className="mt-8">Regulatory Environment</SubHeading>
-              <List
-                items={
-                  contingent.keyRegulatoryConsiderations?.map(
-                    (row) =>
-                      `<span style="font-weight: bold">${row.title}</span>: ${row.description}`,
-                  ) || []
-                }
-              />
-            </>
-          );
-        })()}
-      </SectionWrapper>
+                <SubHeading className="mt-6">Projected Cash Flow & FCF (FY26-FY30E)</SubHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map(
+                    (h, idx) => (
+                      <div
+                        key={`fwd-cf-h-${idx}`}
+                        className={cn('px-[26px] py-[10px] font-medium')}
+                      >
+                        {h}
+                      </div>
+                    ),
+                  )}
+                  rows={(forward.projectedCashFlowRows || []).map((row, idx) => [
+                    <div
+                      className="py-[10px] text-sm text-muted-foreground"
+                      key={`fwd-cf-m-${idx}`}
+                    >
+                      {row.metric}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cf-26-${idx}`}>
+                      {row.fy26e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cf-27-${idx}`}>
+                      {row.fy27e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cf-28-${idx}`}>
+                      {row.fy28e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cf-29-${idx}`}>
+                      {row.fy29e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cf-30-${idx}`}>
+                      {row.fy30e}
+                    </div>,
+                  ])}
+                />
 
-      <SectionWrapper
-        heading="9. DCF VALUATION RECAP & PRICE TARGET"
-        visible={
-          Boolean(report.data.report?.dcfValuationRecapAndPriceTarget) ||
-          dcfValuationRecapAndPriceTargetLoading
-        }
-        isLoading={
-          dcfValuationRecapAndPriceTargetLoading ||
-          isSectionEnhancing('dcfValuationRecapAndPriceTarget')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('dcfValuationRecapAndPriceTarget', improvementText);
-        }}
-      >
-        {(() => {
-          const dcfRecap = report.data.report?.dcfValuationRecapAndPriceTarget;
-          if (!dcfRecap) return <div className="text-sm text-muted-foreground">No data</div>;
+                <SubHeading className="mt-6">Key Observations</SubHeading>
+                <List items={forward.keyObservations || []} />
 
-          return (
-            <>
-              <SubHeading>{dcfRecap.valuationSummaryTitle}</SubHeading>
-              <Description>
-                <strong>Base Case DCF:</strong> {dcfRecap.baseCaseAssumption}
-              </Description>
+                <SubHeading className="mt-6">Credit Metrics Projection (FY26-FY30E)</SubHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map(
+                    (h, idx) => (
+                      <div
+                        key={`fwd-cr-h-${idx}`}
+                        className={cn('px-[26px] py-[10px] font-medium')}
+                      >
+                        {h}
+                      </div>
+                    ),
+                  )}
+                  rows={(forward.creditMetricsRows || []).map((row, idx) => [
+                    <div
+                      className="py-[10px] text-sm text-muted-foreground"
+                      key={`fwd-cr-m-${idx}`}
+                    >
+                      {row.metric}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cr-26-${idx}`}>
+                      {row.fy26e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cr-27-${idx}`}>
+                      {row.fy27e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cr-28-${idx}`}>
+                      {row.fy28e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cr-29-${idx}`}>
+                      {row.fy29e}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`fwd-cr-30-${idx}`}>
+                      {row.fy30e}
+                    </div>,
+                  ])}
+                />
 
-              <List
-                items={[
-                  `<span style="font-weight: bold">PV of FCF</span>: ${dcfRecap.pvOfFcf}`,
-                  `<span style="font-weight: bold">PV of Terminal Value</span>: ${dcfRecap.pvOfTerminalValue}`,
-                  `<span style="font-weight: bold">Enterprise Value</span>: ${dcfRecap.enterpriseValue}`,
-                  `<span style="font-weight: bold">Less: Net Debt</span>: ${dcfRecap.netDebt}`,
-                  `<span style="font-weight: bold">Equity Value</span>: ${dcfRecap.equityValue}`,
-                  `<span style="font-weight: bold">Shares Diluted</span>: ${dcfRecap.sharesDiluted}`,
-                  `<span style="font-weight: bold">Fair Value per Share</span>: ${dcfRecap.fairValuePerShare}`,
-                  `<span style="font-weight: bold">Current Price</span>: ${dcfRecap.currentPrice}`,
-                  `<span style="font-weight: bold">Upside</span>: ${dcfRecap.upside}`,
-                  `<span style="font-weight: bold">Recommendation</span>: ${dcfRecap.recommendation}`,
-                ]}
-              />
+                <SubHeading className="mt-6">Credit Outlook</SubHeading>
+                <Description>{forward.creditOutlook}</Description>
+              </>
+            );
+          })()}
+        </SectionWrapper>
 
-              <SubHeading className="mt-6">Sensitivity Analysis Recap</SubHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={[
-                  <div key="dcf-scenario" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Scenario
-                  </div>,
-                  <div key="dcf-assumption" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Assumption
-                  </div>,
-                  <div key="dcf-value" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Value
-                  </div>,
-                ]}
-                rows={(dcfRecap.sensitivityAnalysisRecap || []).map((row: any, idx: number) => [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`dcf-s-${idx}`}>
-                    {row.scenario}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`dcf-a-${idx}`}>
-                    {row.assumption}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`dcf-v-${idx}`}>
-                    {row.value}
-                  </div>,
-                ])}
-              />
+        <SectionWrapper
+          heading="11. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS"
+          visible={
+            Boolean(report.data.report?.agmAndShareholderMatters) || agmAndShareholderMattersLoading
+          }
+          isLoading={
+            agmAndShareholderMattersLoading || isSectionEnhancing('agmAndShareholderMatters')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('agmAndShareholderMatters', improvementText);
+          }}
+        >
+          {(() => {
+            const agm = report.data.report?.agmAndShareholderMatters;
+            if (!agm) return <div className="text-sm text-muted-foreground">No data</div>;
 
-              <SubHeading className="mt-6">12-Month Price Target</SubHeading>
-              <Description>{dcfRecap.twelveMonthPriceTarget}</Description>
+            return (
+              <>
+                <SubHeading>Next AGM Details</SubHeading>
+                <List
+                  items={[
+                    `<span style="font-weight: bold">Announced Date</span>: ${agm.announcedDate}`,
+                    `<span style="font-weight: bold">Location</span>: ${agm.location}`,
+                    `<span style="font-weight: bold">Notice Filed</span>: ${agm.noticeFiled}`,
+                  ]}
+                />
 
-              <SubHeading className="mt-6">Rationale for Price Target</SubHeading>
-              <List items={dcfRecap.rationaleForPriceTarget || []} />
-            </>
-          );
-        })()}
-      </SectionWrapper>
+                <SubHeading className="mt-6">Expected Voting Agenda</SubHeading>
+                <TableWithoutPagination
+                  noData="No data"
+                  headings={[
+                    <div key="agm-r" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Resolution #
+                    </div>,
+                    <div key="agm-t" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Title
+                    </div>,
+                    <div key="agm-ty" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Type
+                    </div>,
+                    <div key="agm-er" className={cn('px-[26px] py-[10px] font-medium')}>
+                      Expected Result
+                    </div>,
+                  ]}
+                  rows={(agm.expectedVotingAgenda || []).map((row, idx) => [
+                    <div className="py-[10px] text-sm text-muted-foreground" key={`agm-r-${idx}`}>
+                      {row.resolutionNumber}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`agm-t-${idx}`}>
+                      {row.title}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`agm-ty-${idx}`}>
+                      {row.type}
+                    </div>,
+                    <div className={cn('py-[10px] font-medium')} key={`agm-er-${idx}`}>
+                      {row.expectedResult}
+                    </div>,
+                  ])}
+                />
 
-      <SectionWrapper
-        heading="10. FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION"
-        visible={
-          Boolean(report.data.report?.forwardProjectionsAndValuation) ||
-          forwardProjectionsAndValuationLoading
-        }
-        isLoading={
-          forwardProjectionsAndValuationLoading ||
-          isSectionEnhancing('forwardProjectionsAndValuation')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('forwardProjectionsAndValuation', improvementText);
-        }}
-      >
-        {(() => {
-          const forward = report.data.report?.forwardProjectionsAndValuation;
-          if (!forward) return <div className="text-sm text-muted-foreground">No data</div>;
+                <SubHeading className="mt-6">Special Resolutions Expected</SubHeading>
+                <List items={agm.specialResolutionsExpected || []} />
 
-          return (
-            <>
-              <SubHeading>Projected Income Statement (FY26-FY30E)</SubHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map((h, idx) => (
-                  <div key={`fwd-is-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                    {h}
-                  </div>
-                ))}
-                rows={(forward.projectedIncomeStatementRows || []).map((row, idx) => [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`fwd-is-m-${idx}`}>
-                    {row.metric}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-26-${idx}`}>
-                    {row.fy26e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-27-${idx}`}>
-                    {row.fy27e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-28-${idx}`}>
-                    {row.fy28e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-29-${idx}`}>
-                    {row.fy29e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-is-30-${idx}`}>
-                    {row.fy30e}
-                  </div>,
-                ])}
-              />
+                <SubHeading className="mt-6">Key Governance Notes</SubHeading>
+                <List items={agm.keyGovernanceNotes || []} />
+              </>
+            );
+          })()}
+        </SectionWrapper>
 
-              <SubHeading className="mt-6">Key Projection Drivers</SubHeading>
-              <List items={forward.keyProjectionDrivers || []} />
+        <SectionWrapper
+          heading="12. CONCLUSION"
+          visible={
+            Boolean(report.data.report?.conclusionAndRecommendation) ||
+            conclusionAndRecommendationLoading
+          }
+          isLoading={
+            conclusionAndRecommendationLoading || isSectionEnhancing('conclusionAndRecommendation')
+          }
+          symbol={symbol}
+          onEnhanceSection={async (_symbol: string, improvementText: string) => {
+            await enhanceSectionByApi('conclusionAndRecommendation', improvementText);
+          }}
+        >
+          {(() => {
+            const conclusion = report.data.report?.conclusionAndRecommendation;
+            if (!conclusion) return <div className="text-sm text-muted-foreground">No data</div>;
 
-              <SubHeading className="mt-6">
-                Projected Balance Sheet (Simplified, FY26-FY30E)
-              </SubHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={['Item', 'FY25A', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map(
-                  (h, idx) => (
-                    <div key={`fwd-bs-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                      {h}
-                    </div>
-                  ),
-                )}
-                rows={(forward.projectedBalanceSheetRows || []).map((row, idx) => [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`fwd-bs-i-${idx}`}>
-                    {row.item}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-25-${idx}`}>
-                    {row.fy25a}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-26-${idx}`}>
-                    {row.fy26e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-27-${idx}`}>
-                    {row.fy27e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-28-${idx}`}>
-                    {row.fy28e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-29-${idx}`}>
-                    {row.fy29e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-bs-30-${idx}`}>
-                    {row.fy30e}
-                  </div>,
-                ])}
-              />
+            return (
+              <>
+                <Description>{conclusion.summary}</Description>
+                <SubHeading className="mt-6">Key Strengths</SubHeading>
+                <List items={conclusion.strengths || []} />
 
-              <SubHeading className="mt-6">Balance Sheet Dynamics</SubHeading>
-              <List items={forward.balanceSheetDynamics || []} />
+                <SubHeading className="mt-6">Valuation</SubHeading>
+                <List
+                  items={[
+                    `<span style="font-weight: bold">Base Case</span>: ${conclusion.valuationSummary}`,
+                    `<span style="font-weight: bold">Analyst Consensus</span>: ${conclusion.analystConsensus}`,
+                  ]}
+                />
 
-              <SubHeading className="mt-6">Projected Cash Flow & FCF (FY26-FY30E)</SubHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map((h, idx) => (
-                  <div key={`fwd-cf-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                    {h}
-                  </div>
-                ))}
-                rows={(forward.projectedCashFlowRows || []).map((row, idx) => [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`fwd-cf-m-${idx}`}>
-                    {row.metric}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-26-${idx}`}>
-                    {row.fy26e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-27-${idx}`}>
-                    {row.fy27e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-28-${idx}`}>
-                    {row.fy28e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-29-${idx}`}>
-                    {row.fy29e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cf-30-${idx}`}>
-                    {row.fy30e}
-                  </div>,
-                ])}
-              />
+                <SubHeading className="mt-6">For Investors</SubHeading>
+                <List items={conclusion.investorFit || []} />
 
-              <SubHeading className="mt-6">Key Observations</SubHeading>
-              <List items={forward.keyObservations || []} />
+                <SubHeading className="mt-6">Entry Strategy</SubHeading>
+                <List items={conclusion.entryStrategy || []} />
 
-              <SubHeading className="mt-6">Credit Metrics Projection (FY26-FY30E)</SubHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={['Metric', 'FY26E', 'FY27E', 'FY28E', 'FY29E', 'FY30E'].map((h, idx) => (
-                  <div key={`fwd-cr-h-${idx}`} className={cn('px-[26px] py-[10px] font-medium')}>
-                    {h}
-                  </div>
-                ))}
-                rows={(forward.creditMetricsRows || []).map((row, idx) => [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`fwd-cr-m-${idx}`}>
-                    {row.metric}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-26-${idx}`}>
-                    {row.fy26e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-27-${idx}`}>
-                    {row.fy27e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-28-${idx}`}>
-                    {row.fy28e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-29-${idx}`}>
-                    {row.fy29e}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`fwd-cr-30-${idx}`}>
-                    {row.fy30e}
-                  </div>,
-                ])}
-              />
+                <SubHeading className="mt-6">Key Catalysts for Upside</SubHeading>
+                <List items={conclusion.upsideCatalysts || []} />
 
-              <SubHeading className="mt-6">Credit Outlook</SubHeading>
-              <Description>{forward.creditOutlook}</Description>
-            </>
-          );
-        })()}
-      </SectionWrapper>
+                <SubHeading className="mt-6">Key Catalysts for Downside</SubHeading>
+                <List items={conclusion.downsideCatalysts || []} />
 
-      <SectionWrapper
-        heading="11. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS"
-        visible={
-          Boolean(report.data.report?.agmAndShareholderMatters) || agmAndShareholderMattersLoading
-        }
-        isLoading={
-          agmAndShareholderMattersLoading || isSectionEnhancing('agmAndShareholderMatters')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('agmAndShareholderMatters', improvementText);
-        }}
-      >
-        {(() => {
-          const agm = report.data.report?.agmAndShareholderMatters;
-          if (!agm) return <div className="text-sm text-muted-foreground">No data</div>;
+                <SubHeading className="mt-6">Recommendation</SubHeading>
+                <List
+                  items={[
+                    `<span style="font-weight: bold">Recommendation</span>: ${conclusion.recommendation}`,
+                    `<span style="font-weight: bold">Price Target (12-month)</span>: ${conclusion.priceTarget}`,
+                    `<span style="font-weight: bold">Expected Return</span>: ${conclusion.expectedReturn}`,
+                    `<span style="font-weight: bold">Time Horizon</span>: ${conclusion.timeHorizon}`,
+                    `<span style="font-weight: bold">Risk Profile</span>: ${conclusion.riskProfile}`,
+                  ]}
+                />
 
-          return (
-            <>
-              <SubHeading>Next AGM Details</SubHeading>
-              <List
-                items={[
-                  `<span style="font-weight: bold">Announced Date</span>: ${agm.announcedDate}`,
-                  `<span style="font-weight: bold">Location</span>: ${agm.location}`,
-                  `<span style="font-weight: bold">Notice Filed</span>: ${agm.noticeFiled}`,
-                ]}
-              />
-
-              <SubHeading className="mt-6">Expected Voting Agenda</SubHeading>
-              <TableWithoutPagination
-                noData="No data"
-                headings={[
-                  <div key="agm-r" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Resolution #
-                  </div>,
-                  <div key="agm-t" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Title
-                  </div>,
-                  <div key="agm-ty" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Type
-                  </div>,
-                  <div key="agm-er" className={cn('px-[26px] py-[10px] font-medium')}>
-                    Expected Result
-                  </div>,
-                ]}
-                rows={(agm.expectedVotingAgenda || []).map((row, idx) => [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`agm-r-${idx}`}>
-                    {row.resolutionNumber}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`agm-t-${idx}`}>
-                    {row.title}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`agm-ty-${idx}`}>
-                    {row.type}
-                  </div>,
-                  <div className={cn('py-[10px] font-medium')} key={`agm-er-${idx}`}>
-                    {row.expectedResult}
-                  </div>,
-                ])}
-              />
-
-              <SubHeading className="mt-6">Special Resolutions Expected</SubHeading>
-              <List items={agm.specialResolutionsExpected || []} />
-
-              <SubHeading className="mt-6">Key Governance Notes</SubHeading>
-              <List items={agm.keyGovernanceNotes || []} />
-            </>
-          );
-        })()}
-      </SectionWrapper>
-
-      <SectionWrapper
-        heading="12. CONCLUSION"
-        visible={
-          Boolean(report.data.report?.conclusionAndRecommendation) ||
-          conclusionAndRecommendationLoading
-        }
-        isLoading={
-          conclusionAndRecommendationLoading || isSectionEnhancing('conclusionAndRecommendation')
-        }
-        symbol={symbol}
-        onEnhanceSection={async (_symbol: string, improvementText: string) => {
-          await enhanceSectionByApi('conclusionAndRecommendation', improvementText);
-        }}
-      >
-        {(() => {
-          const conclusion = report.data.report?.conclusionAndRecommendation;
-          if (!conclusion) return <div className="text-sm text-muted-foreground">No data</div>;
-
-          return (
-            <>
-              <Description>{conclusion.summary}</Description>
-              <SubHeading className="mt-6">Key Strengths</SubHeading>
-              <List items={conclusion.strengths || []} />
-
-              <SubHeading className="mt-6">Valuation</SubHeading>
-              <List
-                items={[
-                  `<span style="font-weight: bold">Base Case</span>: ${conclusion.valuationSummary}`,
-                  `<span style="font-weight: bold">Analyst Consensus</span>: ${conclusion.analystConsensus}`,
-                ]}
-              />
-
-              <SubHeading className="mt-6">For Investors</SubHeading>
-              <List items={conclusion.investorFit || []} />
-
-              <SubHeading className="mt-6">Entry Strategy</SubHeading>
-              <List items={conclusion.entryStrategy || []} />
-
-              <SubHeading className="mt-6">Key Catalysts for Upside</SubHeading>
-              <List items={conclusion.upsideCatalysts || []} />
-
-              <SubHeading className="mt-6">Key Catalysts for Downside</SubHeading>
-              <List items={conclusion.downsideCatalysts || []} />
-
-              <SubHeading className="mt-6">Recommendation</SubHeading>
-              <List
-                items={[
-                  `<span style="font-weight: bold">Recommendation</span>: ${conclusion.recommendation}`,
-                  `<span style="font-weight: bold">Price Target (12-month)</span>: ${conclusion.priceTarget}`,
-                  `<span style="font-weight: bold">Expected Return</span>: ${conclusion.expectedReturn}`,
-                  `<span style="font-weight: bold">Time Horizon</span>: ${conclusion.timeHorizon}`,
-                  `<span style="font-weight: bold">Risk Profile</span>: ${conclusion.riskProfile}`,
-                ]}
-              />
-
-              <div className="mt-8 border-t pt-6">
-                <Description>
-                  <strong>Disclaimer:</strong> {conclusion.disclaimer}
-                </Description>
-              </div>
-            </>
-          );
-        })()}
-      </SectionWrapper>
+                <div className="mt-8 border-t pt-6">
+                  <Description>
+                    <strong>Disclaimer:</strong> {conclusion.disclaimer}
+                  </Description>
+                </div>
+              </>
+            );
+          })()}
+        </SectionWrapper>
+      </div>
     </div>
   );
 }
