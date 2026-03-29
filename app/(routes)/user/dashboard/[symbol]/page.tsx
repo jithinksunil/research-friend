@@ -106,7 +106,7 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <div className="py-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-muted-foreground">
           <span className="font-bold">{normalizedSymbol}</span> {dashboard?.quickMetrics?.name}
         </div>
@@ -116,7 +116,7 @@ export default async function Page({ params }: PageProps) {
         <VoteButton symbol={normalizedSymbol} />
       </Suspense>
       {dashboard.chartData ? <StockChart stock={dashboard.chartData} /> : null}
-      <div className="grid grid-cols-4 gap-4 py-16">
+      <div className="grid grid-cols-1 gap-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
         {quickMetrics
           .filter((item: Metric) => item.value)
           .map((item: Metric) => {
@@ -132,7 +132,7 @@ export default async function Page({ params }: PageProps) {
             );
           })}
       </div>
-      <div className="py-6 bg-background rounded-2xl shadow-lg border border-gray-200">
+      <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-background py-6 shadow-lg">
         <TableWithoutPagination
           headings={[]}
           rows={fundamentals.map((metric, index) => [
@@ -163,7 +163,7 @@ export default async function Page({ params }: PageProps) {
           noData="No fundamentals available"
         />
       </div>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 py-6">
+      <div className="grid grid-cols-1 gap-4 py-6 sm:grid-cols-2 xl:grid-cols-4">
         {dashboard.riskMetrics?.map((metric) => (
           <div
             key={metric.label}
@@ -193,10 +193,10 @@ export default async function Page({ params }: PageProps) {
           {dashboard.quickMetrics?.description}
         </p>
       </div>
-      <div className="mt-6 bg-background p-4 rounded-2xl shadow-lg border border-gray-200 ">
+      <div className="mt-6 rounded-2xl border border-gray-200 bg-background p-4 shadow-lg">
         <h3 className="mb-4 text-lg font-semibold">Company Details</h3>
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
           {companyDetails.length ? (
             companyDetails.map((detail) => (
               <Fragment key={detail.label}>
@@ -205,7 +205,7 @@ export default async function Page({ params }: PageProps) {
               </Fragment>
             ))
           ) : (
-            <div className="col-span-2 text-muted-foreground">No company details available.</div>
+            <div className="text-muted-foreground sm:col-span-2">No company details available.</div>
           )}
         </div>
       </div>

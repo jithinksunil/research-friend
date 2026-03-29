@@ -8,8 +8,8 @@ interface TableProps {
 
 export const TableWithoutPagination: FC<TableProps> = ({ headings, rows, noData }) => {
   return (
-    <>
-      <table className="w-full">
+    <div className="w-full overflow-x-auto">
+      <table className="w-full min-w-[640px]">
         {headings && (
           <thead>
             <tr className="bg-[#f4f4f0] border-[#E5E7EB]">
@@ -47,6 +47,6 @@ export const TableWithoutPagination: FC<TableProps> = ({ headings, rows, noData 
           </tbody>
         )}
       </table>
-    </>
+    </div>
   );
 };

@@ -189,9 +189,9 @@ function Report({ symbol }: { symbol: string }) {
 
   return (
     <div className="py-8">
-      <div className="flex items-start justify-between mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Heading className="!text-3xl">{report.data.companyName}</Heading>
+          <Heading className="!text-2xl sm:!text-3xl">{report.data.companyName}</Heading>
           <SubHeading className="!mb-1">
             Comprehensive Investment Analysis & Valuation Report
           </SubHeading>

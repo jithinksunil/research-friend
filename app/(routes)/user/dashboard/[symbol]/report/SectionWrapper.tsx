@@ -67,7 +67,7 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
 
   return (
     <div className="report-print-section">
-      <div className="report-print-header flex items-center justify-between mb-4">
+      <div className="report-print-header mb-4 flex items-start justify-between gap-3">
         <div>
           <Heading>{heading}</Heading>
         </div>
@@ -78,7 +78,7 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
                 <AutoAwesome className="hover:text-primary !text-[16px] text-[#5AB46A]" />
               </Popover.Button>
             </Tooltip>
-            <Popover.Panel className="absolute z-[10000] bg-white shadow-md rounded-xl right-0 top-10 min-w-[365px] md:min-w-[450px] border px-4 py-4 gap-3">
+            <Popover.Panel className="absolute right-0 top-10 z-[10000] w-[calc(100vw-3rem)] max-w-[450px] rounded-xl border bg-white px-4 py-4 shadow-md">
               {({ close }) => (
                 <div className="flex flex-col gap-3">
                   <p className="text-sm font-medium text-gray-700">
