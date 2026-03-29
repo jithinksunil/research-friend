@@ -852,7 +852,7 @@ function Report({ symbol }: { symbol: string }) {
                 rows={rmbRows}
               />
 
-              <TertiaryHeading className="mt-8">Platform Segments Performance</TertiaryHeading>
+              {/* <TertiaryHeading className="mt-8">Platform Segments Performance</TertiaryHeading>
               <TableWithoutPagination
                 noData="No data"
                 headings={[
@@ -876,7 +876,7 @@ function Report({ symbol }: { symbol: string }) {
                   </div>,
                 ]}
                 rows={pspRows}
-              />
+              /> */}
 
               <SubHeading className="mt-8">Business Model Dynamics</SubHeading>
               <List items={bs.businessModelDynamics || []} />
