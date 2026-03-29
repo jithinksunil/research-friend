@@ -1,9 +1,6 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-import { PictureAsPdf } from '@mui/icons-material';
 import { Tooltip } from '@mui/material';
 import { PrimaryButton } from '@/components/common';
 
@@ -13,97 +10,389 @@ interface DownloadPdfButtonProps {
   symbol: string;
 }
 
-const A4_WIDTH_PT = 595.28;
-const A4_HEIGHT_PT = 841.89;
-const MARGIN_PT = 40;
-const FOOTER_HEIGHT_PT = 20;
-const CONTENT_WIDTH_PT = A4_WIDTH_PT - MARGIN_PT * 2;
-const CONTENT_HEIGHT_PT = A4_HEIGHT_PT - MARGIN_PT * 2 - FOOTER_HEIGHT_PT;
+function buildPrintableDocument({
+  companyName,
+  reportDate,
+  reportMarkup,
+}: {
+  companyName: string;
+  reportDate: string;
+  reportMarkup: string;
+}) {
+  const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map((node) => node.outerHTML)
+    .join('\n');
 
-async function loadLogoAsPngDataUrl(): Promise<string> {
-  const resp = await fetch('/assets/abcx_logo.svg');
-  const svgText = await resp.text();
-  const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
+  return `<!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>${companyName} Report</title>
+      ${styles}
+      <style>
+        @page {
+          size: A4;
+          margin: 16mm 13mm 18mm;
+        }
 
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const cvs = document.createElement('canvas');
-      const scale = 3;
-      cvs.width = img.width * scale;
-      cvs.height = img.height * scale;
-      const ctx = cvs.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas context unavailable'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, cvs.width, cvs.height);
-      resolve(cvs.toDataURL('image/png'));
-    };
-    img.onerror = () => reject(new Error('Failed to load logo'));
-    img.src = svgDataUrl;
-  });
+        :root {
+          color-scheme: light;
+        }
+
+        * {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          box-sizing: border-box;
+        }
+
+        html,
+        body {
+          background: #ffffff;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          color: #1f2937;
+          font-family: "Georgia", "Times New Roman", serif;
+          font-size: 11pt;
+          line-height: 1.65;
+          text-rendering: optimizeLegibility;
+        }
+
+        .print-shell {
+          width: 100%;
+        }
+
+        .print-cover {
+          min-height: calc(297mm - 34mm);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+          page-break-after: always;
+          break-after: page;
+        }
+
+        .print-cover::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, #fcfcfb 0%, #ffffff 62%, #faf9f6 100%);
+          z-index: 0;
+        }
+
+        .print-cover > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        .print-cover .print-cover-kicker {
+          margin-bottom: 20px;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.24em;
+          text-transform: uppercase;
+          color: #5f6f86;
+        }
+
+        .print-cover img {
+          width: 190px;
+          height: auto;
+          margin-bottom: 34px;
+        }
+
+        .print-cover h1 {
+          margin: 0 0 18px;
+          max-width: 86%;
+          font-size: 34px;
+          font-weight: 700;
+          line-height: 1.15;
+          color: #172033;
+          letter-spacing: -0.02em;
+        }
+
+        .print-cover p {
+          margin: 0;
+          color: #4b5563;
+          line-height: 1.6;
+        }
+
+        .print-cover .print-cover-subtitle {
+          max-width: 70%;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 15px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          margin-bottom: 14px;
+          color: #667085;
+        }
+
+        .print-cover .print-cover-date {
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 12px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #7b8798;
+          margin-bottom: 32px;
+        }
+
+        .print-cover .print-cover-divider {
+          width: 72px;
+          height: 2px;
+          margin-bottom: 30px;
+          background: linear-gradient(90deg, #1d3557, #aeb8c5);
+        }
+
+        .print-cover .print-cover-footer {
+          border-top: 1px solid #d9dee5;
+          margin-top: 34px;
+          padding-top: 18px;
+          max-width: 430px;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 12px;
+          line-height: 1.8;
+          color: #6b7280;
+        }
+
+        .print-report {
+          width: 100%;
+        }
+
+        .print-report::before {
+          content: "";
+          display: block;
+          height: 8px;
+          margin-bottom: 22px;
+          border-top: 3px solid #203047;
+          border-bottom: 1px solid #d9dee5;
+        }
+
+        .print-report .print-hide {
+          display: none !important;
+        }
+
+        .print-report .report-print-section {
+          break-inside: auto;
+          page-break-inside: auto;
+          margin-bottom: 30px;
+        }
+
+        .print-report .report-print-header {
+          break-after: avoid-page;
+          page-break-after: avoid;
+          align-items: flex-end;
+          margin-bottom: 14px !important;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+
+        .print-report .report-print-body {
+          break-inside: auto;
+          page-break-inside: auto;
+        }
+
+        .print-report .report-print-separator {
+          break-before: avoid-page;
+          page-break-before: avoid;
+        }
+
+        .print-report h1 {
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 15px !important;
+          font-weight: 800;
+          line-height: 1.35;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #1d3557;
+          margin: 0 0 10px !important;
+        }
+
+        .print-report h2 {
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 11px !important;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: #1d3557;
+          margin: 18px 0 8px !important;
+        }
+
+        .print-report h3,
+        .print-report h4 {
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 10.5px !important;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #475569;
+          margin: 16px 0 6px !important;
+        }
+
+        .print-report p {
+          margin: 0 0 12px !important;
+          color: #273142;
+          text-align: justify;
+        }
+
+        .print-report ul,
+        .print-report ol {
+          margin: 0 0 14px 0;
+          padding-left: 18px;
+        }
+
+        .print-report li {
+          margin-bottom: 6px;
+          color: #273142;
+        }
+
+        .print-report strong,
+        .print-report b {
+          color: #172033;
+        }
+
+        .print-report table {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+          margin: 10px 0 18px;
+          border-top: 1px solid #ece8df;
+          border-left: 1px solid #ece8df;
+          border-right: 1px solid #ece8df;
+          border-bottom: 1px solid #e2dccf;
+          border-radius: 10px;
+          overflow: hidden;
+          background: #ffffff;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 9.5px;
+        }
+
+        .print-report thead {
+          display: table-header-group;
+        }
+
+        .print-report tfoot {
+          display: table-footer-group;
+        }
+
+        .print-report tr,
+        .print-report td,
+        .print-report th,
+        .print-report img,
+        .print-report svg {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+
+        .print-report img,
+        .print-report svg {
+          max-width: 100%;
+        }
+
+        .print-report th {
+          padding: 9px 10px !important;
+          background: #f2efe9;
+          color: #8c6b3f;
+          font-size: 9px !important;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          border-bottom: 1px solid #e0dbd0;
+        }
+
+        .print-report td {
+          padding: 8px 10px !important;
+          vertical-align: top;
+          color: #344054;
+          border-bottom: 1px solid #f1ede6;
+        }
+
+        .print-report tbody tr {
+          background: #ffffff;
+        }
+
+        .print-report tbody tr:last-child td {
+          border-bottom: 1px solid #e2dccf;
+        }
+
+        .print-report .border-b {
+          border-color: #e5e7eb !important;
+        }
+
+        .print-report .text-muted-foreground {
+          color: #6b7280 !important;
+        }
+
+        @media screen {
+          body {
+            background:
+              radial-gradient(circle at top, rgba(223, 212, 192, 0.4), transparent 35%),
+              linear-gradient(180deg, #f5f1ea 0%, #ebe5db 100%);
+            padding: 32px 0;
+          }
+
+          .print-shell {
+            width: 210mm;
+            margin: 0 auto;
+            background: #ffffff;
+            box-shadow:
+              0 24px 60px rgba(15, 23, 42, 0.14),
+              0 2px 8px rgba(15, 23, 42, 0.08);
+            padding: 16mm 13mm 18mm;
+          }
+
+          .print-cover {
+            min-height: calc(297mm - 34mm);
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <main class="print-shell">
+        <section class="print-cover">
+          <p class="print-cover-kicker">Equity Research Report</p>
+          <img src="/assets/abcx_logo.svg" alt="ABCX logo" />
+          <h1>${companyName}</h1>
+          <p class="print-cover-subtitle">Comprehensive Investment Analysis & Valuation Report</p>
+          <p class="print-cover-date">Report Date: ${reportDate}</p>
+          <div class="print-cover-divider"></div>
+          <p class="print-cover-footer">
+            Powered by AI.Fred Research Assistant — ABCX<br />
+            This report is generated for informational purposes only and does not constitute financial advice.
+          </p>
+        </section>
+        <section class="print-report">${reportMarkup}</section>
+      </main>
+    </body>
+  </html>`;
 }
 
-function addFooter(pdf: jsPDF, pageNum: number, totalPages: number) {
-  pdf.setFontSize(8);
-  pdf.setTextColor(150, 150, 150);
-  const footerText = `ABCX — AI.Fred Research Assistant | Page ${pageNum} of ${totalPages}`;
-  pdf.text(footerText, A4_WIDTH_PT / 2, A4_HEIGHT_PT - 20, { align: 'center' });
-}
+async function waitForPrintWindow(printWindow: Window) {
+  const images = Array.from(printWindow.document.images);
 
-async function addCoverPage(pdf: jsPDF, companyName: string, logoPngDataUrl: string) {
-  const reportDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  await Promise.all(
+    images.map(
+      (image) =>
+        new Promise<void>((resolve) => {
+          if (image.complete) {
+            resolve();
+            return;
+          }
 
-  // Draw logo
-  const logoWidth = 140;
-  const logoHeight = 40;
-  pdf.addImage(logoPngDataUrl, 'PNG', (A4_WIDTH_PT - logoWidth) / 2, 120, logoWidth, logoHeight);
-
-  // Company name
-  pdf.setFontSize(28);
-  pdf.setTextColor(30, 30, 30);
-  pdf.text(companyName, A4_WIDTH_PT / 2, 240, { align: 'center' });
-
-  // Report title
-  pdf.setFontSize(16);
-  pdf.setTextColor(80, 80, 80);
-  pdf.text('Comprehensive Investment Analysis & Valuation Report', A4_WIDTH_PT / 2, 275, {
-    align: 'center',
-  });
-
-  // Date
-  pdf.setFontSize(12);
-  pdf.setTextColor(120, 120, 120);
-  pdf.text(`Report Date: ${reportDate}`, A4_WIDTH_PT / 2, 310, {
-    align: 'center',
-  });
-
-  // Horizontal rule
-  pdf.setDrawColor(200, 200, 200);
-  pdf.setLineWidth(0.5);
-  pdf.line(MARGIN_PT, 340, A4_WIDTH_PT - MARGIN_PT, 340);
-
-  // Powered by line
-  pdf.setFontSize(10);
-  pdf.setTextColor(150, 150, 150);
-  pdf.text('Powered by AI.Fred Research Assistant — ABCX', A4_WIDTH_PT / 2, A4_HEIGHT_PT - 80, {
-    align: 'center',
-  });
-
-  // Disclaimer
-  pdf.setFontSize(7);
-  pdf.setTextColor(170, 170, 170);
-  pdf.text(
-    'This report is generated for informational purposes only and does not constitute financial advice.',
-    A4_WIDTH_PT / 2,
-    A4_HEIGHT_PT - 60,
-    { align: 'center' },
+          image.addEventListener('load', () => resolve(), { once: true });
+          image.addEventListener('error', () => resolve(), { once: true });
+        }),
+    ),
   );
+
+  if ('fonts' in printWindow.document) {
+    await printWindow.document.fonts.ready;
+  }
 }
 
 export function DownloadPdfButton({ targetRef, companyName, symbol }: DownloadPdfButtonProps) {
@@ -117,63 +406,39 @@ export function DownloadPdfButton({ targetRef, companyName, symbol }: DownloadPd
     abortRef.current = false;
 
     try {
-      const logoDataUrl = await loadLogoAsPngDataUrl();
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error('Unable to open print window');
+      }
 
-      const canvas = await html2canvas(targetRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
+      const reportDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
       });
 
       if (abortRef.current) return;
 
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      printWindow.document.open();
+      printWindow.document.write(
+        buildPrintableDocument({
+          companyName,
+          reportDate,
+          reportMarkup: targetRef.current.innerHTML,
+        }),
+      );
+      printWindow.document.close();
 
-      // Cover page
-      await addCoverPage(pdf, companyName, logoDataUrl);
+      await waitForPrintWindow(printWindow);
 
-      // Calculate content pages
-      const imgWidth = CONTENT_WIDTH_PT;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const pageContentHeight = CONTENT_HEIGHT_PT;
-      const totalContentPages = Math.ceil(imgHeight / pageContentHeight);
-      const totalPages = totalContentPages + 1; // +1 for cover
+      printWindow.document.title = `${companyName.replace(/\s+/g, '_')}_${symbol}_Report`;
+      const closeWindow = () => {
+        printWindow.close();
+      };
 
-      // Footer on cover page
-      addFooter(pdf, 1, totalPages);
-
-      // Content pages
-      for (let i = 0; i < totalContentPages; i++) {
-        pdf.addPage();
-
-        const srcY = i * ((canvas.height * pageContentHeight) / imgHeight);
-        const srcH = (canvas.height * pageContentHeight) / imgHeight;
-        const actualSrcH = Math.min(srcH, canvas.height - srcY);
-        const drawHeight = (actualSrcH / srcH) * pageContentHeight;
-
-        // Create a sub-canvas for this page slice
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = actualSrcH;
-        const ctx = pageCanvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(canvas, 0, srcY, canvas.width, actualSrcH, 0, 0, canvas.width, actualSrcH);
-        }
-
-        pdf.addImage(
-          pageCanvas.toDataURL('image/jpeg', 0.95),
-          'JPEG',
-          MARGIN_PT,
-          MARGIN_PT,
-          imgWidth,
-          drawHeight,
-        );
-
-        addFooter(pdf, i + 2, totalPages);
-      }
-
-      pdf.save(`${companyName.replace(/\s+/g, '_')}_${symbol}_Report.pdf`);
+      printWindow.addEventListener('afterprint', closeWindow, { once: true });
+      printWindow.focus();
+      printWindow.print();
     } catch (error) {
       console.error('PDF generation failed:', error);
     } finally {
@@ -183,7 +448,7 @@ export function DownloadPdfButton({ targetRef, companyName, symbol }: DownloadPd
 
   return (
     <Tooltip title={isGenerating ? 'Generating PDF...' : 'Download Report as PDF'}>
-      <PrimaryButton onClick={handleDownload} disabled={isGenerating}>
+      <PrimaryButton type="button" onClick={handleDownload} isDisabled={isGenerating}>
         <span className="hidden sm:inline">
           {isGenerating ? 'Generating...' : 'Download Report'}
         </span>

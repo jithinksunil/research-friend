@@ -66,13 +66,13 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
+    <div className="report-print-section">
+      <div className="report-print-header flex items-center justify-between mb-4">
         <div>
           <Heading>{heading}</Heading>
         </div>
         {canEnhance && (
-          <Popover className="relative">
+          <Popover className="relative print-hide">
             <Tooltip title="Improve with AI">
               <Popover.Button className="outline-none bg-[#F2F2F2] hover:cursor-pointer rounded-md px-1 active:scale-90 flex items-center justify-center h-[26px] aspect-square">
                 <AutoAwesome className="hover:text-primary !text-[16px] text-[#5AB46A]" />
@@ -138,7 +138,7 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
           </Popover>
         )}
       </div>
-      <div>
+      <div className="report-print-body">
         {isLoading ? (
           <div className="space-y-3 animate-pulse">
             <div className="h-4 w-2/5 rounded bg-gray-200" />
@@ -150,7 +150,9 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
           children
         )}
       </div>
-      <SectionSeparator />
+      <div className="report-print-separator">
+        <SectionSeparator />
+      </div>
     </div>
   );
 };
