@@ -82,7 +82,7 @@ function buildPrintableDocument({
           content: "";
           position: absolute;
           inset: 0;
-          background: linear-gradient(180deg, #fcfcfb 0%, #ffffff 62%, #faf9f6 100%);
+          background: #ffffff;
           z-index: 0;
         }
 
