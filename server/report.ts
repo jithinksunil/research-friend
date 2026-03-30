@@ -95,7 +95,21 @@ type LegacyCashflowStatement = {
   repurchasesOfStock: number | null;
 };
 
-export type ReportMarketType = 'UK' | 'US' | 'India' | 'Global';
+export type ReportMarketType =
+  | 'India'
+  | 'US'
+  | 'UK'
+  | 'Canada'
+  | 'Australia'
+  | 'Japan'
+  | 'China'
+  | 'Hong Kong'
+  | 'Singapore'
+  | 'South Korea'
+  | 'Taiwan'
+  | 'Europe'
+  | 'Middle East'
+  | 'Global';
 
 export type ReportMarketContext = {
   currencyCode: string;
@@ -228,44 +242,150 @@ function deriveCurrencySymbol(currencyCode: string): string | null {
   }
 }
 
+const MARKET_TYPE_MATCHERS: Array<{
+  marketType: ReportMarketType;
+  exchangeKeywords: string[];
+  countryKeywords: string[];
+}> = [
+  {
+    marketType: 'India',
+    exchangeKeywords: ['bse', 'nse', 'mumbai', 'national stock exchange of india'],
+    countryKeywords: ['india'],
+  },
+  {
+    marketType: 'US',
+    exchangeKeywords: ['nasdaq', 'nyse', 'amex', 'new york', 'cboe', 'otc'],
+    countryKeywords: ['united states', 'usa', 'us'],
+  },
+  {
+    marketType: 'UK',
+    exchangeKeywords: ['london', 'lse', 'aim'],
+    countryKeywords: ['united kingdom', 'uk', 'england'],
+  },
+  {
+    marketType: 'Canada',
+    exchangeKeywords: ['tsx', 'toronto', 'tsxv', 'venture'],
+    countryKeywords: ['canada'],
+  },
+  {
+    marketType: 'Australia',
+    exchangeKeywords: ['asx', 'australian securities exchange', 'sydney'],
+    countryKeywords: ['australia'],
+  },
+  {
+    marketType: 'Japan',
+    exchangeKeywords: ['tokyo', 'tse', 'jpx', 'nagoya', 'sapporo', 'fukuoka'],
+    countryKeywords: ['japan'],
+  },
+  {
+    marketType: 'China',
+    exchangeKeywords: ['shanghai', 'shenzhen', 'sse', 'szse', 'beijing stock exchange'],
+    countryKeywords: ['china', "people's republic of china", 'prc'],
+  },
+  {
+    marketType: 'Hong Kong',
+    exchangeKeywords: ['hong kong', 'hkex', 'hkg'],
+    countryKeywords: ['hong kong'],
+  },
+  {
+    marketType: 'Singapore',
+    exchangeKeywords: ['singapore', 'sgx'],
+    countryKeywords: ['singapore'],
+  },
+  {
+    marketType: 'South Korea',
+    exchangeKeywords: ['krx', 'kospi', 'kosdaq', 'korea exchange', 'seoul'],
+    countryKeywords: ['south korea', 'korea, republic of', 'republic of korea'],
+  },
+  {
+    marketType: 'Taiwan',
+    exchangeKeywords: ['taiwan stock exchange', 'twse', 'taipei exchange', 'tpex'],
+    countryKeywords: ['taiwan'],
+  },
+  {
+    marketType: 'Europe',
+    exchangeKeywords: [
+      'euronext',
+      'xetra',
+      'frankfurt',
+      'deutsche b',
+      'paris',
+      'amsterdam',
+      'brussels',
+      'milan',
+      'madrid',
+      'swiss',
+      'six',
+      'oslo',
+      'stockholm',
+      'copenhagen',
+      'helsinki',
+      'vienna',
+      'warsaw',
+    ],
+    countryKeywords: [
+      'germany',
+      'france',
+      'netherlands',
+      'belgium',
+      'italy',
+      'spain',
+      'switzerland',
+      'sweden',
+      'norway',
+      'denmark',
+      'finland',
+      'austria',
+      'poland',
+      'portugal',
+      'ireland',
+      'luxembourg',
+    ],
+  },
+  {
+    marketType: 'Middle East',
+    exchangeKeywords: [
+      'tadawul',
+      'saudi exchange',
+      'abu dhabi',
+      'adx',
+      'dubai',
+      'dfm',
+      'qatar exchange',
+      'bahrain bourse',
+      'kuwait',
+      'tel aviv',
+      'egyptian exchange',
+    ],
+    countryKeywords: [
+      'saudi arabia',
+      'united arab emirates',
+      'uae',
+      'qatar',
+      'bahrain',
+      'kuwait',
+      'oman',
+      'israel',
+      'egypt',
+      'jordan',
+    ],
+  },
+];
+
 function deriveMarketType(exchangeName: string | null, country: string | null): ReportMarketType {
   const normalizedExchange = exchangeName?.toLowerCase() ?? '';
   const normalizedCountry = country?.toLowerCase() ?? '';
 
-  if (
-    normalizedExchange.includes('bse') ||
-    normalizedExchange.includes('nse') ||
-    normalizedExchange.includes('india') ||
-    normalizedExchange.includes('mumbai')
-  ) {
-    return 'India';
+  for (const matcher of MARKET_TYPE_MATCHERS) {
+    if (matcher.exchangeKeywords.some((keyword) => normalizedExchange.includes(keyword))) {
+      return matcher.marketType;
+    }
   }
 
-  if (
-    normalizedExchange.includes('nasdaq') ||
-    normalizedExchange.includes('nyse') ||
-    normalizedExchange.includes('amex') ||
-    normalizedExchange.includes('new york')
-  ) {
-    return 'US';
-  }
-
-  if (
-    normalizedExchange.includes('london') ||
-    normalizedExchange.includes('lse') ||
-    normalizedExchange.includes('aim')
-  ) {
-    return 'UK';
-  }
-
-  if (normalizedCountry.includes('india')) return 'India';
-  if (normalizedCountry.includes('united kingdom') || normalizedCountry === 'uk') return 'UK';
-  if (
-    normalizedCountry.includes('united states') ||
-    normalizedCountry.includes('usa') ||
-    normalizedCountry === 'us'
-  ) {
-    return 'US';
+  for (const matcher of MARKET_TYPE_MATCHERS) {
+    if (matcher.countryKeywords.some((keyword) => normalizedCountry.includes(keyword))) {
+      return matcher.marketType;
+    }
   }
 
   return 'Global';
@@ -315,23 +435,43 @@ export function validateReportCurrencyConsistency(
   payload: unknown,
   marketContext: ReportMarketContext,
 ) {
-  const symbolMap: Record<string, string[]> = {
-    INR: ['₹', '$', '£', '€', '¥'],
-    USD: ['₹', '£', '€', '¥'],
-    GBP: ['₹', '$', '€', '¥'],
-    EUR: ['₹', '$', '£', '¥'],
-    JPY: ['₹', '$', '£', '€'],
+  const currencyMarkers: Record<string, string[]> = {
+    INR: ['₹', 'INR'],
+    USD: ['$', 'US$', 'USD'],
+    GBP: ['£', 'GBP'],
+    EUR: ['€', 'EUR'],
+    JPY: ['¥', 'JPY'],
+    CNY: ['CN¥', 'CNY', 'RMB'],
+    HKD: ['HK$', 'HKD'],
+    SGD: ['S$', 'SGD'],
+    AUD: ['A$', 'AUD'],
+    CAD: ['C$', 'CAD'],
+    CHF: ['CHF'],
+    KRW: ['₩', 'KRW'],
+    TWD: ['NT$', 'TWD'],
+    AED: ['AED'],
+    SAR: ['SAR'],
+    SEK: ['SEK', 'kr'],
+    NOK: ['NOK', 'kr'],
+    DKK: ['DKK', 'kr'],
+    ZAR: ['R', 'ZAR'],
+    BRL: ['R$', 'BRL'],
+    MXN: ['MX$', 'MXN'],
   };
 
-  const conflictingSymbols = symbolMap[marketContext.currencyCode];
-  if (!conflictingSymbols?.length) return;
+  const allowedMarkers = new Set([
+    ...(currencyMarkers[marketContext.currencyCode] ?? []),
+    marketContext.currencySymbol ?? '',
+  ]);
+  const disallowedMarkers = Object.entries(currencyMarkers)
+    .filter(([currencyCode]) => currencyCode !== marketContext.currencyCode)
+    .flatMap(([, markers]) => markers)
+    .filter((marker) => marker && !allowedMarkers.has(marker));
 
-  const allowedSymbol = marketContext.currencySymbol;
-  const disallowedSymbols = conflictingSymbols.filter((symbol) => symbol !== allowedSymbol);
-  if (!disallowedSymbols.length) return;
+  if (!disallowedMarkers.length) return;
 
   for (const text of collectStringValues(payload)) {
-    if (disallowedSymbols.some((symbol) => text.includes(symbol))) {
+    if (disallowedMarkers.some((marker) => text.includes(marker))) {
       throw new Error(
         `Generated section output contains currency markers inconsistent with ${marketContext.currencyCode}`,
       );

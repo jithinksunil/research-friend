@@ -198,7 +198,51 @@ test('report market context resolver prefers price currency, then summary detail
   );
   assert.equal(fromFinancialCurrency.currencyCode, 'JPY');
   assert.equal(fromFinancialCurrency.exchangeName, 'Tokyo');
-  assert.equal(fromFinancialCurrency.marketType, 'Global');
+  assert.equal(fromFinancialCurrency.marketType, 'Japan');
+});
+
+test('report market context resolver classifies additional markets beyond India, US, and UK', () => {
+  const canada = resolveReportMarketContextFromSummary(
+    createMockSourceBundle({
+      price: {
+        currency: 'CAD',
+        exchangeName: 'Toronto',
+      } as unknown as ReportSourceBundle['summary']['price'],
+      assetProfile: {
+        country: 'Canada',
+      } as ReportSourceBundle['summary']['assetProfile'],
+    }).summary,
+  );
+  assert.equal(canada.marketType, 'Canada');
+  assert.equal(canada.currencyCode, 'CAD');
+
+  const hongKong = resolveReportMarketContextFromSummary(
+    createMockSourceBundle({
+      price: {
+        currency: 'HKD',
+        exchangeName: 'Hong Kong',
+      } as unknown as ReportSourceBundle['summary']['price'],
+      assetProfile: {
+        country: 'Hong Kong',
+      } as ReportSourceBundle['summary']['assetProfile'],
+    }).summary,
+  );
+  assert.equal(hongKong.marketType, 'Hong Kong');
+  assert.equal(hongKong.currencyCode, 'HKD');
+
+  const australia = resolveReportMarketContextFromSummary(
+    createMockSourceBundle({
+      price: {
+        currency: 'AUD',
+        exchangeName: 'ASX',
+      } as unknown as ReportSourceBundle['summary']['price'],
+      assetProfile: {
+        country: 'Australia',
+      } as ReportSourceBundle['summary']['assetProfile'],
+    }).summary,
+  );
+  assert.equal(australia.marketType, 'Australia');
+  assert.equal(australia.currencyCode, 'AUD');
 });
 
 test('representative report input builders share the same market currency context', async () => {
