@@ -22,6 +22,23 @@ Rules:
 - Follow the schema strictly
 `;
 
+export const REPORT_VALUE_FORMATTING_RULES = `
+Universal report formatting rules:
+- Use the provided market context as the source of truth for currency and exchange.
+- Keep every monetary or per-share value in one consistent currency for the entire section.
+- Do not switch currency symbols, codes, units, or market conventions unless the input explicitly provides converted values.
+- All quantities must include appropriate units and presentation formatting.
+- Monetary values must include the correct currency symbol or currency-aware unit notation.
+- Large monetary values must include a readable scale suffix such as m, bn, Cr, or Lakh Cr, consistent with the market/currency context.
+- Per-share values must include the currency symbol or market-standard unit notation such as p.
+- Percentages, yields, margins, growth rates, ownership stakes, returns, payout ratios, and probabilities must include "%".
+- Valuation and leverage multiples or ratio-style metrics such as P/E, EV/Revenue, EV/EBITDA, Debt/Equity, Current Ratio, and Interest Coverage must include "x" where appropriate.
+- Share counts and customer/entity counts must include count units such as shares, m, bn, Cr, k, or mn where appropriate.
+- Dates must be formatted as human-readable dates, not raw timestamps.
+- Only dimensionless outputs may omit units. Dimensionless outputs include qualitative ratings, recommendation labels, company names, fiscal year labels, categorical descriptors, and narrative commentary.
+- Do not output bare numerals for any non-dimensionless quantity unless the schema explicitly requires a qualitative placeholder such as "N/A".
+`;
+
 export const EXECUTIVE_PROMPT = `
 You are a senior equity research analyst. Using ONLY the provided "Input data" JSON, produce a concise executive summary and investment thesis for a professional investor. Do not use external knowledge or web search.
 
@@ -39,25 +56,25 @@ Output must conform exactly to this schema:
 }
 
 Guidelines:
+${REPORT_VALUE_FORMATTING_RULES}
 - Executive summary: 2–4 sentences summarizing business context and key recent metrics or trends from the input (growth, margins, AUA/MAU, capital strength, dividends, customer momentum, etc.). Be factual and grounded in the numbers given.
 - Positives: A single line with 3–6 concise, comma- or semicolon-separated merits (e.g., distribution/channel strength, scale, operating leverage, cash generation, customer growth, capital returns) strictly supported by the input.
 - Risks: A single line with 3–6 concise, comma- or semicolon-separated risks (e.g., margin compression, regulatory/policy complexity, competitive pressure, macro sensitivity, market volatility) strictly supported or plausibly inferred from the input. If not supported, omit.
- - currentPrice: Use "valuation.price" from the input. Return only the numeric value as a string without currency symbols (e.g., "442.0"). If unavailable, set to null.
-- dcfFairValue: If the input contains a DCF fair value per share, return it as a numeric string (no symbols). Otherwise, set to null (do not estimate).
+- currentPrice: Use "valuation.price" from the input. Return a presentation-ready per-share string with the correct currency/unit formatting. If unavailable, set to null.
+- dcfFairValue: If the input contains a DCF fair value per share, return it as a presentation-ready per-share string with the correct currency/unit formatting. Otherwise, set to null (do not estimate).
 - analystConsensus: Use the input’s analyst recommendation key if available (e.g., "analyst.recommendationKey"). Return as a short lowercase string like "buy", "hold", or "sell". If unavailable, set to null.
-- upside: Prefer "analyst.upsidePercent" from the input, returned as a numeric string without a percent sign (e.g., "20.5"). If missing but both "analyst.targetMean" and "valuation.price" exist, compute upside = ((targetMean - price) / price) * 100 and return as a numeric string. Otherwise, set to null.
-- currentPrice: Use valuation.price from the input. Return only the numeric value as a string without currency symbols (e.g., "442.0"). If unavailable, set to null.
-- dcfFairValue: If the input contains a DCF fair value per share, return it as a numeric string (no symbols). Otherwise, set to null (do not estimate).
+- upside: Prefer "analyst.upsidePercent" from the input, returned as a presentation-ready percentage string. If missing but both "analyst.targetMean" and "valuation.price" exist, compute upside = ((targetMean - price) / price) * 100 and return it with "%". Otherwise, set to null.
 - analystConsensus: Use the input's analyst recommendation key if available (e.g., analyst.recommendationKey). Return as a short lowercase string like "buy", "hold", or "sell". If unavailable, set to null.
-- upside: Prefer analyst.upsidePercent from the input, returned as a numeric string without a percent sign (e.g., "20.5"). If missing but both analyst.targetMean and valuation.price exist, compute upside = ((targetMean - price) / price) * 100 and return as a numeric string. Otherwise, set to null.
+- upside: Prefer analyst.upsidePercent from the input, returned as a presentation-ready percentage string. If missing but both analyst.targetMean and valuation.price exist, compute upside = ((targetMean - price) / price) * 100 and return it with "%". Otherwise, set to null.
 - Do not include any keys other than those in the schema.
 `;
 
-export const OVERVIEW_PROMPT = `You are a professional Indian equity research analyst covering NSE/BSE listed companies.
+export const OVERVIEW_PROMPT = `You are a professional equity research analyst covering global listed companies.
 
 Your task is to generate a structured "Company Overview & Stock Metrics" section using the provided structured financial data.
 
 Rules:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. Output MUST be valid JSON.
 2. Follow exactly this structure:
@@ -80,14 +97,14 @@ Rules:
 - Dividend Yield
 - Price Target (Consensus)
 
-4. Formatting rules (Indian Market Standard):
+4. Formatting rules:
 
-- Use "₹" for prices.
-- Format large numbers in ₹ Crore (Cr) or ₹ Lakh Crore where appropriate.
+- Use the currency and exchange context provided in the input for every monetary value.
+- Format large numbers using market-appropriate notation such as m, bn, Cr, or Lakh Cr only when that notation matches the input market context.
 - Use "x" for P/E ratios.
 - Use "%" for percentage values.
 - Round values to maximum 2 decimal places.
-- Use Indian financial formatting style.
+- Keep formatting consistent throughout the section.
 
 5. Derived calculations required:
 
@@ -98,13 +115,13 @@ Rules:
 
 6. Market Cap Formatting Rules:
 
-- If > ₹1,00,000 Cr → convert to ₹ Lakh Cr (e.g., ₹2.35 Lakh Cr)
-- Otherwise → ₹ XX,XXX Cr
+- Use a readable large-number scale aligned with the provided market context.
+- Do not switch to another currency or another market's number-formatting convention.
 
 7. The "fiftyTwoWeekPerformance" section must:
 
 - Be 4–6 sentences.
-- Maintain institutional tone (like Motilal Oswal / ICICI Securities).
+- Maintain institutional equity-research tone.
 - Mention recovery from low.
 - Mention discount or premium to consensus target.
 - Comment on volatility based on range %.
@@ -139,6 +156,7 @@ You must strictly return valid JSON matching this structure:
 }
 
 Rules:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. Output MUST be valid JSON only. No extra text.
 2. There must be exactly three entries in "majorShareholders":
@@ -195,6 +213,7 @@ You must return ONLY valid JSON that strictly follows this schema:
 }
 
 STRICT RULES:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. currentConsensus must contain EXACTLY 4 rows:
    - Buy/Strong Buy
@@ -210,7 +229,7 @@ STRICT RULES:
    - Consensus Rating
 
 3. All numeric outputs must be formatted for presentation:
-   - Use appropriate currency symbol (₹, $, £) based on input.
+   - Use the provided currency context from the input.
    - Use "%" for upside/downside.
    - Round to maximum 2 decimal places.
    - Express rating counts as ranges if data suggests variability.
@@ -257,14 +276,14 @@ You must return ONLY valid JSON that strictly follows this schema:
       "financialYear": 2026 | 2027 | 2028 | 2029 | 2030,
       "projections": [
         {
-          "metric": "Revenue (£m)" |
+          "metric": "Revenue" |
                     "Revenue Growth" |
                     "PBT Margin %" |
-                    "PBT (£m)" |
+                    "PBT" |
                     "Tax Rate" |
-                    "Net Income (£m)" |
-                    "Diluted Shares (m)" |
-                    "Diluted EPS (p)",
+                    "Net Income" |
+                    "Diluted Shares" |
+                    "Diluted EPS",
           "value": string
         }
       ]
@@ -296,17 +315,17 @@ You must return ONLY valid JSON that strictly follows this schema:
 }
 
 STRICT RULES:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. Output must be valid JSON only.
 2. Do not include explanations outside JSON.
-3. Use currency symbol provided in input (₹, $, £).
+3. Use the provided currency context from the input.
 4. Format:
-   - Millions as "£580m" or "$580m"
-   - Billions as "£2.7bn"
+   - Large monetary values using market-appropriate notation such as "$580m", "£2.7bn", or "₹1,250 Cr"
    - Percentages with "%"
    - Per-share values properly formatted
 5. Round numeric outputs to maximum 2 decimal places.
-6. Negative values must be formatted like "(£8m)".
+6. Negative monetary values must use the same provided currency context.
 7. Exactly 4 keyAssumptions entries.
 8. Exactly 5 forecast years (2026–2030).
 9. Each forecast year must contain exactly 8 metrics.
@@ -399,15 +418,16 @@ You must return ONLY valid JSON that strictly follows this schema:
 }
 
 STRICT RULES:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. Output must be valid JSON only.
 2. Do not include explanations outside JSON.
-3. Use the provided currency symbol.
+3. Use the provided currency context.
 4. Format numbers appropriately:
-   - Millions as "£126.7"
+   - Monetary values using market-appropriate notation based on the input
    - Percentages with "%"
    - Multiples with "x"
-   - EPS with "p" or appropriate currency notation
+   - EPS with market-appropriate per-share notation
    - Support special formatting like "<0.06", "75x+", "105+"
 5. Round values to maximum 1–2 decimal places.
 6. Calculate Y/Y growth from revenue.
@@ -467,10 +487,11 @@ You must return ONLY valid JSON that strictly follows this schema:
 }
 
 STRICT RULES:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. Output must be valid JSON only.
 2. Do not include explanations outside JSON.
-3. Use provided currency symbol for monetary formatting.
+3. Use the provided currency context for monetary formatting.
 4. If segment-level data is missing, intelligently infer structure based on:
    - Industry
    - Revenue growth
@@ -480,7 +501,7 @@ STRICT RULES:
    - "N/A"
    - or estimated qualitative language in comments.
 6. Format:
-   - Millions as "£123.4m" (or appropriate currency)
+   - Monetary values using market-appropriate large-number notation
    - Percentages as "+15%"
    - AUM as "£62.4bn"
    - Customers as "182k"
@@ -542,13 +563,14 @@ You must return ONLY valid JSON that strictly follows this schema:
 }
 
 STRICT RULES:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. Output must be valid JSON only.
 2. Do not include explanations outside JSON.
-3. Use provided currency symbol for formatting.
+3. Use the provided currency context for formatting.
 4. Format values:
-   - Millions: "£317.8m"
-   - EPS: "25.56p" or appropriate currency
+   - Monetary values using market-appropriate large-number notation
+   - EPS using market-appropriate per-share notation
    - Percentages: "+18%"
    - Margins: "43.4%" or "32.3bps"
    - If margin not applicable → "-"
@@ -584,6 +606,7 @@ Generate Section: "DCF VALUATION RECAP & PRICE TARGET" using ONLY provided struc
 Return strictly valid JSON matching DcfValuationRecapAndPriceTargetSchema.
 
 Rules:
+${REPORT_VALUE_FORMATTING_RULES}
 1. Keep valuation narration concise and institutional.
 2. Use price target framing with risk/reward context.
 3. Include exactly three sensitivity scenarios: Bull, Base, Bear.
@@ -599,6 +622,7 @@ Generate Section: "ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS" from ONLY the p
 Return strictly valid JSON matching AgmAndShareholderMattersSchema.
 
 Rules:
+${REPORT_VALUE_FORMATTING_RULES}
 1. Do not fabricate specific dates, locations, or vote outcomes unless inferable from input.
 2. Keep wording concise, institutional, and factual.
 3. Agenda rows must include expectedResult as a realistic probability-style statement.
@@ -614,6 +638,7 @@ Use ONLY the provided structured input data.
 Return strictly valid JSON matching ConclusionAndRecommendationSchema.
 
 Rules:
+${REPORT_VALUE_FORMATTING_RULES}
 1. Do not fabricate exact numbers if unavailable in the input.
 2. Keep tone objective, investment-research style, and concise.
 3. Every bullet should be specific and actionable.
@@ -629,6 +654,7 @@ export const CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT = `You are an insti
 Your task is to generate Section 8: "CONTINGENT LIABILITIES & REGULATORY RISKS" using ONLY the structured input data provided.
 
 Strict Rules:
+${REPORT_VALUE_FORMATTING_RULES}
 
 1. Output must strictly conform to the JSON schema:
    ContingentLiabilitiesRegulatoryRisksSchema.
@@ -678,10 +704,11 @@ Generate Section 10: "FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION" from 
 Return strictly valid JSON matching ForwardProjectionsAndValuationSchema.
 
 Rules:
+${REPORT_VALUE_FORMATTING_RULES}
 1. Output JSON only (no markdown, no comments).
 2. Keep values as formatted strings, preserving currency and % symbols.
 3. Income statement table must include exactly 14 rows in this order:
-   Revenue (£m), Y/Y Growth, Admin Expenses, Operating Income, OP Margin %, Finance Costs, PBT, PBT Margin %, Tax (19%), Net Income, Net Margin %, Diluted Shares (m), Diluted EPS (p), EPS Growth.
+   Revenue, Y/Y Growth, Admin Expenses, Operating Income, OP Margin %, Finance Costs, PBT, PBT Margin %, Tax, Net Income, Net Margin %, Diluted Shares, Diluted EPS, EPS Growth.
 4. Balance sheet table must include exactly 6 rows in this order:
    Cash, Total Assets, Total Debt, Shareholders' Equity, Debt/Equity, Current Ratio.
 5. Cash flow table must include exactly 7 rows in this order:

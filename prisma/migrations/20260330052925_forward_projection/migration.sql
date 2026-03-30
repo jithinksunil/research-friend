@@ -1,3 +1,18 @@
+-- DropForeignKey
+ALTER TABLE "comment" DROP CONSTRAINT "comment_companyId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "report" DROP CONSTRAINT "report_companyId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "report_enhancement_run" DROP CONSTRAINT "report_enhancement_run_companyId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "report_generation_run" DROP CONSTRAINT "report_generation_run_companyId_fkey";
+
+-- DropForeignKey
+ALTER TABLE "vote" DROP CONSTRAINT "vote_companyId_fkey";
+
 -- CreateTable
 CREATE TABLE "forward_projections_and_valuation" (
     "id" SERIAL NOT NULL,
@@ -82,22 +97,31 @@ CREATE TABLE "forward_credit_metric_row" (
 CREATE UNIQUE INDEX "forward_projections_and_valuation_reportId_key" ON "forward_projections_and_valuation"("reportId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "forward_income_statement_row_forwardProjectionsAndValuationId_metric_key" ON "forward_income_statement_row"("forwardProjectionsAndValuationId", "metric");
+CREATE UNIQUE INDEX "forward_income_statement_row_forwardProjectionsAndValuation_key" ON "forward_income_statement_row"("forwardProjectionsAndValuationId", "metric");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "forward_balance_sheet_row_forwardProjectionsAndValuationId_item_key" ON "forward_balance_sheet_row"("forwardProjectionsAndValuationId", "item");
+CREATE UNIQUE INDEX "forward_balance_sheet_row_forwardProjectionsAndValuationId__key" ON "forward_balance_sheet_row"("forwardProjectionsAndValuationId", "item");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "forward_cash_flow_row_forwardProjectionsAndValuationId_metric_key" ON "forward_cash_flow_row"("forwardProjectionsAndValuationId", "metric");
+CREATE UNIQUE INDEX "forward_cash_flow_row_forwardProjectionsAndValuationId_metr_key" ON "forward_cash_flow_row"("forwardProjectionsAndValuationId", "metric");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "forward_credit_metric_row_forwardProjectionsAndValuationId_metric_key" ON "forward_credit_metric_row"("forwardProjectionsAndValuationId", "metric");
+CREATE UNIQUE INDEX "forward_credit_metric_row_forwardProjectionsAndValuationId__key" ON "forward_credit_metric_row"("forwardProjectionsAndValuationId", "metric");
+
+-- AddForeignKey
+ALTER TABLE "comment" ADD CONSTRAINT "comment_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vote" ADD CONSTRAINT "vote_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "report" ADD CONSTRAINT "report_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "forward_projections_and_valuation" ADD CONSTRAINT "forward_projections_and_valuation_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "report"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "forward_income_statement_row" ADD CONSTRAINT "forward_income_statement_row_forwardProjectionsAndValuationId_fkey" FOREIGN KEY ("forwardProjectionsAndValuationId") REFERENCES "forward_projections_and_valuation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "forward_income_statement_row" ADD CONSTRAINT "forward_income_statement_row_forwardProjectionsAndValuatio_fkey" FOREIGN KEY ("forwardProjectionsAndValuationId") REFERENCES "forward_projections_and_valuation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "forward_balance_sheet_row" ADD CONSTRAINT "forward_balance_sheet_row_forwardProjectionsAndValuationId_fkey" FOREIGN KEY ("forwardProjectionsAndValuationId") REFERENCES "forward_projections_and_valuation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -107,3 +131,9 @@ ALTER TABLE "forward_cash_flow_row" ADD CONSTRAINT "forward_cash_flow_row_forwar
 
 -- AddForeignKey
 ALTER TABLE "forward_credit_metric_row" ADD CONSTRAINT "forward_credit_metric_row_forwardProjectionsAndValuationId_fkey" FOREIGN KEY ("forwardProjectionsAndValuationId") REFERENCES "forward_projections_and_valuation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "report_generation_run" ADD CONSTRAINT "report_generation_run_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "report_enhancement_run" ADD CONSTRAINT "report_enhancement_run_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE;

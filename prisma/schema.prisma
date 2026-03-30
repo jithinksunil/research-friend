@@ -29,17 +29,17 @@ model User {
 }
 
 model Company {
-  id          String    @id @default(uuid())
-  symbol      String    @unique
-  companyName String?
-  data        Json?
-  comments    Comment[]
-  votes       Vote[]
-  report      Report?
+  id                    String                 @id @default(uuid())
+  symbol                String                 @unique
+  companyName           String?
+  data                  Json?
+  comments              Comment[]
+  votes                 Vote[]
+  report                Report?
   reportGenerationRuns  ReportGenerationRun[]
   reportEnhancementRuns ReportEnhancementRun[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
   @@map("company")
 }
@@ -48,7 +48,7 @@ model Comment {
   id        Int      @id @default(autoincrement())
   text      String
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
@@ -60,7 +60,7 @@ model Comment {
 model Vote {
   id        Int      @id @default(autoincrement())
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   positive  Boolean
@@ -79,7 +79,7 @@ model Report {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
-  company                                Company                                 @relation(fields: [companyId], references: [id])
+  company                                Company                                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   shareHolderStructure                   ShareHolderStructure?
   analystRecommendation                  AnalystRecommendation?
   equityValuationAndDcfAnalysis          EquityValuationAndDcfAnalysis?
@@ -87,8 +87,8 @@ model Report {
   businessSegmentData                    BusinessSegmentData?
   interimResultsAndQuarterlyPerformance  InterimResultsAndQuarterlyPerformance?
   contingentLiabilitiesAndRegulatoryRisk ContingentLiabilitiesAndRegulatoryRisk?
-  dcfValuationRecapAndPriceTarget      DcfValuationRecapAndPriceTarget?
-  agmAndShareholderMatters              AgmAndShareholderMatters?
+  dcfValuationRecapAndPriceTarget        DcfValuationRecapAndPriceTarget?
+  agmAndShareholderMatters               AgmAndShareholderMatters?
   forwardProjectionsAndValuation         ForwardProjectionsAndValuation?
   conclusionAndRecommendation            ConclusionAndRecommendation?
 
@@ -710,7 +710,6 @@ model ContingentLiabilitiesAndRegulatoryRisk {
   @@map("contingent_liabilities_and_regulatory_risk")
 }
 
-
 model BalanceSheetContingency {
   id Int @id @default(autoincrement())
 
@@ -768,29 +767,25 @@ enum RecommendationType {
   @@map("recommendation_type")
 }
 
-
-
-
-
 model DcfValuationRecapAndPriceTarget {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
   report   Report @relation(fields: [reportId], references: [id])
 
-  sectionTitle          String
-  valuationSummaryTitle String
-  baseCaseAssumption    String
-  pvOfFcf               String
-  pvOfTerminalValue     String
-  enterpriseValue       String
-  netDebt               String
-  equityValue           String
-  sharesDiluted         String
-  fairValuePerShare     String
-  currentPrice          String
-  upside                String
-  recommendation        RecommendationType
-  twelveMonthPriceTarget String
+  sectionTitle            String
+  valuationSummaryTitle   String
+  baseCaseAssumption      String
+  pvOfFcf                 String
+  pvOfTerminalValue       String
+  enterpriseValue         String
+  netDebt                 String
+  equityValue             String
+  sharesDiluted           String
+  fairValuePerShare       String
+  currentPrice            String
+  upside                  String
+  recommendation          RecommendationType
+  twelveMonthPriceTarget  String
   rationaleForPriceTarget String[]
 
   sensitivityAnalysisRecap DcfSensitivityAnalysisRecap[]
@@ -816,12 +811,13 @@ model DcfSensitivityAnalysisRecap {
 
   @@map("dcf_sensitivity_analysis_recap")
 }
+
 model AgmAndShareholderMatters {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
   report   Report @relation(fields: [reportId], references: [id])
 
-  sectionTitle String
+  sectionTitle  String
   announcedDate String
   location      String
   noticeFiled   String
@@ -962,21 +958,21 @@ model ConclusionAndRecommendation {
   reportId Int    @unique
   report   Report @relation(fields: [reportId], references: [id])
 
-  sectionTitle            String
-  summary                 String
-  strengths               String[]
-  valuationSummary        String
-  analystConsensus        String
-  investorFit             String[]
-  entryStrategy           String[]
-  upsideCatalysts         String[]
-  downsideCatalysts       String[]
-  recommendation          RecommendationType
-  priceTarget             String
-  expectedReturn          String
-  timeHorizon             String
-  riskProfile             String
-  disclaimer              String
+  sectionTitle      String
+  summary           String
+  strengths         String[]
+  valuationSummary  String
+  analystConsensus  String
+  investorFit       String[]
+  entryStrategy     String[]
+  upsideCatalysts   String[]
+  downsideCatalysts String[]
+  recommendation    RecommendationType
+  priceTarget       String
+  expectedReturn    String
+  timeHorizon       String
+  riskProfile       String
+  disclaimer        String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1022,7 +1018,7 @@ model ReportPromptTemplate {
 model ReportGenerationRun {
   id                    String   @id @default(uuid())
   companyId             String
-  company               Company  @relation(fields: [companyId], references: [id])
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   symbol                String
   sectionKey            String
   promptTemplateVersion Int?
@@ -1038,7 +1034,7 @@ model ReportGenerationRun {
 model ReportEnhancementRun {
   id                 String   @id @default(uuid())
   companyId          String
-  company            Company  @relation(fields: [companyId], references: [id])
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   symbol             String
   sectionKey         String
   sectionId          Int

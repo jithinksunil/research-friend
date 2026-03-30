@@ -18,6 +18,12 @@ import {
   SHARE_HOLDER_STRUCTURE_PROMPT,
 } from '@/lib';
 interface StockResearchData {
+  context: {
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
+  };
   company: {
     name: string | null;
     sector: string | null;
@@ -60,7 +66,6 @@ interface StockResearchData {
     totalDividendsLastYear: number | null;
     dividendYield: number | null;
   };
-  currency: string;
 }
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
@@ -70,6 +75,7 @@ type LegacyIncomeStatement = {
   totalRevenue: number | null;
   operatingIncome: number | null;
   netIncome: number | null;
+  interestExpense: number | null;
 };
 
 type LegacyBalanceSheetStatement = {
@@ -89,9 +95,22 @@ type LegacyCashflowStatement = {
   repurchasesOfStock: number | null;
 };
 
+export type ReportMarketType = 'UK' | 'US' | 'India' | 'Global';
+
+export type ReportMarketContext = {
+  currencyCode: string;
+  exchangeName: string | null;
+  marketType: ReportMarketType;
+  currencySymbol: string | null;
+};
+
 function getNumberField(item: Record<string, unknown>, key: string): number | null {
   const value = item[key];
   return typeof value === 'number' ? value : null;
+}
+
+function toPercentOrNull(value: number | null | undefined): number | null {
+  return typeof value === 'number' ? value * 100 : null;
 }
 
 async function getAnnualFinancialStatements(symbol: string, years = 8) {
@@ -115,6 +134,7 @@ async function getAnnualFinancialStatements(symbol: string, years = 8) {
       totalRevenue: getNumberField(normalizedItem, 'totalRevenue'),
       operatingIncome: getNumberField(normalizedItem, 'operatingIncome'),
       netIncome: getNumberField(normalizedItem, 'netIncome'),
+      interestExpense: getNumberField(normalizedItem, 'interestExpense'),
     };
   });
 
@@ -194,6 +214,156 @@ export async function getReportSourceBundle(symbol: string): Promise<ReportSourc
   return { summary, chart, annualStatements };
 }
 
+function deriveCurrencySymbol(currencyCode: string): string | null {
+  try {
+    const parts = new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency: currencyCode,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(1);
+
+    return parts.find((part) => part.type === 'currency')?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function deriveMarketType(exchangeName: string | null, country: string | null): ReportMarketType {
+  const normalizedExchange = exchangeName?.toLowerCase() ?? '';
+  const normalizedCountry = country?.toLowerCase() ?? '';
+
+  if (
+    normalizedExchange.includes('bse') ||
+    normalizedExchange.includes('nse') ||
+    normalizedExchange.includes('india') ||
+    normalizedExchange.includes('mumbai')
+  ) {
+    return 'India';
+  }
+
+  if (
+    normalizedExchange.includes('nasdaq') ||
+    normalizedExchange.includes('nyse') ||
+    normalizedExchange.includes('amex') ||
+    normalizedExchange.includes('new york')
+  ) {
+    return 'US';
+  }
+
+  if (
+    normalizedExchange.includes('london') ||
+    normalizedExchange.includes('lse') ||
+    normalizedExchange.includes('aim')
+  ) {
+    return 'UK';
+  }
+
+  if (normalizedCountry.includes('india')) return 'India';
+  if (normalizedCountry.includes('united kingdom') || normalizedCountry === 'uk') return 'UK';
+  if (
+    normalizedCountry.includes('united states') ||
+    normalizedCountry.includes('usa') ||
+    normalizedCountry === 'us'
+  ) {
+    return 'US';
+  }
+
+  return 'Global';
+}
+
+export function resolveReportMarketContextFromSummary(
+  summary: ReportSourceBundle['summary'],
+): ReportMarketContext {
+  const currencyCode =
+    summary.price?.currency ??
+    summary.summaryDetail?.currency ??
+    summary.financialData?.financialCurrency ??
+    'USD';
+
+  const exchangeName =
+    summary.price?.exchangeName ??
+    summary.price?.exchange ??
+    summary.price?.quoteSourceName ??
+    null;
+
+  const marketType = deriveMarketType(exchangeName, summary.assetProfile?.country ?? null);
+
+  return {
+    currencyCode,
+    exchangeName,
+    marketType,
+    currencySymbol: deriveCurrencySymbol(currencyCode),
+  };
+}
+
+export function resolveReportMarketContext(sourceBundle: ReportSourceBundle): ReportMarketContext {
+  return resolveReportMarketContextFromSummary(sourceBundle.summary);
+}
+
+function collectStringValues(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectStringValues(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.values(value).flatMap((item) => collectStringValues(item));
+  }
+  return [];
+}
+
+function validateReportCurrencyConsistency(payload: unknown, marketContext: ReportMarketContext) {
+  const symbolMap: Record<string, string[]> = {
+    INR: ['₹', '$', '£', '€', '¥'],
+    USD: ['₹', '£', '€', '¥'],
+    GBP: ['₹', '$', '€', '¥'],
+    EUR: ['₹', '$', '£', '¥'],
+    JPY: ['₹', '$', '£', '€'],
+  };
+
+  const conflictingSymbols = symbolMap[marketContext.currencyCode];
+  if (!conflictingSymbols?.length) return;
+
+  const allowedSymbol = marketContext.currencySymbol;
+  const disallowedSymbols = conflictingSymbols.filter((symbol) => symbol !== allowedSymbol);
+  if (!disallowedSymbols.length) return;
+
+  for (const text of collectStringValues(payload)) {
+    if (disallowedSymbols.some((symbol) => text.includes(symbol))) {
+      throw new Error(
+        `Generated section output contains currency markers inconsistent with ${marketContext.currencyCode}`,
+      );
+    }
+  }
+}
+
+async function fetchReportSection<T>({
+  userPrompt,
+  systemPrompt,
+  schema,
+  schemaName,
+  enableWebSearch,
+  marketContext,
+}: {
+  userPrompt: string;
+  systemPrompt: string;
+  schema: z.ZodObject<z.ZodRawShape>;
+  schemaName: string;
+  enableWebSearch?: boolean;
+  marketContext: ReportMarketContext;
+}): Promise<T> {
+  const analysis = await fetchSection<T>({
+    userPrompt,
+    systemPrompt,
+    schema,
+    schemaName,
+    options: { enableWebSearch },
+  });
+
+  validateReportCurrencyConsistency(analysis, marketContext);
+
+  return analysis;
+}
+
 function calculateOneYearReturnPercent(chart: ReportSourceBundle['chart']) {
   const quotes = chart.quotes ?? [];
   const lastClose = quotes[quotes.length - 1]?.adjclose ?? null;
@@ -213,9 +383,10 @@ export async function getTrimmedExecutiveData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<StockResearchData> {
-  const { annualStatements, summary, chart } =
-    sourceBundle ?? (await getReportSourceBundle(symbol));
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { annualStatements, summary, chart } = sharedBundle;
   const { incomeStatements } = annualStatements;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const safe = (v: any) => v ?? null;
 
@@ -247,6 +418,12 @@ export async function getTrimmedExecutiveData(
   const oneYearReturn = calculateOneYearReturnPercent(chart);
 
   return {
+    context: {
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
+    },
     company: {
       name: safe(summary.price?.longName),
       sector: safe(summary.assetProfile?.sector),
@@ -273,15 +450,15 @@ export async function getTrimmedExecutiveData(
       freeCashFlow: safe(summary.financialData?.freeCashflow),
       totalDebt: safe(summary.financialData?.totalDebt),
       totalCash: safe(summary.financialData?.totalCash),
-      roe: safe(summary.financialData?.returnOnEquity) * 100,
+      roe: toPercentOrNull(summary.financialData?.returnOnEquity),
     },
 
     analyst: {
       targetMean,
       upsidePercent,
       recommendationKey: safe(summary.financialData?.recommendationKey),
-      earningsGrowth: safe(summary.financialData?.earningsGrowth) * 100,
-      revenueGrowth: safe(summary.financialData?.revenueGrowth) * 100,
+      earningsGrowth: toPercentOrNull(summary.financialData?.earningsGrowth),
+      revenueGrowth: toPercentOrNull(summary.financialData?.revenueGrowth),
     },
 
     pricePerformance: {
@@ -292,9 +469,8 @@ export async function getTrimmedExecutiveData(
 
     dividends: {
       totalDividendsLastYear: dividends,
-      dividendYield: safe(summary.summaryDetail?.dividendYield) * 100,
+      dividendYield: toPercentOrNull(summary.summaryDetail?.dividendYield),
     },
-    currency: 'INR',
   };
 }
 
@@ -308,12 +484,13 @@ export async function getExecutiveInformationAboutCompany(
   options?: SectionGenerationOptions,
 ) {
   const response = await getTrimmedExecutiveData(symbol, options?.sourceBundle);
-  const analysis = await fetchSection<z.infer<typeof ExecutiveSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof ExecutiveSchema>>({
     userPrompt: `Input data: ${JSON.stringify(response)}`,
     systemPrompt: EXECUTIVE_PROMPT,
     schema: ExecutiveSchema,
     schemaName: 'ExecutiveSchema',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
   return { companyName: response.company.name, ...analysis };
 }
@@ -331,6 +508,12 @@ export const ExecutiveSchema = z.object({
 });
 
 interface CompanyOverviewMetrics {
+  context: {
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
+  };
   price: number | null;
   marketCap: number | null;
   sharesOutstanding: number | null;
@@ -367,7 +550,9 @@ export async function getTrimmedCompanyOverviewMetrics(
   marketRiskPremium = 0.06, // 6% India ERP
   sourceBundle?: ReportSourceBundle,
 ): Promise<CompanyOverviewMetrics> {
-  const { summary, chart } = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary, chart } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const safe = (v: any) => v ?? null;
 
@@ -442,6 +627,12 @@ export async function getTrimmedCompanyOverviewMetrics(
   const oneYearReturnPercent = calculateOneYearReturnPercent(chart);
 
   return {
+    context: {
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
+    },
     price,
     marketCap: safe(summary.price?.marketCap),
     sharesOutstanding,
@@ -488,7 +679,7 @@ export async function getOverviewMetricsAboutCompany(
     undefined,
     options?.sourceBundle,
   );
-  const analysis = await fetchSection<z.infer<typeof CompanyOverviewSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof CompanyOverviewSchema>>({
     userPrompt: `Generate the Company Overview & Stock Metrics section using the following input data:
 
 CompanyOverviewMetrics:
@@ -496,7 +687,8 @@ ${JSON.stringify(response)}`,
     systemPrompt: OVERVIEW_PROMPT,
     schema: CompanyOverviewSchema,
     schemaName: 'OverviewAndStockMetrics',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
   return analysis;
 }
@@ -524,6 +716,12 @@ export const CompanyOverviewSchema = z.object({
 });
 
 interface ShareholderStructure {
+  context: {
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
+  };
   freeFloatPercent: number | null;
   institutionalPercent: number | null;
   insiderPercent: number | null;
@@ -555,7 +753,9 @@ export async function getTrimmedShareholderStructure(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<ShareholderStructure> {
-  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const safe = (v: any) => v ?? null;
 
@@ -583,7 +783,7 @@ export async function getTrimmedShareholderStructure(
   const majorInstitutions =
     summary.institutionOwnership?.ownershipList?.map((inst: any) => ({
       name: inst.organization,
-      percentHeld: inst.percentHeld ? inst.percentHeld * 100 : 0,
+      percentHeld: typeof inst.pctHeld === 'number' ? inst.pctHeld * 100 : 0,
     })) ?? [];
 
   // --------------------------
@@ -633,6 +833,12 @@ export async function getTrimmedShareholderStructure(
   }
 
   return {
+    context: {
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
+    },
     freeFloatPercent,
     institutionalPercent,
     insiderPercent,
@@ -683,19 +889,25 @@ export async function getShareholderStructureAboutCompany(
   options?: SectionGenerationOptions,
 ) {
   const response = await getTrimmedShareholderStructure(symbol, options?.sourceBundle);
-  const analysis = await fetchSection<z.infer<typeof ShareholderStructureSectionSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof ShareholderStructureSectionSchema>>({
     userPrompt: `Generate the "Shareholder Structure & Insider Activity" section using the following structured input data: ShareholderStructureRawData: ${JSON.stringify(response)}`,
     systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
     schema: ShareholderStructureSectionSchema,
     schemaName: 'ShareHolderStructure',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
   return analysis;
 }
 
 interface AnalystRecommendationsData {
+  context: {
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
+  };
   currentPrice: number | null;
-  currency: string | null;
   reportingPeriod: string;
 
   ratings: {
@@ -722,15 +934,15 @@ export async function getAnalystRecommendationsData(
   reportingPeriod: string = 'Last 3 Months',
   sourceBundle?: ReportSourceBundle,
 ): Promise<AnalystRecommendationsData> {
-  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   // -------------------------
   // Current Market Data
   // -------------------------
 
   const currentPrice = summary.price?.regularMarketPrice ?? null;
-  const currency = summary.price?.currency ?? null;
-
   // -------------------------
   // Analyst Ratings
   // -------------------------
@@ -757,8 +969,13 @@ export async function getAnalystRecommendationsData(
   const recommendationKey = summary.financialData?.recommendationKey ?? null;
 
   return {
+    context: {
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
+    },
     currentPrice,
-    currency,
     reportingPeriod,
 
     ratings: {
@@ -817,19 +1034,23 @@ export async function getAnalystRecommendationsAboutCompany(
 ) {
   const response = await getAnalystRecommendationsData(symbol, undefined, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof AnalystRecommendationsSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof AnalystRecommendationsSchema>>({
     userPrompt: `Generate the "Analyst Recommendations & Price Targets" section using the following structured input: ${JSON.stringify(response)}`,
     systemPrompt: ANALYST_RECOMMENDATION_PROMPT,
     schema: AnalystRecommendationsSchema,
     schemaName: 'AnalystRecommendations',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
   return analysis;
 }
 
 interface EquityValuationData {
   context: {
-    currency: string | null;
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
     forecastYears: number;
     currentPrice: number | null;
     reportingStandard: 'UK' | 'US' | 'India' | 'Global';
@@ -894,14 +1115,13 @@ export async function getTrimmedEquityValuationData(
   const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
   const { summary } = sharedBundle;
   const { incomeStatements } = sharedBundle.annualStatements;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   // -----------------------------
   // Context
   // -----------------------------
 
   const currentPrice = summary.price?.regularMarketPrice ?? null;
-
-  const currency = summary.price?.currency ?? null;
 
   // -----------------------------
   // Financial Inputs
@@ -1003,7 +1223,10 @@ export async function getTrimmedEquityValuationData(
 
   return {
     context: {
-      currency,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
       forecastYears,
       currentPrice,
       reportingStandard,
@@ -1106,20 +1329,24 @@ export async function getEquityValuationAboutCompany(
   const response = await getTrimmedEquityValuationData(symbol, {
     sourceBundle: options?.sourceBundle,
   });
-  const analysis = await fetchSection<z.infer<typeof EquityValuationDcfSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof EquityValuationDcfSchema>>({
     userPrompt: `Generate Section 4: Equity Valuation & DCF Analysis Using the following structured input from getEquityValuationData: ${JSON.stringify(response)}`,
     systemPrompt: EQUITY_VALUATION_PROMPT,
     schema: EquityValuationDcfSchema,
     schemaName: 'EquityValuationDcf',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
   return analysis;
 }
 
 interface FinancialStatementsAnalysisData {
   context: {
-    currency: string | null;
-    reportingStandard: 'UK' | 'US' | 'India' | 'Global';
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
+    reportingStandard: ReportMarketType;
     fiscalYearsCovered: string; // "FY20–FY25"
   };
 
@@ -1159,13 +1386,12 @@ interface FinancialStatementsAnalysisData {
 
 export async function getTrimmedFinancialStatementsAnalysisData(
   symbol: string,
-  reportingStandard: 'UK' | 'US' | 'India' | 'Global' = 'Global',
+  reportingStandard?: ReportMarketType,
   sourceBundle?: ReportSourceBundle,
 ): Promise<FinancialStatementsAnalysisData> {
   const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
   const { summary, annualStatements } = sharedBundle;
-
-  const currency = summary.price?.currency ?? null;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const { incomeStatements, balanceSheetStatements, cashflowStatements } = annualStatements;
 
@@ -1249,8 +1475,11 @@ export async function getTrimmedFinancialStatementsAnalysisData(
 
   return {
     context: {
-      currency,
-      reportingStandard,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
+      reportingStandard: reportingStandard ?? marketContext.marketType,
       fiscalYearsCovered,
     },
 
@@ -1351,7 +1580,7 @@ export async function getFinancialStatementsAnalysisAboutCompany(
     options?.sourceBundle,
   );
 
-  const analysis = await fetchSection<z.infer<typeof FinancialStatementsAnalysisSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof FinancialStatementsAnalysisSchema>>({
     userPrompt: `
     Generate Section 5: Financial Statements Analysis 
     Using the following structured data from getFinancialStatementsAnalysisData: ${JSON.stringify(response)}
@@ -1359,7 +1588,8 @@ export async function getFinancialStatementsAnalysisAboutCompany(
     systemPrompt: FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
     schema: FinancialStatementsAnalysisSchema,
     schemaName: 'FinancialStatementsAnalysis',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
 
   return analysis;
@@ -1367,10 +1597,12 @@ export async function getFinancialStatementsAnalysisAboutCompany(
 
 interface BusinessSegmentsData {
   context: {
-    currency: string | null;
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
     industry: string | null;
     sector: string | null;
-    marketType: 'UK' | 'US' | 'India' | 'Global';
   };
 
   revenue: {
@@ -1415,13 +1647,11 @@ interface BusinessSegmentsData {
 
 export async function getTrimmedBusinessSegmentsData(
   symbol: string,
-  marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
   sourceBundle?: ReportSourceBundle,
 ): Promise<BusinessSegmentsData> {
   const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
   const { summary, annualStatements } = sharedBundle;
-
-  const currency = summary.price?.currency ?? null;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const { incomeStatements, balanceSheetStatements } = annualStatements;
 
@@ -1473,10 +1703,12 @@ export async function getTrimmedBusinessSegmentsData(
 
   return {
     context: {
-      currency,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
       industry: summary.assetProfile?.industry ?? null,
       sector: summary.assetProfile?.sector ?? null,
-      marketType,
     },
 
     revenue: {
@@ -1581,14 +1813,17 @@ export async function getBusinessSegmentDataAboutCompany(
   symbol: string,
   options?: SectionGenerationOptions,
 ) {
-  const response = await getTrimmedBusinessSegmentsData(symbol, undefined, options?.sourceBundle);
+  const response = await getTrimmedBusinessSegmentsData(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof BusinessSegmentsCompetitivePositionSchema>>({
+  const analysis = await fetchReportSection<
+    z.infer<typeof BusinessSegmentsCompetitivePositionSchema>
+  >({
     userPrompt: `
     Generate Section 6: Business Segments & Competitive Position
     Using the input: ${JSON.stringify(response)}
     Additional Context:
-    - Currency: ${response.context.currency}
+    - Currency Code: ${response.context.currencyCode}
+    - Exchange: ${response.context.exchangeName}
     - Industry: ${response.context.industry}
     - Sector: ${response.context.sector}
     - Market Type: ${response.context.marketType}
@@ -1596,7 +1831,8 @@ export async function getBusinessSegmentDataAboutCompany(
     systemPrompt: BUSINESS_SEGMENT_DATA_PROMPT,
     schema: BusinessSegmentsCompetitivePositionSchema,
     schemaName: 'BusinessSegmentsCompetitivePosition',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
 
   return analysis;
@@ -1604,10 +1840,12 @@ export async function getBusinessSegmentDataAboutCompany(
 
 interface InterimResultsData {
   context: {
-    currency: string | null;
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
     fiscalYearLabel: string | null;
     previousFiscalYearLabel: string | null;
-    marketType: 'UK' | 'US' | 'India' | 'Global';
   };
 
   fullYearComparison: {
@@ -1671,13 +1909,11 @@ type ExtendedCashFlowStatement = {
 
 export async function getInterimResultsData(
   symbol: string,
-  marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
   sourceBundle?: ReportSourceBundle,
 ): Promise<InterimResultsData> {
   const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
   const { summary, annualStatements } = sharedBundle;
-
-  const currency = summary.price?.currency ?? null;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const { incomeStatements, cashflowStatements } = annualStatements;
 
@@ -1734,10 +1970,12 @@ export async function getInterimResultsData(
 
   return {
     context: {
-      currency,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
       fiscalYearLabel: latestIncome?.endDate ?? null,
       previousFiscalYearLabel: previousIncome?.endDate ?? null,
-      marketType,
     },
 
     fullYearComparison: {
@@ -1849,14 +2087,17 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   symbol: string,
   options?: SectionGenerationOptions,
 ) {
-  const response = await getInterimResultsData(symbol, undefined, options?.sourceBundle);
+  const response = await getInterimResultsData(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof InterimResultsQuarterlyPerformanceSchema>>({
+  const analysis = await fetchReportSection<
+    z.infer<typeof InterimResultsQuarterlyPerformanceSchema>
+  >({
     userPrompt: `
     Generate Section 7: Interim Results & Quarterly Performance
     Using input: ${JSON.stringify(response)}
     Additional Context:
-    - Currency: ${response.context.currency}
+    - Currency Code: ${response.context.currencyCode}
+    - Exchange: ${response.context.exchangeName}
     - Fiscal Year: ${response.context.fiscalYearLabel}
     - Previous Fiscal Year: ${response.context.previousFiscalYearLabel}
     - Market Type: ${response.context.marketType}
@@ -1864,7 +2105,8 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
     systemPrompt: INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
     schema: InterimResultsQuarterlyPerformanceSchema,
     schemaName: 'InterimResultsQuarterlyPerformance',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
 
   return analysis;
@@ -1872,11 +2114,13 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
 
 interface ContingentLiabilitiesRegulatoryRiskData {
   context: {
-    currency: string | null;
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
     industry: string | null;
     sector: string | null;
     country: string | null;
-    marketType: 'UK' | 'US' | 'India' | 'Global';
   };
 
   scaleMetrics: {
@@ -1944,21 +2188,21 @@ type ExtendedCashFlow = {
 
 type ExtendedIncomeStatement = {
   netIncome?: number;
+  interestExpense?: number;
 };
 
 export async function getContingentLiabilitiesData(
   symbol: string,
-  marketType: 'UK' | 'US' | 'India' | 'Global' = 'Global',
   sourceBundle?: ReportSourceBundle,
 ): Promise<ContingentLiabilitiesRegulatoryRiskData> {
   const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
   const { summary, chart, annualStatements } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   /* ============================= */
   /* Context                       */
   /* ============================= */
 
-  const currency = summary.price?.currency ?? null;
   const industry = summary.assetProfile?.industry ?? null;
   const sector = summary.assetProfile?.sector ?? null;
   const country = summary.assetProfile?.country ?? null;
@@ -2011,6 +2255,8 @@ export async function getContingentLiabilitiesData(
   const incomeStatements = annualStatements.incomeStatements;
 
   const latestIncome = incomeStatements[0] as ExtendedIncomeStatement | undefined;
+  const latestInterestExpense =
+    typeof latestIncome?.interestExpense === 'number' ? latestIncome.interestExpense : null;
 
   const netIncome = latestIncome?.netIncome ?? null;
 
@@ -2022,11 +2268,7 @@ export async function getContingentLiabilitiesData(
 
   const ebitda = summary.financialData?.ebitda ?? null;
 
-  const interestExpense = summary.financialData?.interestExpense ?? null;
-
-  const interestCoverage =
-    //@ts-ignore
-    ebitda && interestExpense ? ebitda / interestExpense : null;
+  const interestCoverage = ebitda && latestInterestExpense ? ebitda / latestInterestExpense : null;
 
   const netDebtToEbitda = netDebt && ebitda ? netDebt / ebitda : null;
 
@@ -2072,11 +2314,13 @@ export async function getContingentLiabilitiesData(
 
   return {
     context: {
-      currency,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
       industry,
       sector,
       country,
-      marketType,
     },
 
     scaleMetrics: {
@@ -2163,9 +2407,11 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
   symbol: string,
   options?: SectionGenerationOptions,
 ) {
-  const response = await getContingentLiabilitiesData(symbol, undefined, options?.sourceBundle);
+  const response = await getContingentLiabilitiesData(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof ContingentLiabilitiesRegulatoryRisksSchema>>({
+  const analysis = await fetchReportSection<
+    z.infer<typeof ContingentLiabilitiesRegulatoryRisksSchema>
+  >({
     userPrompt: `
     Generate Section 8: CONTINGENT LIABILITIES & REGULATORY RISKS 
     based strictly on the following structured input data.
@@ -2184,7 +2430,8 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
       - Industry: ${response.context.industry}
       - Sector: ${response.context.sector}
       - Market Type: ${response.context.marketType}
-      - Currency: ${response.context.currency}
+      - Currency Code: ${response.context.currencyCode}
+      - Exchange: ${response.context.exchangeName}
 
     3. If explicit contingent liabilities are not present:
       - Infer realistic regulatory cost categories
@@ -2202,7 +2449,8 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
     systemPrompt: CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
     schema: ContingentLiabilitiesRegulatoryRisksSchema,
     schemaName: 'ContingentLiabilitiesRegulatoryRisks',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.context,
   });
 
   return analysis;
@@ -2211,8 +2459,10 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
 interface DcfValuationRecapData {
   company: {
     name: string | null;
-    marketType: 'UK' | 'US' | 'India' | 'Global';
-    currency: string | null;
+    marketType: ReportMarketType;
+    currencyCode: string;
+    exchangeName: string | null;
+    currencySymbol: string | null;
   };
   valuation: {
     currentPrice: number | null;
@@ -2237,24 +2487,19 @@ export async function getDcfValuationRecapData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<DcfValuationRecapData> {
-  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
-
-  const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: DcfValuationRecapData['company']['marketType'] = country.includes('india')
-    ? 'India'
-    : country.includes('united kingdom') || country.includes('uk')
-      ? 'UK'
-      : country.includes('united states') || country.includes('usa')
-        ? 'US'
-        : 'Global';
 
   return {
     company: {
       name: summary.price?.longName ?? null,
-      marketType,
-      currency: summary.price?.currency ?? null,
+      marketType: marketContext.marketType,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      currencySymbol: marketContext.currencySymbol,
     },
     valuation: {
       currentPrice: asNumber(summary.price?.regularMarketPrice),
@@ -2262,7 +2507,7 @@ export async function getDcfValuationRecapData(
       targetHighPrice: asNumber(summary.financialData?.targetHighPrice),
       targetLowPrice: asNumber(summary.financialData?.targetLowPrice),
       recommendationKey: summary.financialData?.recommendationKey ?? null,
-      enterpriseValue: asNumber(summary.financialData?.enterpriseValue),
+      enterpriseValue: asNumber(summary.defaultKeyStatistics?.enterpriseValue),
       marketCap: asNumber(summary.price?.marketCap),
       totalDebt: asNumber(summary.financialData?.totalDebt),
       totalCash: asNumber(summary.financialData?.totalCash),
@@ -2311,7 +2556,7 @@ export async function getDcfValuationRecapAndPriceTargetAboutCompany(
 ) {
   const response = await getDcfValuationRecapData(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof DcfValuationRecapAndPriceTargetSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof DcfValuationRecapAndPriceTargetSchema>>({
     userPrompt: `
 Generate Section 9: DCF VALUATION RECAP & PRICE TARGET.
 Input Data: ${JSON.stringify(response)}
@@ -2326,7 +2571,8 @@ Requirements:
     systemPrompt: DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
     schema: DcfValuationRecapAndPriceTargetSchema,
     schemaName: 'DcfValuationRecapAndPriceTargetSchema',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.company,
   });
 
   return analysis;
@@ -2335,8 +2581,10 @@ Requirements:
 interface AgmAndShareholderMattersData {
   company: {
     name: string | null;
-    marketType: 'UK' | 'US' | 'India' | 'Global';
-    currency: string | null;
+    marketType: ReportMarketType;
+    currencyCode: string;
+    exchangeName: string | null;
+    currencySymbol: string | null;
   };
   agm: {
     expectedDate: string | null;
@@ -2361,31 +2609,21 @@ export async function getAgmAndShareholderMattersData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<AgmAndShareholderMattersData> {
-  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
-
-  const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: AgmAndShareholderMattersData['company']['marketType'] = country.includes(
-    'india',
-  )
-    ? 'India'
-    : country.includes('united kingdom') || country.includes('uk')
-      ? 'UK'
-      : country.includes('united states') || country.includes('usa')
-        ? 'US'
-        : 'Global';
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const asNumber = (value: unknown): number | null => (typeof value === 'number' ? value : null);
 
-  const exDividendTimestamp = asNumber(summary.calendarEvents?.exDividendDate);
-  const exDividendDate = exDividendTimestamp
-    ? new Date(exDividendTimestamp * 1000).toISOString()
-    : null;
+  const exDividendDate = summary.calendarEvents?.exDividendDate?.toISOString() ?? null;
 
   return {
     company: {
       name: summary.price?.longName ?? null,
-      marketType,
-      currency: summary.price?.currency ?? null,
+      marketType: marketContext.marketType,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      currencySymbol: marketContext.currencySymbol,
     },
     agm: {
       expectedDate: exDividendDate,
@@ -2393,11 +2631,11 @@ export async function getAgmAndShareholderMattersData(
       noticeFiledDate: exDividendDate,
     },
     governance: {
-      auditRisk: asNumber(summary.defaultKeyStatistics?.auditRisk),
-      boardRisk: asNumber(summary.defaultKeyStatistics?.boardRisk),
-      compensationRisk: asNumber(summary.defaultKeyStatistics?.compensationRisk),
-      shareholderRightsRisk: asNumber(summary.defaultKeyStatistics?.shareHolderRightsRisk),
-      overallRisk: asNumber(summary.defaultKeyStatistics?.overallRisk),
+      auditRisk: asNumber(summary.assetProfile?.auditRisk),
+      boardRisk: asNumber(summary.assetProfile?.boardRisk),
+      compensationRisk: asNumber(summary.assetProfile?.compensationRisk),
+      shareholderRightsRisk: asNumber(summary.assetProfile?.shareHolderRightsRisk),
+      overallRisk: asNumber(summary.assetProfile?.overallRisk),
     },
     valuationSignals: {
       marketCap: summary.price?.marketCap ?? null,
@@ -2434,7 +2672,7 @@ export async function getAgmAndShareholderMattersAboutCompany(
 ) {
   const response = await getAgmAndShareholderMattersData(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof AgmAndShareholderMattersSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof AgmAndShareholderMattersSchema>>({
     userPrompt: `
 Generate section for ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS.
 Input Data: ${JSON.stringify(response)}
@@ -2448,7 +2686,8 @@ Requirements:
     systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
     schema: AgmAndShareholderMattersSchema,
     schemaName: 'AgmAndShareholderMattersSchema',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.company,
   });
 
   return analysis;
@@ -2457,8 +2696,10 @@ Requirements:
 interface ForwardProjectionsValuationInput {
   company: {
     name: string | null;
-    currency: string | null;
-    marketType: 'UK' | 'US' | 'India' | 'Global';
+    currencyCode: string;
+    exchangeName: string | null;
+    marketType: ReportMarketType;
+    currencySymbol: string | null;
   };
   valuationSignals: {
     currentPrice: number | null;
@@ -2480,24 +2721,17 @@ export async function getForwardProjectionsAndValuationInput(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<ForwardProjectionsValuationInput> {
-  const { summary } = sourceBundle ?? (await getReportSourceBundle(symbol));
-
-  const country = summary.assetProfile?.country?.toLowerCase() ?? '';
-  const marketType: ForwardProjectionsValuationInput['company']['marketType'] = country.includes(
-    'india',
-  )
-    ? 'India'
-    : country.includes('united kingdom') || country.includes('uk')
-      ? 'UK'
-      : country.includes('united states') || country.includes('usa')
-        ? 'US'
-        : 'Global';
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   return {
     company: {
       name: summary.price?.longName ?? null,
-      currency: summary.price?.currency ?? null,
-      marketType,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      marketType: marketContext.marketType,
+      currencySymbol: marketContext.currencySymbol,
     },
     valuationSignals: {
       currentPrice: summary.price?.regularMarketPrice ?? null,
@@ -2579,7 +2813,7 @@ export async function getForwardProjectionsAndValuationAboutCompany(
 ) {
   const response = await getForwardProjectionsAndValuationInput(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof ForwardProjectionsAndValuationSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof ForwardProjectionsAndValuationSchema>>({
     userPrompt: `
 Generate section: FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION.
 Input Data: ${JSON.stringify(response)}
@@ -2587,14 +2821,15 @@ Input Data: ${JSON.stringify(response)}
 Requirements:
 1. Build realistic 5-year forward views (FY26E-FY30E) with coherent internal consistency.
 2. Include all four sub-sections: projected income statement, projected balance sheet, projected cash flow & FCF, credit metrics projection.
-3. Use ${response.company.currency ?? 'local'} formatting with readable financial notation.
+3. Use ${response.company.currencyCode} formatting with readable financial notation.
 4. Tailor risk/credit narrative to market type: ${response.company.marketType}.
 5. Return valid JSON only matching schema.
 `,
     systemPrompt: FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
     schema: ForwardProjectionsAndValuationSchema,
     schemaName: 'ForwardProjectionsAndValuationSchema',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.company,
   });
 
   return analysis;
@@ -2605,8 +2840,10 @@ interface ConclusionRecommendationData {
     name: string | null;
     sector: string | null;
     industry: string | null;
-    marketType: 'UK' | 'US' | 'India' | 'Global';
-    currency: string | null;
+    marketType: ReportMarketType;
+    currencyCode: string;
+    exchangeName: string | null;
+    currencySymbol: string | null;
   };
   valuation: {
     currentPrice: number | null;
@@ -2637,21 +2874,11 @@ export async function getConclusionRecommendationData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<ConclusionRecommendationData> {
-  const { summary, chart } = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
+  const { summary, chart } = sharedBundle;
+  const marketContext = resolveReportMarketContext(sharedBundle);
 
   const profile = summary.assetProfile;
-  const currency = summary.price?.currency ?? null;
-  const country = profile?.country?.toLowerCase() ?? '';
-  const marketType: ConclusionRecommendationData['company']['marketType'] = country.includes(
-    'india',
-  )
-    ? 'India'
-    : country.includes('united kingdom') || country.includes('uk')
-      ? 'UK'
-      : country.includes('united states') || country.includes('usa')
-        ? 'US'
-        : 'Global';
-
   const oneYearReturnPercent = calculateOneYearReturnPercent(chart);
 
   return {
@@ -2659,8 +2886,10 @@ export async function getConclusionRecommendationData(
       name: summary.price?.longName ?? null,
       sector: profile?.sector ?? null,
       industry: profile?.industry ?? null,
-      marketType,
-      currency,
+      marketType: marketContext.marketType,
+      currencyCode: marketContext.currencyCode,
+      exchangeName: marketContext.exchangeName,
+      currencySymbol: marketContext.currencySymbol,
     },
     valuation: {
       currentPrice: summary.price?.regularMarketPrice ?? null,
@@ -2712,7 +2941,7 @@ export async function getConclusionAndRecommendationAboutCompany(
 ) {
   const response = await getConclusionRecommendationData(symbol, options?.sourceBundle);
 
-  const analysis = await fetchSection<z.infer<typeof ConclusionAndRecommendationSchema>>({
+  const analysis = await fetchReportSection<z.infer<typeof ConclusionAndRecommendationSchema>>({
     userPrompt: `
 Generate final Section 9: CONCLUSION.
 Input Data: ${JSON.stringify(response)}
@@ -2726,7 +2955,8 @@ Requirements:
     systemPrompt: CONCLUSION_AND_RECOMMENDATION_PROMPT,
     schema: ConclusionAndRecommendationSchema,
     schemaName: 'ConclusionAndRecommendationSchema',
-    options: { enableWebSearch: options?.enableWebSearch },
+    enableWebSearch: options?.enableWebSearch,
+    marketContext: response.company,
   });
 
   return analysis;
