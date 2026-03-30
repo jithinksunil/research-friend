@@ -1,5 +1,6 @@
 'use server';
 import { ROLES, FinancialStatementYear } from '@/app/generated/prisma/enums';
+import { z } from 'zod';
 import {
   EXECUTIVE_PROMPT,
   OVERVIEW_PROMPT,
@@ -30,9 +31,43 @@ import {
   AgmAndShareholderMattersSchema,
   ForwardProjectionsAndValuationSchema,
   ConclusionAndRecommendationSchema,
+  getReportSourceBundle,
   improveSection,
   requireRBAC,
+  resolveReportMarketContext,
+  validateReportCurrencyConsistency,
 } from '@/server';
+
+async function improveCurrencyAwareSection<T extends z.ZodRawShape>({
+  symbol,
+  sectionDetails,
+  systemPrompt,
+  schema,
+  schemaName,
+  improvementNeeded,
+}: {
+  symbol: string;
+  sectionDetails: string;
+  systemPrompt: string;
+  schema: z.ZodObject<T>;
+  schemaName: string;
+  improvementNeeded: string;
+}): Promise<z.infer<z.ZodObject<T>>> {
+  const sourceBundle = await getReportSourceBundle(symbol);
+  const marketContext = resolveReportMarketContext(sourceBundle);
+
+  const improved = await improveSection<T>({
+    sectionDetails: `Market context: ${JSON.stringify(marketContext)}\nStored section data: ${sectionDetails}`,
+    systemPrompt,
+    schema,
+    schemaName,
+    improvementNeeded,
+  });
+
+  validateReportCurrencyConsistency(improved, marketContext);
+
+  return improved;
+}
 
 export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
   symbol: string,
@@ -41,8 +76,9 @@ export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
   const executiveData = (await prisma.executiveSummary.findFirst({
     where: { report: { company: { symbol } } },
   }))!;
-  const executiveInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(executiveData)}`,
+  const executiveInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(executiveData),
     systemPrompt: EXECUTIVE_PROMPT,
     schema: ExecutiveSchema,
     schemaName: 'ExecutiveSchema',
@@ -75,8 +111,9 @@ export const enhanceCompanyOverviewAndStockMetricsSection = requireRBAC(ROLES.US
     where: { report: { company: { symbol } } },
     select: { fiftyTwoWeekPerformance: true, stockMetrics: true, id: true },
   }))!;
-  const overviewInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(overviewData)}`,
+  const overviewInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(overviewData),
     systemPrompt: OVERVIEW_PROMPT,
     schema: CompanyOverviewSchema,
     schemaName: 'CompanyOverviewSchema',
@@ -118,8 +155,9 @@ export const enhanceShareholderStructureSection = requireRBAC(ROLES.USER)(async 
     include: { majorShareholders: true },
   }))!;
 
-  const shareHolderInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(shareHolderData)}`,
+  const shareHolderInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(shareHolderData),
     systemPrompt: SHARE_HOLDER_STRUCTURE_PROMPT,
     schema: ShareholderStructureSectionSchema,
     schemaName: 'ShareHolderStructure',
@@ -166,8 +204,9 @@ export const enhanceAnalystRecommendationSection = requireRBAC(ROLES.USER)(async
     include: { currentConsensus: true, consensusDetails: true },
   }))!;
 
-  const analystInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(analystData)}`,
+  const analystInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(analystData),
     systemPrompt: ANALYST_RECOMMENDATION_PROMPT,
     schema: AnalystRecommendationsSchema,
     schemaName: 'AnalystRecommendations',
@@ -227,8 +266,9 @@ export const enhanceBusinessSegmentDataSection = requireRBAC(ROLES.USER)(async (
     },
   }))!;
 
-  const businessSegmentInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(businessSegmentData)}`,
+  const businessSegmentInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(businessSegmentData),
     systemPrompt: BUSINESS_SEGMENT_DATA_PROMPT,
     schema: BusinessSegmentsCompetitivePositionSchema,
     schemaName: 'BusinessSegmentsCompetitivePosition',
@@ -317,8 +357,9 @@ export const enhanceEquityValuationAndDcfAnalysisSection = requireRBAC(ROLES.USE
     },
   }))!;
 
-  const equityValuationInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(equityValuationData)}`,
+  const equityValuationInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(equityValuationData),
     systemPrompt: EQUITY_VALUATION_PROMPT,
     schema: EquityValuationDcfSchema,
     schemaName: 'EquityValuationDcf',
@@ -426,8 +467,9 @@ export const enhanceFinancialStatementAnalysisSection = requireRBAC(ROLES.USER)(
     },
   }))!;
 
-  const financialInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(financialData)}`,
+  const financialInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(financialData),
     systemPrompt: FINANCIAL_STATEMENT_ANALYSIS_PROMPT,
     schema: FinancialStatementsAnalysisSchema,
     schemaName: 'FinancialStatementAnalysis',
@@ -530,8 +572,9 @@ export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(R
     },
   }))!;
 
-  const interimInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(interimData)}`,
+  const interimInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(interimData),
     systemPrompt: INTERIM_RESULT_AND_QUARTERLY_PERFORMANCE_PROMPT,
     schema: InterimResultsQuarterlyPerformanceSchema,
     schemaName: 'InterimResultsQuarterlyPerformance',
@@ -623,8 +666,9 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
     },
   }))!;
 
-  const contingentInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(contingentData)}`,
+  const contingentInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(contingentData),
     systemPrompt: CONTINGENT_LIABILITY_AND_REGULATORY_RISK_PROMPT,
     schema: ContingentLiabilitiesRegulatoryRisksSchema,
     schemaName: 'ContingentLiabilitiesRegulatoryRisks',
@@ -673,8 +717,9 @@ export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(ROLES.U
     include: { sensitivityAnalysisRecap: true },
   }))!;
 
-  const dcfRecapInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(dcfRecapData)}`,
+  const dcfRecapInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(dcfRecapData),
     systemPrompt: DCF_VALUATION_RECAP_AND_PRICE_TARGET_PROMPT,
     schema: DcfValuationRecapAndPriceTargetSchema,
     schemaName: 'DcfValuationRecapAndPriceTargetSchema',
@@ -739,8 +784,9 @@ export const enhanceAgmAndShareholderMattersSection = requireRBAC(ROLES.USER)(as
     include: { expectedVotingAgenda: true },
   }))!;
 
-  const agmInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(agmData)}`,
+  const agmInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(agmData),
     systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
     schema: AgmAndShareholderMattersSchema,
     schemaName: 'AgmAndShareholderMattersSchema',
@@ -792,8 +838,9 @@ export const enhanceForwardProjectionsAndValuationSection = requireRBAC(ROLES.US
     },
   }))!;
 
-  const forwardInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(forwardData)}`,
+  const forwardInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(forwardData),
     systemPrompt: FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
     schema: ForwardProjectionsAndValuationSchema,
     schemaName: 'ForwardProjectionsAndValuationSchema',
@@ -849,8 +896,9 @@ export const enhanceConclusionAndRecommendationSection = requireRBAC(ROLES.USER)
     where: { report: { company: { symbol } } },
   }))!;
 
-  const conclusionInfo = await improveSection({
-    sectionDetails: ` ${JSON.stringify(conclusionData)}`,
+  const conclusionInfo = await improveCurrencyAwareSection({
+    symbol,
+    sectionDetails: JSON.stringify(conclusionData),
     systemPrompt: CONCLUSION_AND_RECOMMENDATION_PROMPT,
     schema: ConclusionAndRecommendationSchema,
     schemaName: 'ConclusionAndRecommendationSchema',

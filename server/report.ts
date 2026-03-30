@@ -311,7 +311,10 @@ function collectStringValues(value: unknown): string[] {
   return [];
 }
 
-function validateReportCurrencyConsistency(payload: unknown, marketContext: ReportMarketContext) {
+export function validateReportCurrencyConsistency(
+  payload: unknown,
+  marketContext: ReportMarketContext,
+) {
   const symbolMap: Record<string, string[]> = {
     INR: ['₹', '$', '£', '€', '¥'],
     USD: ['₹', '£', '€', '¥'],
