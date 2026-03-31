@@ -567,11 +567,11 @@ function Report({ symbol }: { symbol: string }) {
             headings={(() => {
               const cols = [
                 'Fiscal Year',
-                'Revenue (£m)',
+                'Revenue',
                 'Y/Y Growth',
-                'Operating Income (£m)',
-                'Net Income (£m)',
-                'EPS (p)',
+                'Operating Income',
+                'Net Income',
+                'EPS',
               ];
               return cols.map((c, i) => (
                 <div key={`ist-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
@@ -616,10 +616,10 @@ function Report({ symbol }: { symbol: string }) {
             headings={(() => {
               const cols = [
                 'Fiscal Year',
-                'Cash (£m)',
-                'Total Assets (£m)',
-                'Total Debt (£m)',
-                "Shareholders' Equity (£m)",
+                'Cash',
+                'Total Assets',
+                'Total Debt',
+                "Shareholders' Equity",
                 'Debt/Equity',
               ];
               return cols.map((c, i) => (
@@ -665,12 +665,12 @@ function Report({ symbol }: { symbol: string }) {
             headings={(() => {
               const cols = [
                 'Fiscal Year',
-                'Operating CF (£m)',
-                'CapEx (£m)',
-                'Free CF (£m)',
+                'Operating CF',
+                'CapEx',
+                'Free CF',
                 'FCF Margin',
-                'Dividends Paid (£m)',
-                'Share Buyback (£m)',
+                'Dividends Paid',
+                'Share Buyback',
               ];
               return cols.map((c, i) => (
                 <div key={`cfa-h-${i}`} className={cn('px-[26px] py-[10px] font-medium')}>
@@ -856,13 +856,19 @@ function Report({ symbol }: { symbol: string }) {
                 <TableWithoutPagination
                   noData="No data"
                   headings={[
-                    <div key="rmb-h-rs" className={cn('px-[26px] py-[10px] font-medium')}>
+                    <div
+                      key="rmb-h-rs"
+                      className={cn('px-[26px] py-[10px] font-medium whitespace-nowrap')}
+                    >
                       Revenue Stream
                     </div>,
                     <div key="rmb-h-am" className={cn('px-[26px] py-[10px] font-medium')}>
                       Amount
                     </div>,
-                    <div key="rmb-h-pt" className={cn('px-[26px] py-[10px] font-medium')}>
+                    <div
+                      key="rmb-h-pt"
+                      className={cn('px-[26px] py-[10px] font-medium whitespace-nowrap')}
+                    >
                       % of Total
                     </div>,
                     <div key="rmb-h-gr" className={cn('px-[26px] py-[10px] font-medium')}>
@@ -1062,7 +1068,10 @@ function Report({ symbol }: { symbol: string }) {
                     <div key="bsc-status" className={cn('px-[26px] py-[10px] font-medium')}>
                       Status
                     </div>,
-                    <div key="bsc-risk" className={cn('px-[26px] py-[10px] font-medium')}>
+                    <div
+                      key="bsc-risk"
+                      className={cn('px-[26px] py-[10px] font-medium whitespace-nowrap')}
+                    >
                       Risk Level
                     </div>,
                     <div key="bsc-impact" className={cn('px-[26px] py-[10px] font-medium')}>
@@ -1421,7 +1430,10 @@ function Report({ symbol }: { symbol: string }) {
                 <TableWithoutPagination
                   noData="No data"
                   headings={[
-                    <div key="agm-r" className={cn('px-[26px] py-[10px] font-medium')}>
+                    <div
+                      key="agm-r"
+                      className={cn('px-[26px] py-[10px] font-medium whitespace-nowrap')}
+                    >
                       Resolution #
                     </div>,
                     <div key="agm-t" className={cn('px-[26px] py-[10px] font-medium')}>

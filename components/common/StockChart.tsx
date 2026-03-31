@@ -21,6 +21,31 @@ interface Candle {
 
 interface StockChartProps {
   stock: Candle[];
+  currencyCode?: string | null;
+}
+
+function formatTooltipPrice(value: number, currencyCode?: string | null): string {
+  if (!currencyCode) {
+    return value.toLocaleString('en', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  try {
+    return new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency: currencyCode,
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currencyCode} ${value.toLocaleString('en', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
 }
 
 function normalizeData(data: Candle[]) {
@@ -53,7 +78,7 @@ function normalizeData(data: Candle[]) {
   return { lineData, volumeData };
 }
 
-export default function StockChart({ stock }: StockChartProps) {
+export default function StockChart({ stock, currencyCode }: StockChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -154,7 +179,8 @@ export default function StockChart({ stock }: StockChartProps) {
       }
 
       if (tooltipPriceRef.current) {
-        tooltipPriceRef.current.textContent = priceValue !== null ? `$${priceValue}` : '—';
+        tooltipPriceRef.current.textContent =
+          priceValue !== null ? formatTooltipPrice(priceValue, currencyCode) : '—';
       }
 
       if (tooltipVolumeRef.current) {
@@ -181,7 +207,7 @@ export default function StockChart({ stock }: StockChartProps) {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [lineData, volumeData]);
+  }, [currencyCode, lineData, volumeData]);
 
   return (
     <>

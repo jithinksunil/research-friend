@@ -211,6 +211,26 @@ function mapEquityProjectionMetricToLegacy(metric: string): ProjectionMetricType
   }
 }
 
+async function waitForPersistedSection(
+  symbol: string,
+  sectionKey: ReportSectionKey,
+): Promise<Awaited<ReturnType<typeof readSectionDetails>>> {
+  const delaysMs = [0, 50, 150, 300];
+
+  for (const delayMs of delaysMs) {
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    const persisted = await readSectionDetails(symbol, sectionKey);
+    if (persisted.sectionData) {
+      return persisted;
+    }
+  }
+
+  return readSectionDetails(symbol, sectionKey);
+}
+
 async function readSectionDetails(symbol: string, sectionKey: ReportSectionKey) {
   const company = await prisma.company.findUnique({
     where: { symbol },
@@ -705,8 +725,8 @@ export async function getOrGenerateReportSection(symbol: string, sectionKey: Rep
     }
   } catch (error) {
     // Concurrent section requests may create the report or this section first.
-    // In that case we re-read and return existing persisted data.
-    const concurrent = await readSectionDetails(symbol, sectionKey);
+    // In that case we re-read with a short backoff and return existing persisted data.
+    const concurrent = await waitForPersistedSection(symbol, sectionKey);
     if (!concurrent.sectionData) throw error;
   }
 
@@ -717,7 +737,7 @@ export async function getOrGenerateReportSection(symbol: string, sectionKey: Rep
     });
   }
 
-  const latest = await readSectionDetails(symbol, sectionKey);
+  const latest = await waitForPersistedSection(symbol, sectionKey);
 
   if (!latest.sectionData) {
     throw new Error(`Failed to persist section ${sectionKey} for symbol ${symbol}`);

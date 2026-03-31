@@ -98,7 +98,7 @@ model Report {
 model ExecutiveSummary {
   id               Int      @id @default(autoincrement())
   reportId         Int      @unique
-  report           Report   @relation(fields: [reportId], references: [id])
+  report           Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
   summary          String?
   positive         String?
   risk             String?
@@ -115,7 +115,7 @@ model ExecutiveSummary {
 model OverviewAndStockMetrics {
   id                      Int           @id @default(autoincrement())
   reportId                Int           @unique
-  report                  Report        @relation(fields: [reportId], references: [id])
+  report                  Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
   updatedAt               DateTime      @updatedAt
   stockMetrics            StockMetric[]
   fiftyTwoWeekPerformance String?
@@ -127,7 +127,7 @@ model OverviewAndStockMetrics {
 model StockMetric {
   id                        Int                     @id @default(autoincrement())
   overviewAndStockMetricsId Int
-  overviewAndStockMetrics   OverviewAndStockMetrics @relation(fields: [overviewAndStockMetricsId], references: [id])
+  overviewAndStockMetrics   OverviewAndStockMetrics @relation(fields: [overviewAndStockMetricsId], references: [id], onDelete: Cascade)
   name                      String
   value                     String
   note                      String
@@ -140,7 +140,7 @@ model StockMetric {
 model ShareHolderStructure {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   // Share Capital Structure data
   totalShares       String?
@@ -183,7 +183,7 @@ model MajorShareholder {
 model AnalystRecommendation {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   // Relations
   currentConsensus   CurrentConsensus[]
@@ -250,7 +250,7 @@ model ConsensusDetail {
 model EquityValuationAndDcfAnalysis {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   // Single fields
   keyTakeAway String?
@@ -407,7 +407,7 @@ model FinancialStatementAnalyasis {
   id Int @id @default(autoincrement())
 
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   keyObservations         String[]
   capitalPositionAnalysis String[]
@@ -542,7 +542,7 @@ model BusinessSegmentData {
   businessModelDynamics      String[]
   competitivePosition        CompetitivePosition?
   reportId                   Int                          @unique
-  report                     Report                       @relation(fields: [reportId], references: [id])
+  report                     Report                       @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@map("business_segment_data")
 }
@@ -557,7 +557,7 @@ model RevenueModelBreakdown {
   percentOfTotal        String
   growth                String
   driver                String
-  businessSegmentData   BusinessSegmentData? @relation(fields: [businessSegmentDataId], references: [id])
+  businessSegmentData   BusinessSegmentData? @relation(fields: [businessSegmentDataId], references: [id], onDelete: Cascade)
   businessSegmentDataId Int?
 
   @@map("revenue_model_breakdown")
@@ -574,7 +574,7 @@ model PlatformSegmentPerformance {
   growth                String
   netInflows            String
   comments              String
-  businessSegmentData   BusinessSegmentData? @relation(fields: [businessSegmentDataId], references: [id])
+  businessSegmentData   BusinessSegmentData? @relation(fields: [businessSegmentDataId], references: [id], onDelete: Cascade)
   businessSegmentDataId Int?
 }
 
@@ -585,7 +585,7 @@ model CompetitivePosition {
   keyCompetitors        KeyCompetitor[]
   competitiveAdvantage  CompetitiveAdvantage[]
   businessSegmentDataId Int                    @unique
-  businessSegmentDatas  BusinessSegmentData    @relation(fields: [businessSegmentDataId], references: [id])
+  businessSegmentDatas  BusinessSegmentData    @relation(fields: [businessSegmentDataId], references: [id], onDelete: Cascade)
 }
 
 model KeyCompetitor {
@@ -594,7 +594,7 @@ model KeyCompetitor {
   updatedAt             DateTime             @updatedAt
   name                  String
   description           String
-  competitivePosition   CompetitivePosition? @relation(fields: [competitivePositionId], references: [id])
+  competitivePosition   CompetitivePosition? @relation(fields: [competitivePositionId], references: [id], onDelete: Cascade)
   competitivePositionId Int?
 }
 
@@ -604,14 +604,14 @@ model CompetitiveAdvantage {
   updatedAt             DateTime             @updatedAt
   title                 String
   description           String
-  competitivePosition   CompetitivePosition? @relation(fields: [competitivePositionId], references: [id])
+  competitivePosition   CompetitivePosition? @relation(fields: [competitivePositionId], references: [id], onDelete: Cascade)
   competitivePositionId Int?
 }
 
 model InterimResultsAndQuarterlyPerformance {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   title String
 
@@ -696,7 +696,7 @@ model AnalystConsensusFY1 {
 model ContingentLiabilitiesAndRegulatoryRisk {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   sectionTitle String
 
@@ -770,7 +770,7 @@ enum RecommendationType {
 model DcfValuationRecapAndPriceTarget {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   sectionTitle            String
   valuationSummaryTitle   String
@@ -815,7 +815,7 @@ model DcfSensitivityAnalysisRecap {
 model AgmAndShareholderMatters {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   sectionTitle  String
   announcedDate String
@@ -853,7 +853,7 @@ model ExpectedVotingAgenda {
 model ForwardProjectionsAndValuation {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   sectionTitle         String
   keyProjectionDrivers String[]
@@ -956,7 +956,7 @@ model ForwardCreditMetricRow {
 model ConclusionAndRecommendation {
   id       Int    @id @default(autoincrement())
   reportId Int    @unique
-  report   Report @relation(fields: [reportId], references: [id])
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   sectionTitle      String
   summary           String

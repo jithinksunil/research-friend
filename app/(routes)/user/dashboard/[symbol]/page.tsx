@@ -79,6 +79,11 @@ export default async function Page({ params }: SymbolPageProps) {
   const quickMetrics = dashboard.quickMetrics?.keyMetrics ?? [];
   const fundamentals = company?.fundamentals ?? [];
   const companyProfile = company?.companyProfile;
+  const chartCurrencyCode =
+    company?.keyMetrics.find((metric) => metric.format === 'currency' && metric.unit)?.unit ??
+    company?.keyMetrics.find((metric) => metric.format === 'currencyCompact' && metric.unit)
+      ?.unit ??
+    null;
   const companyDetails = [
     { label: 'Country', value: companyProfile?.country ?? null },
     { label: 'Sector', value: companyProfile?.sector ?? null },
@@ -106,7 +111,9 @@ export default async function Page({ params }: SymbolPageProps) {
       <Suspense fallback={<div>Loading...</div>}>
         <VoteButton symbol={normalizedSymbol} />
       </Suspense>
-      {dashboard.chartData ? <StockChart stock={dashboard.chartData} /> : null}
+      {dashboard.chartData ? (
+        <StockChart stock={dashboard.chartData} currencyCode={chartCurrencyCode} />
+      ) : null}
       <div className="grid grid-cols-1 gap-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
         {quickMetrics
           .filter((item: Metric) => item.value)
