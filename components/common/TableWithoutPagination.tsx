@@ -14,7 +14,7 @@ export const TableWithoutPagination: FC<TableProps> = ({ headings, rows, noData 
           <thead>
             <tr className="bg-[#f4f4f0] border-[#E5E7EB]">
               {headings.map((heading, i) => (
-                <th className="text-left text-[14px]" key={i}>
+                <th className="align-top text-left text-[14px]" key={i}>
                   {heading}
                 </th>
               ))}
@@ -27,7 +27,7 @@ export const TableWithoutPagination: FC<TableProps> = ({ headings, rows, noData 
             {rows.map((row, i) => (
               <tr key={i} className="border-[#E5E7EB] hover:bg-[#F3F4F6]">
                 {row.map((el, j) => (
-                  <td className="px-[20px] py-[10px] text-sm" key={j}>
+                  <td className="align-top px-[26px] py-[10px] text-left text-sm" key={j}>
                     {el}
                   </td>
                 ))}

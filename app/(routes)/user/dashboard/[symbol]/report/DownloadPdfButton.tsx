@@ -260,6 +260,8 @@ function buildPrintableDocument({
 
         .print-report table {
           width: 100%;
+          min-width: 0 !important;
+          table-layout: fixed;
           border-collapse: separate;
           border-spacing: 0;
           margin: 10px 0 18px;
@@ -276,6 +278,10 @@ function buildPrintableDocument({
 
         .print-report thead {
           display: table-header-group;
+        }
+
+        .print-report .overflow-x-auto {
+          overflow: visible !important;
         }
 
         .print-report tfoot {
@@ -297,7 +303,7 @@ function buildPrintableDocument({
         }
 
         .print-report th {
-          padding: 9px 10px !important;
+          padding: 0 !important;
           background: #f2efe9;
           color: #8c6b3f;
           font-size: 9px !important;
@@ -305,13 +311,25 @@ function buildPrintableDocument({
           letter-spacing: 0.08em;
           text-transform: uppercase;
           border-bottom: 1px solid #e0dbd0;
+          white-space: normal;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
 
         .print-report td {
-          padding: 8px 10px !important;
+          padding: 0 !important;
           vertical-align: top;
           color: #344054;
           border-bottom: 1px solid #f1ede6;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        .print-report th > div,
+        .print-report td > div {
+          display: block;
+          padding: 9px 16px !important;
+          text-align: left;
         }
 
         .print-report tbody tr {
