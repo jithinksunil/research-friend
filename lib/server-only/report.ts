@@ -2,6 +2,7 @@ import 'server-only';
 
 import { z } from 'zod';
 import { ReportSectionKey } from '@/types';
+import { ProjectionMetricType } from '@/app/generated/prisma/enums';
 import prisma from '@/prisma';
 import {
   getAnalystRecommendationsAboutCompany,
@@ -195,6 +196,21 @@ const dedupeByKey = <T>(items: T[] | undefined, getKey: (item: T) => string): T[
   return deduped;
 };
 
+function mapEquityProjectionMetricToLegacy(metric: string): ProjectionMetricType {
+  switch (metric) {
+    case 'REVENUE':
+      return 'REVENUE_GBP_M';
+    case 'PBT':
+      return 'PBT_GBP_M';
+    case 'NET_INCOME':
+      return 'NET_INCOME_GBP_M';
+    case 'DILUTED_EPS':
+      return 'DILUTED_EPS_P';
+    default:
+      return metric as ProjectionMetricType;
+  }
+}
+
 async function readSectionDetails(symbol: string, sectionKey: ReportSectionKey) {
   const company = await prisma.company.findUnique({
     where: { symbol },
@@ -343,7 +359,7 @@ function toSectionCreateOperation(sectionKey: ReportSectionKey, generatedData: u
               projections: {
                 createMany: {
                   data: y.projections.map((p) => ({
-                    metric: p.metric,
+                    metric: mapEquityProjectionMetricToLegacy(p.metric),
                     value: p.value,
                   })),
                   skipDuplicates: true,

@@ -1,4 +1,4 @@
-import { FinancialStatementYear } from '@/app/generated/prisma/enums';
+import { FinancialStatementYear, ProjectionMetricType } from '@/app/generated/prisma/enums';
 import { z } from 'zod';
 import {
   EXECUTIVE_PROMPT,
@@ -65,6 +65,21 @@ async function improveCurrencyAwareSection<T extends z.ZodRawShape>({
   validateReportCurrencyConsistency(improved, marketContext);
 
   return improved;
+}
+
+function mapEquityProjectionMetricToLegacy(metric: string): ProjectionMetricType {
+  switch (metric) {
+    case 'REVENUE':
+      return 'REVENUE_GBP_M';
+    case 'PBT':
+      return 'PBT_GBP_M';
+    case 'NET_INCOME':
+      return 'NET_INCOME_GBP_M';
+    case 'DILUTED_EPS':
+      return 'DILUTED_EPS_P';
+    default:
+      return metric as ProjectionMetricType;
+  }
 }
 
 export async function enhanceExecutiveSection(symbol: string, improvementNeeded: string) {
@@ -378,7 +393,7 @@ export async function enhanceEquityValuationAndDcfAnalysisSection(
           projections: {
             createMany: {
               data: y.projections.map((p) => ({
-                metric: p.metric,
+                metric: mapEquityProjectionMetricToLegacy(p.metric),
                 value: p.value,
               })),
             },

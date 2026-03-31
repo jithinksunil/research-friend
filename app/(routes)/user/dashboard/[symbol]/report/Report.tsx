@@ -461,14 +461,14 @@ function Report({ symbol }: { symbol: string }) {
 
               const fyOrder = ['FY_2026', 'FY_2027', 'FY_2028', 'FY_2029', 'FY_2030'];
               const metricOrder: { key: string; label: string }[] = [
-                { key: 'REVENUE_GBP_M', label: 'Revenue (£m)' },
+                { key: 'REVENUE_GBP_M', label: 'Revenue' },
                 { key: 'REVENUE_GROWTH', label: 'Revenue Growth' },
                 { key: 'PBT_MARGIN_PERCENT', label: 'PBT Margin %' },
-                { key: 'PBT_GBP_M', label: 'PBT (£m)' },
+                { key: 'PBT_GBP_M', label: 'PBT' },
                 { key: 'TAX_RATE', label: 'Tax Rate' },
-                { key: 'NET_INCOME_GBP_M', label: 'Net Income (£m)' },
+                { key: 'NET_INCOME_GBP_M', label: 'Net Income' },
                 { key: 'DILUTED_SHARES_M', label: 'Diluted Shares (m)' },
-                { key: 'DILUTED_EPS_P', label: 'Diluted EPS (p)' },
+                { key: 'DILUTED_EPS_P', label: 'Diluted EPS' },
               ];
 
               return metricOrder.map((m, mi) => [

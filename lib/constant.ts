@@ -15,6 +15,9 @@ export const brandingColors = {
 const REPORT_VALUE_FORMATTING_RULES = `
 Universal report formatting rules:
 - Use the provided market context as the source of truth for currency and exchange.
+- Align terminology, market conventions, regulatory framing, and per-share notation to the provided exchange, country, and market type.
+- If the company is listed on a specific exchange such as NSE, NYSE, LSE, TSX, or HKEX, reflect that market context in the language and conventions you use.
+- Do not default to any single market's conventions when the input provides a more specific market context.
 - Keep every monetary or per-share value in one consistent currency for the entire section.
 - Do not switch currency symbols, codes, units, or market conventions unless the input explicitly provides converted values.
 - All quantities must include appropriate units and presentation formatting.
@@ -54,8 +57,6 @@ ${REPORT_VALUE_FORMATTING_RULES}
 - dcfFairValue: If the input contains a DCF fair value per share, return it as a presentation-ready per-share string with the correct currency/unit formatting. Otherwise, set to null (do not estimate).
 - analystConsensus: Use the input’s analyst recommendation key if available (e.g., "analyst.recommendationKey"). Return as a short lowercase string like "buy", "hold", or "sell". If unavailable, set to null.
 - upside: Prefer "analyst.upsidePercent" from the input, returned as a presentation-ready percentage string. If missing but both "analyst.targetMean" and "valuation.price" exist, compute upside = ((targetMean - price) / price) * 100 and return it with "%". Otherwise, set to null.
-- analystConsensus: Use the input's analyst recommendation key if available (e.g., analyst.recommendationKey). Return as a short lowercase string like "buy", "hold", or "sell". If unavailable, set to null.
-- upside: Prefer analyst.upsidePercent from the input, returned as a presentation-ready percentage string. If missing but both analyst.targetMean and valuation.price exist, compute upside = ((targetMean - price) / price) * 100 and return it with "%". Otherwise, set to null.
 - Do not include any keys other than those in the schema.
 `;
 
@@ -451,7 +452,7 @@ You must return ONLY valid JSON that strictly follows this schema:
   ],
   "platformSegmentsPerformance": [
     {
-      "segment": "Advised" | "D2C" | "Total Platform" | "AJ Bell Investments" | "Non-Platform",
+      "segment": string,
       "customers": string,
       "aua": string,
       "growth": string,
@@ -493,16 +494,15 @@ ${REPORT_VALUE_FORMATTING_RULES}
 6. Format:
    - Monetary values using market-appropriate large-number notation
    - Percentages as "+15%"
-   - AUM as "£62.4bn"
+   - AUM/AUA or equivalent scale metrics using the provided market context
    - Customers as "182k"
 7. RevenueModelBreakdown must contain exactly 4 rows:
    - Recurring Fixed
    - Recurring Ad Valorem
    - Transactional
    - Total
-8. PlatformSegmentsPerformance must contain exactly 5 rows.
-   If not applicable (non-platform company), populate rows with:
-   - "N/A" values and explanatory comments.
+8. PlatformSegmentsPerformance must contain 3 to 6 rows using segment names that fit the actual company.
+   If segment-level disclosure is weak, use broad operating segments and explain the limitation in comments.
 9. CompetitivePosition:
    - List 3–5 key competitors in same industry.
    - Write concise professional descriptions.

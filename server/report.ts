@@ -375,8 +375,11 @@ function containsCurrencyMarker(text: string, marker: string): boolean {
     return beforeNumberPattern.test(normalizedText) || afterNumberPattern.test(normalizedText);
   }
 
-  const prefixedAmountPattern = new RegExp(`${escapedMarker}\\s*\\d`, 'i');
-  const suffixedAmountPattern = new RegExp(`\\d(?:[\\d,\\.\\s])*\\s*${escapedMarker}`, 'i');
+  const prefixedAmountPattern = new RegExp(`(?<![A-Za-z])${escapedMarker}\\s*\\d`, 'i');
+  const suffixedAmountPattern = new RegExp(
+    `\\d(?:[\\d,\\.\\s])*\\s*${escapedMarker}(?![A-Za-z])`,
+    'i',
+  );
   return prefixedAmountPattern.test(normalizedText) || suffixedAmountPattern.test(normalizedText);
 }
 
@@ -596,9 +599,9 @@ export const ExecutiveSchema = z.object({
 
 async function getTrimmedCompanyOverviewMetrics(
   symbol: string,
-  terminalGrowth = 0.04, // 4% default India large cap
-  riskFreeRate = 0.07, // 7% India 10Y G-Sec
-  marketRiskPremium = 0.06, // 6% India ERP
+  terminalGrowth = 0.04,
+  riskFreeRate = 0.07,
+  marketRiskPremium = 0.06,
   sourceBundle?: ReportSourceBundle,
 ): Promise<CompanyOverviewMetrics> {
   const sharedBundle = sourceBundle ?? (await getReportSourceBundle(symbol));
@@ -634,7 +637,7 @@ async function getTrimmedCompanyOverviewMetrics(
     const weightEquity = equityValue / totalValue;
     const weightDebt = debtValue / totalValue;
 
-    const costOfDebt = 0.09; // assume 9% India corporate avg
+    const costOfDebt = 0.09;
 
     wacc = weightEquity * costOfEquity + weightDebt * costOfDebt * (1 - 0.25); // assume 25% tax
   }
@@ -714,7 +717,11 @@ async function getTrimmedCompanyOverviewMetrics(
     wacc: wacc ? wacc * 100 : null, // return in %
     terminalGrowth: terminalGrowth * 100,
     asOfDate: summary.price?.regularMarketTime
-      ? new Date(summary.price.regularMarketTime).toLocaleDateString('en-IN')
+      ? new Intl.DateTimeFormat('en', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }).format(new Date(summary.price.regularMarketTime))
       : null,
   };
 }
@@ -1044,7 +1051,7 @@ async function getTrimmedEquityValuationData(
     forecastYears?: number;
     revenueGrowth?: number;
     taxRate?: number;
-    reportingStandard?: 'UK' | 'US' | 'India' | 'Global';
+    reportingStandard?: ReportMarketType;
     sourceBundle?: ReportSourceBundle;
   },
 ): Promise<EquityValuationData> {
@@ -1220,14 +1227,14 @@ export const EquityValuationDcfSchema = z.object({
           .array(
             z.object({
               metric: z.enum([
-                'REVENUE_GBP_M',
+                'REVENUE',
                 'REVENUE_GROWTH',
                 'PBT_MARGIN_PERCENT',
-                'PBT_GBP_M',
+                'PBT',
                 'TAX_RATE',
-                'NET_INCOME_GBP_M',
+                'NET_INCOME',
                 'DILUTED_SHARES_M',
-                'DILUTED_EPS_P',
+                'DILUTED_EPS',
               ]),
               value: z.string(),
             }),
@@ -1623,13 +1630,7 @@ export const BusinessSegmentsCompetitivePositionSchema = z.object({
   platformSegmentsPerformance: z
     .array(
       z.object({
-        segment: z.enum([
-          'Advised',
-          'D2C',
-          'Total Platform',
-          'AJ Bell Investments',
-          'Non-Platform',
-        ]),
+        segment: z.string(),
         customers: z.string(), // "182k", "N/A"
         aua: z.string(), // "62.4", "AUM £8.9bn"
         growth: z.string(), // "+11%"
@@ -1637,7 +1638,8 @@ export const BusinessSegmentsCompetitivePositionSchema = z.object({
         comments: z.string(),
       }),
     )
-    .length(5),
+    .min(3)
+    .max(6),
 
   businessModelDynamics: z.array(z.string()).min(1),
 
@@ -2326,8 +2328,10 @@ Input Data: ${JSON.stringify(response)}
 Requirements:
 1. Include nextAgmDetails, expectedVotingAgenda, specialResolutionsExpected, keyGovernanceNotes.
 2. Keep agenda realistic for listed companies.
-3. Tailor tone to market type: ${response.company.marketType}.
-4. Return valid JSON only.
+3. Use the provided exchange and market type when framing governance norms and shareholder process expectations.
+4. Market Type: ${response.company.marketType}
+5. Exchange: ${response.company.exchangeName}
+6. Return valid JSON only.
 `,
     systemPrompt: AGM_AND_SHAREHOLDER_MATTERS_PROMPT,
     schema: AgmAndShareholderMattersSchema,
@@ -2444,8 +2448,10 @@ Requirements:
 1. Build realistic 5-year forward views (FY26E-FY30E) with coherent internal consistency.
 2. Include all four sub-sections: projected income statement, projected balance sheet, projected cash flow & FCF, credit metrics projection.
 3. Use ${response.company.currencyCode} formatting with readable financial notation.
-4. Tailor risk/credit narrative to market type: ${response.company.marketType}.
-5. Return valid JSON only matching schema.
+4. Align market conventions and narrative framing to the provided exchange and market type.
+5. Market Type: ${response.company.marketType}
+6. Exchange: ${response.company.exchangeName}
+7. Return valid JSON only matching schema.
 `,
     systemPrompt: FORWARD_PROJECTIONS_AND_VALUATION_PROMPT,
     schema: ForwardProjectionsAndValuationSchema,

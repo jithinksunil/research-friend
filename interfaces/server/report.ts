@@ -206,7 +206,7 @@ export interface EquityValuationData {
     currencySymbol: string | null;
     forecastYears: number;
     currentPrice: number | null;
-    reportingStandard: 'UK' | 'US' | 'India' | 'Global';
+    reportingStandard: ReportMarketType;
   };
   assumptions: {
     wacc: number;
