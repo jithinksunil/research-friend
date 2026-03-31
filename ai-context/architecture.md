@@ -5,7 +5,7 @@
 Research Friend is a Next.js full-stack app with App Router.
 
 - UI Layer: route pages and co-located components.
-- Server Layer: API routes + server-side modules + selected server actions.
+- Server Layer: API routes + server-side modules.
 - Data Layer: Prisma + PostgreSQL.
 - External Providers:
   - yahoo-finance2 for raw finance/company datasets.
@@ -52,9 +52,7 @@ User opens /report for symbol
 ## API Strategy (Current)
 
 - GET operations via API routes.
-- Mutations use a mixed strategy:
-  - Server Actions for existing auth/vote/search write paths.
-  - API route mutation for section enhancement to support client-driven updates.
+- Mutations via API routes.
 
 ## Data Model Expectations
 

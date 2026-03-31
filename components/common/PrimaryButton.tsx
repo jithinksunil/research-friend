@@ -1,11 +1,10 @@
 'use client';
-import { ReactNode } from 'react';
 import { Button } from '@mui/material';
 import { Loader } from './Loader';
 
-interface PropTypes {
+interface PrimaryButtonProps {
   type: 'button' | 'submit';
-  children: ReactNode;
+  children: React.ReactNode;
   isLoading?: boolean;
   isDisabled?: boolean;
   onClick?: () => void;
@@ -14,7 +13,7 @@ interface PropTypes {
   id?: string;
 }
 
-export function PrimaryButton(props: PropTypes) {
+export function PrimaryButton(props: PrimaryButtonProps) {
   return (
     <Button
       id={props.id}

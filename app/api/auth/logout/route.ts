@@ -3,6 +3,6 @@ import { NextResponse } from 'next/server';
 
 export async function POST() {
   const response = NextResponse.json({ data: { okay: true } }, { status: 200 });
-  clearAccessTokenCookie(response);
+  clearAccessTokenCookie({ response });
   return response;
 }

@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
 
-    setAccessTokenCookie(response, accessToken);
+    setAccessTokenCookie({ response, accessToken });
     return response;
   } catch (error) {
     if ((error as { code?: string })?.code === 'P2002') {

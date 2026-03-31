@@ -72,7 +72,8 @@ Never skip DB lookup before regeneration.
 
 - Next.js App Router.
 - Reads are API-first.
-- Mutations can be Server Actions or API routes depending on caller needs.
+- Mutations should go through API routes.
+- For all API calls in client components, useQuery (React Query) must be used instead of fetch.
 - Current report enhancement path is API (`POST /api/report/:symbol/sections/:sectionKey/enhance`) backed by existing server-side enhancement logic.
 - Keep business logic in server-side modules, not inside UI components.
 
@@ -81,6 +82,10 @@ Never skip DB lookup before regeneration.
 - Route-local components: inside the related page folder.
 - Reusable components: `components/`.
 - Keep UI composition simple, typed, and section-driven.
+- Props interfaces belong in the owning `.tsx` file.
+- Child interfaces that only support a local props contract may live in that same `.tsx` file.
+- All non-prop interfaces must remain in `interfaces/**`.
+- Agents do not need to normalize `import` versus `import type` unless a tool explicitly requires it.
 
 ## 6. AI Session Workflow
 

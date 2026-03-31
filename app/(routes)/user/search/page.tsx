@@ -1,6 +1,5 @@
 'use client';
 
-import { ensureCompanyFromSearch, searchForCompanies } from '@/app/actions/user';
 import { SearchBar } from '@/components/common';
 import { SearchSuggestion } from '@/interfaces';
 import { toastMessage } from '@/lib';
@@ -21,14 +20,25 @@ function Page() {
 
     setIsLoading(true);
     try {
-      const result = await searchForCompanies(query);
-      if (!result.okay) {
-        toastMessage.error(result.error.message);
+      const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`, {
+        credentials: 'include',
+      });
+      const responseJson = (await response.json().catch(() => null)) as
+        | { data: SearchSuggestion[] }
+        | { message: string }
+        | null;
+
+      if (!response.ok || !responseJson || !('data' in responseJson)) {
+        toastMessage.error(
+          responseJson && 'message' in responseJson
+            ? responseJson.message
+            : 'Failed to search companies',
+        );
         setSuggestions([]);
         return;
       }
 
-      setSuggestions(result.data);
+      setSuggestions(responseJson.data);
     } finally {
       setIsLoading(false);
     }
@@ -43,9 +53,25 @@ function Page() {
           suggestions={suggestions}
           onSearch={handleSearch}
           onSuggestionSelect={async (suggestion) => {
-            const result = await ensureCompanyFromSearch(suggestion.symbol);
-            if (!result.okay) {
-              toastMessage.error(result.error.message);
+            const response = await fetch('/api/company/ensure', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ symbol: suggestion.symbol }),
+            });
+            const responseJson = (await response.json().catch(() => null)) as
+              | { data: null }
+              | { message: string }
+              | null;
+
+            if (!response.ok || (!responseJson && response.status !== 200)) {
+              toastMessage.error(
+                responseJson && 'message' in responseJson
+                  ? responseJson.message
+                  : 'Failed to select company',
+              );
               return;
             }
             push(`/user/dashboard/${suggestion.symbol}`);

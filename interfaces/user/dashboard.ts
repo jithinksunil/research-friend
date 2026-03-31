@@ -44,7 +44,9 @@ export interface QuickMetric {
   description: string | null;
 }
 
-export interface RiskMetric extends Metric {
+export interface RiskMetric {
+  label: string;
+  value: string;
   description: string;
 }
 
@@ -55,24 +57,7 @@ export interface StockDashboardData {
   riskMetrics: RiskMetric[] | null;
 }
 
-export interface BasicStockInfo {
-  symbol: string;
-  name: string | null;
-  price: number | null;
-  currency: string;
-  exchange: string | null;
-  marketCap: number | null;
-  trailingPE: number | null;
-  forwardPE: number | null;
-  eps: number | null;
-  fiftyTwoWeekHigh: number | null;
-  fiftyTwoWeekLow: number | null;
-  fiftyDayAverage: number | null;
-  twoHundredDayAverage: number | null;
-  avgVolume: number | null;
-  beta: number | null;
-  sector: string | null;
-  industry: string | null;
-  website: string | null;
-  description: string | null;
+export interface VotesResponse {
+  upVotes: number;
+  downVotes: number;
 }

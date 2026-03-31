@@ -1,5 +1,4 @@
-import { Toast } from 'react-hot-toast';
-import toast from 'react-hot-toast';
+import toast, { Toast } from 'react-hot-toast';
 const option:
   | Partial<
       Pick<

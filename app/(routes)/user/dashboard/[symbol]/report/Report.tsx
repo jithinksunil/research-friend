@@ -1,4 +1,14 @@
 'use client';
+import {
+  BalanceSheetStrengthRow,
+  CashFlowAnalysisRow,
+  EnhanceSectionResponse,
+  IncomeStatementTrendRow,
+  ProjectionMetricRow,
+  ReportFinancialRatioMetric,
+  ReportSectionResponse,
+} from '@/interfaces';
+import { ReportSectionKey } from '@/types';
 import { Heading } from './Heading';
 import { SubHeading } from './SubHeading';
 import { TertiaryHeading } from './TertiaryHeading';
@@ -7,59 +17,28 @@ import { Description } from './Description';
 import { List } from './List';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
 import { cn, formatDate } from '@/lib';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { REPORT_FINANCIAL_YEAR } from '@/lib/enum';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useRef, useState } from 'react';
 import { DownloadPdfButton } from './DownloadPdfButton';
-import type { getReportDetails } from '@/lib/server-only/report';
-const FY_ORDER = ['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY25_EST'] as const;
-const FY_LABEL: Record<(typeof FY_ORDER)[number], string> = {
-  FY20: 'FY20',
-  FY21: 'FY21',
-  FY22: 'FY22',
-  FY23: 'FY23',
-  FY24: 'FY24',
-  FY25: 'FY25',
-  FY25_EST: 'FY25 (est)',
-};
-type ReportDetailsResponse = {
-  data: Awaited<ReturnType<typeof getReportDetails>>;
-};
-type ReportData = ReportDetailsResponse['data'];
-type ReportModel = NonNullable<ReportData['report']>;
-type EquityValuationAndDcfAnalysis = NonNullable<ReportModel['equityValuationAndDcfAnalysis']>;
-type ProjectedFinancialYearRow = EquityValuationAndDcfAnalysis['projectedFinancialYears'][number];
-type ProjectionMetricRow = ProjectedFinancialYearRow['projections'][number];
-type FinancialStatementAnalysis = NonNullable<ReportModel['financialStatementAnalyasis']>;
-type IncomeStatementTrendRow = FinancialStatementAnalysis['incomeStatementTrendRows'][number];
-type BalanceSheetStrengthRow = FinancialStatementAnalysis['balanceSheetStrengthRows'][number];
-type CashFlowAnalysisRow = FinancialStatementAnalysis['cashFlowAnalysisRows'][number];
-
-type ReportSectionKey =
-  | 'executiveSummary'
-  | 'overviewAndStockMetrics'
-  | 'shareHolderStructure'
-  | 'analystRecommendation'
-  | 'equityValuationAndDcfAnalysis'
-  | 'financialStatementAnalyasis'
-  | 'businessSegmentData'
-  | 'interimResultsAndQuarterlyPerformance'
-  | 'contingentLiabilitiesAndRegulatoryRisk'
-  | 'dcfValuationRecapAndPriceTarget'
-  | 'forwardProjectionsAndValuation'
-  | 'agmAndShareholderMatters'
-  | 'conclusionAndRecommendation';
-
-type ReportSectionResponse<K extends ReportSectionKey = ReportSectionKey> = {
-  sectionKey: K;
-  companyName: string;
-  data: ReportModel[K];
-};
-type EnhanceSectionResponse<K extends ReportSectionKey = ReportSectionKey> = {
-  data: {
-    sectionKey: K;
-    data: ReportModel[K];
-  };
+const FY_ORDER = [
+  REPORT_FINANCIAL_YEAR.FY20,
+  REPORT_FINANCIAL_YEAR.FY21,
+  REPORT_FINANCIAL_YEAR.FY22,
+  REPORT_FINANCIAL_YEAR.FY23,
+  REPORT_FINANCIAL_YEAR.FY24,
+  REPORT_FINANCIAL_YEAR.FY25,
+  REPORT_FINANCIAL_YEAR.FY25_EST,
+] as const;
+const FY_LABEL: Record<REPORT_FINANCIAL_YEAR, string> = {
+  [REPORT_FINANCIAL_YEAR.FY20]: 'FY20',
+  [REPORT_FINANCIAL_YEAR.FY21]: 'FY21',
+  [REPORT_FINANCIAL_YEAR.FY22]: 'FY22',
+  [REPORT_FINANCIAL_YEAR.FY23]: 'FY23',
+  [REPORT_FINANCIAL_YEAR.FY24]: 'FY24',
+  [REPORT_FINANCIAL_YEAR.FY25]: 'FY25',
+  [REPORT_FINANCIAL_YEAR.FY25_EST]: 'FY25 (est)',
 };
 
 function Report({ symbol }: { symbol: string }) {
@@ -74,48 +53,82 @@ function Report({ symbol }: { symbol: string }) {
       queryKey: ['report-section', symbol, sectionKey],
       retry: false,
       queryFn: async () => {
-        const res = await axios.get<{ data: ReportSectionResponse<K> }>(
+        const res = await axios.get<ReportSectionResponse<K>>(
           `/api/report/${symbol}/sections/${sectionKey}`,
         );
-        return res.data.data;
+        return res.data;
       },
     });
 
-  const executiveSummaryQuery = useSectionQuery('executiveSummary');
-  const overviewAndStockMetricsQuery = useSectionQuery('overviewAndStockMetrics');
-  const shareHolderStructureQuery = useSectionQuery('shareHolderStructure');
-  const analystRecommendationQuery = useSectionQuery('analystRecommendation');
-  const equityValuationAndDcfAnalysisQuery = useSectionQuery('equityValuationAndDcfAnalysis');
-  const financialStatementAnalyasisQuery = useSectionQuery('financialStatementAnalyasis');
-  const businessSegmentDataQuery = useSectionQuery('businessSegmentData');
-  const interimResultsAndQuarterlyPerformanceQuery = useSectionQuery(
-    'interimResultsAndQuarterlyPerformance',
-  );
-  const contingentLiabilitiesAndRegulatoryRiskQuery = useSectionQuery(
-    'contingentLiabilitiesAndRegulatoryRisk',
-  );
-  const dcfValuationRecapAndPriceTargetQuery = useSectionQuery('dcfValuationRecapAndPriceTarget');
-  const forwardProjectionsAndValuationQuery = useSectionQuery('forwardProjectionsAndValuation');
-  const agmAndShareholderMattersQuery = useSectionQuery('agmAndShareholderMatters');
-  const conclusionAndRecommendationQuery = useSectionQuery('conclusionAndRecommendation');
+  const { data: executiveSummaryData, isLoading: executiveSummaryLoading } =
+    useSectionQuery('executiveSummary');
+  const { data: overviewAndStockMetricsData, isLoading: overviewAndStockMetricsLoading } =
+    useSectionQuery('overviewAndStockMetrics');
+  const { data: shareHolderStructureData, isLoading: shareHolderStructureLoading } =
+    useSectionQuery('shareHolderStructure');
+  const { data: analystRecommendationData, isLoading: analystRecommendationLoading } =
+    useSectionQuery('analystRecommendation');
+  const {
+    data: equityValuationAndDcfAnalysisData,
+    isLoading: equityValuationAndDcfAnalysisLoading,
+  } = useSectionQuery('equityValuationAndDcfAnalysis');
+  const { data: financialStatementAnalyasisData, isLoading: financialStatementAnalyasisLoading } =
+    useSectionQuery('financialStatementAnalyasis');
+  const { data: businessSegmentData, isLoading: businessSegmentDataLoading } =
+    useSectionQuery('businessSegmentData');
+  const {
+    data: interimResultsAndQuarterlyPerformanceData,
+    isLoading: interimResultsAndQuarterlyPerformanceLoading,
+  } = useSectionQuery('interimResultsAndQuarterlyPerformance');
+  const {
+    data: contingentLiabilitiesAndRegulatoryRiskData,
+    isLoading: contingentLiabilitiesAndRegulatoryRiskLoading,
+  } = useSectionQuery('contingentLiabilitiesAndRegulatoryRisk');
+  const {
+    data: dcfValuationRecapAndPriceTargetData,
+    isLoading: dcfValuationRecapAndPriceTargetLoading,
+  } = useSectionQuery('dcfValuationRecapAndPriceTarget');
+  const {
+    data: forwardProjectionsAndValuationData,
+    isLoading: forwardProjectionsAndValuationLoading,
+  } = useSectionQuery('forwardProjectionsAndValuation');
+  const { data: agmAndShareholderMattersData, isLoading: agmAndShareholderMattersLoading } =
+    useSectionQuery('agmAndShareholderMatters');
+  const { data: conclusionAndRecommendationData, isLoading: conclusionAndRecommendationLoading } =
+    useSectionQuery('conclusionAndRecommendation');
 
   const sectionResponses = [
-    executiveSummaryQuery.data,
-    overviewAndStockMetricsQuery.data,
-    shareHolderStructureQuery.data,
-    analystRecommendationQuery.data,
-    equityValuationAndDcfAnalysisQuery.data,
-    financialStatementAnalyasisQuery.data,
-    businessSegmentDataQuery.data,
-    interimResultsAndQuarterlyPerformanceQuery.data,
-    contingentLiabilitiesAndRegulatoryRiskQuery.data,
-    dcfValuationRecapAndPriceTargetQuery.data,
-    forwardProjectionsAndValuationQuery.data,
-    agmAndShareholderMattersQuery.data,
-    conclusionAndRecommendationQuery.data,
+    executiveSummaryData,
+    overviewAndStockMetricsData,
+    shareHolderStructureData,
+    analystRecommendationData,
+    equityValuationAndDcfAnalysisData,
+    financialStatementAnalyasisData,
+    businessSegmentData,
+    interimResultsAndQuarterlyPerformanceData,
+    contingentLiabilitiesAndRegulatoryRiskData,
+    dcfValuationRecapAndPriceTargetData,
+    forwardProjectionsAndValuationData,
+    agmAndShareholderMattersData,
+    conclusionAndRecommendationData,
   ].filter(Boolean);
 
-  const companyName = sectionResponses[0]?.companyName ?? symbol;
+  const allSectionLoadingCompleted =
+    !executiveSummaryLoading &&
+    !overviewAndStockMetricsLoading &&
+    !shareHolderStructureLoading &&
+    !analystRecommendationLoading &&
+    !equityValuationAndDcfAnalysisLoading &&
+    !financialStatementAnalyasisLoading &&
+    !businessSegmentDataLoading &&
+    !interimResultsAndQuarterlyPerformanceLoading &&
+    !contingentLiabilitiesAndRegulatoryRiskLoading &&
+    !dcfValuationRecapAndPriceTargetLoading &&
+    !forwardProjectionsAndValuationLoading &&
+    !agmAndShareholderMattersLoading &&
+    !conclusionAndRecommendationLoading;
+
+  const companyName = executiveSummaryData?.companyName ?? symbol;
 
   const setSectionData = (sectionKey: ReportSectionKey, sectionData: unknown) => {
     queryClient.setQueryData(
@@ -129,69 +142,63 @@ function Report({ symbol }: { symbol: string }) {
     );
   };
 
-  const enhanceSectionByApi = async <K extends ReportSectionKey>(
-    sectionKey: K,
-    improvementText: string,
-  ) => {
-    setEnhancingSections((prev) => ({ ...prev, [sectionKey]: true }));
-    try {
-      const response = await axios.post<EnhanceSectionResponse<K>>(
+  const enhanceSectionMutation = useMutation({
+    mutationFn: async ({
+      sectionKey,
+      improvementText,
+    }: {
+      sectionKey: ReportSectionKey;
+      improvementText: string;
+    }): Promise<EnhanceSectionResponse<ReportSectionKey>> => {
+      const response = await axios.post<EnhanceSectionResponse<ReportSectionKey>>(
         `/api/report/${symbol}/sections/${sectionKey}/enhance`,
         { improvementNeeded: improvementText },
       );
-      setSectionData(sectionKey, response.data.data.data);
-    } finally {
+
+      return response.data;
+    },
+    onMutate: ({ sectionKey }: { sectionKey: ReportSectionKey; improvementText: string }): void => {
+      setEnhancingSections((prev) => ({ ...prev, [sectionKey]: true }));
+    },
+    onSuccess: (
+      response: EnhanceSectionResponse<ReportSectionKey>,
+      { sectionKey }: { sectionKey: ReportSectionKey; improvementText: string },
+    ): void => {
+      setSectionData(sectionKey, response.data);
+    },
+    onSettled: (
+      _response: EnhanceSectionResponse<ReportSectionKey> | undefined,
+      _error: Error | null,
+      { sectionKey }: { sectionKey: ReportSectionKey; improvementText: string },
+    ): void => {
       setEnhancingSections((prev) => ({ ...prev, [sectionKey]: false }));
-    }
-  };
+    },
+  });
 
   const isSectionEnhancing = (sectionKey: ReportSectionKey) =>
     Boolean(enhancingSections[sectionKey]);
 
-  const report = {
-    data: {
-      companyName,
-      report: {
-        executiveSummary: executiveSummaryQuery.data?.data ?? null,
-        overviewAndStockMetrics: overviewAndStockMetricsQuery.data?.data ?? null,
-        shareHolderStructure: shareHolderStructureQuery.data?.data ?? null,
-        analystRecommendation: analystRecommendationQuery.data?.data ?? null,
-        equityValuationAndDcfAnalysis: equityValuationAndDcfAnalysisQuery.data?.data ?? null,
-        financialStatementAnalyasis: financialStatementAnalyasisQuery.data?.data ?? null,
-        businessSegmentData: businessSegmentDataQuery.data?.data ?? null,
-        interimResultsAndQuarterlyPerformance:
-          interimResultsAndQuarterlyPerformanceQuery.data?.data ?? null,
-        contingentLiabilitiesAndRegulatoryRisk:
-          contingentLiabilitiesAndRegulatoryRiskQuery.data?.data ?? null,
-        dcfValuationRecapAndPriceTarget: dcfValuationRecapAndPriceTargetQuery.data?.data ?? null,
-        forwardProjectionsAndValuation: forwardProjectionsAndValuationQuery.data?.data ?? null,
-        agmAndShareholderMatters: agmAndShareholderMattersQuery.data?.data ?? null,
-        conclusionAndRecommendation: conclusionAndRecommendationQuery.data?.data ?? null,
-      },
-    },
-  } as ReportDetailsResponse;
-
-  const executiveSummaryLoading = executiveSummaryQuery.isLoading;
-  const overviewAndStockMetricsLoading = overviewAndStockMetricsQuery.isLoading;
-  const shareHolderStructureLoading = shareHolderStructureQuery.isLoading;
-  const analystRecommendationLoading = analystRecommendationQuery.isLoading;
-  const equityValuationAndDcfAnalysisLoading = equityValuationAndDcfAnalysisQuery.isLoading;
-  const financialStatementAnalyasisLoading = financialStatementAnalyasisQuery.isLoading;
-  const businessSegmentDataLoading = businessSegmentDataQuery.isLoading;
-  const interimResultsAndQuarterlyPerformanceLoading =
-    interimResultsAndQuarterlyPerformanceQuery.isLoading;
-  const contingentLiabilitiesAndRegulatoryRiskLoading =
-    contingentLiabilitiesAndRegulatoryRiskQuery.isLoading;
-  const dcfValuationRecapAndPriceTargetLoading = dcfValuationRecapAndPriceTargetQuery.isLoading;
-  const forwardProjectionsAndValuationLoading = forwardProjectionsAndValuationQuery.isLoading;
-  const agmAndShareholderMattersLoading = agmAndShareholderMattersQuery.isLoading;
-  const conclusionAndRecommendationLoading = conclusionAndRecommendationQuery.isLoading;
+  const executiveSummary = executiveSummaryData?.data ?? null;
+  const overviewAndStockMetrics = overviewAndStockMetricsData?.data ?? null;
+  const shareHolderStructure = shareHolderStructureData?.data ?? null;
+  const analystRecommendation = analystRecommendationData?.data ?? null;
+  const equityValuationAndDcfAnalysis = equityValuationAndDcfAnalysisData?.data ?? null;
+  const financialStatementAnalyasis = financialStatementAnalyasisData?.data ?? null;
+  const reportBusinessSegmentData = businessSegmentData?.data ?? null;
+  const interimResultsAndQuarterlyPerformance =
+    interimResultsAndQuarterlyPerformanceData?.data ?? null;
+  const contingentLiabilitiesAndRegulatoryRisk =
+    contingentLiabilitiesAndRegulatoryRiskData?.data ?? null;
+  const dcfValuationRecapAndPriceTarget = dcfValuationRecapAndPriceTargetData?.data ?? null;
+  const forwardProjectionsAndValuation = forwardProjectionsAndValuationData?.data ?? null;
+  const agmAndShareholderMatters = agmAndShareholderMattersData?.data ?? null;
+  const conclusionAndRecommendation = conclusionAndRecommendationData?.data ?? null;
 
   return (
     <div className="py-8">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Heading className="!text-2xl sm:!text-3xl">{report.data.companyName}</Heading>
+          <Heading className="!text-2xl sm:!text-3xl">{companyName}</Heading>
           <SubHeading className="!mb-1">
             Comprehensive Investment Analysis & Valuation Report
           </SubHeading>
@@ -199,7 +206,7 @@ function Report({ symbol }: { symbol: string }) {
             Date: {formatDate(new Date().toISOString(), 'January 1, 2000')}
           </TertiaryHeading>
         </div>
-        {sectionResponses.length > 0 && (
+        {allSectionLoadingCompleted && sectionResponses.length > 0 && (
           <DownloadPdfButton
             targetRef={reportContentRef}
             companyName={companyName}
@@ -210,34 +217,38 @@ function Report({ symbol }: { symbol: string }) {
       <div ref={reportContentRef}>
         <SectionWrapper
           heading="EXECUTIVE SUMMARY"
-          visible={Boolean(report.data.report?.executiveSummary) || executiveSummaryLoading}
+          visible={Boolean(executiveSummary) || executiveSummaryLoading}
           isLoading={executiveSummaryLoading || isSectionEnhancing('executiveSummary')}
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('executiveSummary', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'executiveSummary',
+              improvementText,
+            });
           }}
         >
-          <Description>{report.data.report?.executiveSummary?.summary}</Description>
+          <Description>{executiveSummary?.summary}</Description>
           <SubHeading>Investment Thesis</SubHeading>
           <List
             items={[
-              `<span style='font-weight: bold' >Positives</span>: ${report.data.report?.executiveSummary?.positive}`,
-              `<span style='font-weight: bold' >Risks</span>: ${report.data.report?.executiveSummary?.risk}`,
-              `<span style='font-weight: bold' >Current Price: ${report.data.report?.executiveSummary?.currentPrice} | DCF Fair Value: ${report.data.report?.executiveSummary?.dcfFairValue} | Analyst Consensus: ${report.data.report?.executiveSummary?.analystConsensus} | Upside: ${report.data.report?.executiveSummary?.upside}</span>`,
+              `<span style='font-weight: bold' >Positives</span>: ${executiveSummary?.positive}`,
+              `<span style='font-weight: bold' >Risks</span>: ${executiveSummary?.risk}`,
+              `<span style='font-weight: bold' >Current Price: ${executiveSummary?.currentPrice} | DCF Fair Value: ${executiveSummary?.dcfFairValue} | Analyst Consensus: ${executiveSummary?.analystConsensus} | Upside: ${executiveSummary?.upside}</span>`,
             ]}
           />
         </SectionWrapper>
         <SectionWrapper
           heading="1. COMPANY OVERVIEW & STOCK METRICS"
-          visible={
-            Boolean(report.data.report?.overviewAndStockMetrics) || overviewAndStockMetricsLoading
-          }
+          visible={Boolean(overviewAndStockMetrics) || overviewAndStockMetricsLoading}
           isLoading={
             overviewAndStockMetricsLoading || isSectionEnhancing('overviewAndStockMetrics')
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('overviewAndStockMetrics', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'overviewAndStockMetrics',
+              improvementText,
+            });
           }}
         >
           <SubHeading>Key Statistics</SubHeading>
@@ -254,7 +265,7 @@ function Report({ symbol }: { symbol: string }) {
                 Note
               </div>,
             ]}
-            rows={report.data.report?.overviewAndStockMetrics?.stockMetrics.map((metric, index) => [
+            rows={overviewAndStockMetrics?.stockMetrics.map((metric, index) => [
               <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
                 {metric.name}
               </div>,
@@ -269,17 +280,18 @@ function Report({ symbol }: { symbol: string }) {
             noData="No fundamentals available"
           />
           <SubHeading className="mt-8">52-Week Performance</SubHeading>
-          <Description>
-            {report.data.report?.overviewAndStockMetrics?.fiftyTwoWeekPerformance}
-          </Description>
+          <Description>{overviewAndStockMetrics?.fiftyTwoWeekPerformance}</Description>
         </SectionWrapper>
         <SectionWrapper
           heading="2. SHAREHOLDER STRUCTURE & INSIDER ACTIVITY"
-          visible={Boolean(report.data.report?.shareHolderStructure) || shareHolderStructureLoading}
+          visible={Boolean(shareHolderStructure) || shareHolderStructureLoading}
           isLoading={shareHolderStructureLoading || isSectionEnhancing('shareHolderStructure')}
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('shareHolderStructure', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'shareHolderStructure',
+              improvementText,
+            });
           }}
         >
           <SubHeading>Major Shareholders (Latest Data)</SubHeading>
@@ -297,20 +309,18 @@ function Report({ symbol }: { symbol: string }) {
               </div>,
             ]}
             rows={[
-              ...(report.data.report?.shareHolderStructure?.majorShareholders || []).map(
-                (shareHolder, index) => [
-                  <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
-                    {shareHolder.shareHolderType}
-                  </div>,
+              ...(shareHolderStructure?.majorShareholders || []).map((shareHolder, index) => [
+                <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
+                  {shareHolder.shareHolderType}
+                </div>,
 
-                  <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
-                    {shareHolder.ownership}
-                  </div>,
-                  <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
-                    {shareHolder.notes}
-                  </div>,
-                ],
-              ),
+                <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
+                  {shareHolder.ownership}
+                </div>,
+                <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
+                  {shareHolder.notes}
+                </div>,
+              ]),
               [
                 <div
                   className="py-[10px] text-sm text-muted-foreground"
@@ -320,27 +330,28 @@ function Report({ symbol }: { symbol: string }) {
                 </div>,
 
                 <div key={`col2-Share Capital Structure`} className={cn('py-[10px] font-medium')}>
-                  {report.data.report?.shareHolderStructure?.totalShares}
+                  {shareHolderStructure?.totalShares}
                 </div>,
                 <div key={`col3-Share Capital Structure`} className={cn('py-[10px] font-medium')}>
-                  {report.data.report?.shareHolderStructure?.shareCapitalNotes}
+                  {shareHolderStructure?.shareCapitalNotes}
                 </div>,
               ],
             ]}
             noData="No fundamentals available"
           />
           <SubHeading className="mt-8">Key Insider Observations:</SubHeading>
-          <List items={report.data.report?.shareHolderStructure?.keyInsiderObservations || []} />
+          <List items={shareHolderStructure?.keyInsiderObservations || []} />
         </SectionWrapper>
         <SectionWrapper
           heading="3. ANALYST RECOMMENDATIONS & PRICE TARGETS"
-          visible={
-            Boolean(report.data.report?.analystRecommendation) || analystRecommendationLoading
-          }
+          visible={Boolean(analystRecommendation) || analystRecommendationLoading}
           isLoading={analystRecommendationLoading || isSectionEnhancing('analystRecommendation')}
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('analystRecommendation', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'analystRecommendation',
+              improvementText,
+            });
           }}
         >
           <SubHeading>Current Consensus (Last 3 Months: Oct-Dec 2025)</SubHeading>
@@ -361,59 +372,57 @@ function Report({ symbol }: { symbol: string }) {
                 </div>,
               ]}
               rows={[
-                ...(report.data.report?.analystRecommendation?.currentConsensus || []).map(
-                  (consensus, index) => [
-                    <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
-                      {consensus.rating}
-                    </div>,
+                ...(analystRecommendation?.currentConsensus || []).map((consensus, index) => [
+                  <div className="py-[10px] text-sm text-muted-foreground" key={`col1-${index}`}>
+                    {consensus.rating}
+                  </div>,
 
-                    <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
-                      {consensus.count}
-                    </div>,
-                    <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
-                      {consensus.percentageOfTotal}
-                    </div>,
-                    <div key={`col4-${index}`} className={cn('py-[10px] font-medium')}>
-                      {consensus.trend}
-                    </div>,
-                  ],
-                ),
+                  <div key={`col2-${index}`} className={cn('py-[10px] font-medium')}>
+                    {consensus.count}
+                  </div>,
+                  <div key={`col3-${index}`} className={cn('py-[10px] font-medium')}>
+                    {consensus.percentageOfTotal}
+                  </div>,
+                  <div key={`col4-${index}`} className={cn('py-[10px] font-medium')}>
+                    {consensus.trend}
+                  </div>,
+                ]),
               ]}
               noData="No fundamentals available"
             />
           </div>
           <SubHeading>Consensus Details:</SubHeading>
           <List
-            items={(report.data.report?.analystRecommendation?.consensusDetails || []).map(
+            items={(analystRecommendation?.consensusDetails || []).map(
               (item) => `<span style="font-weight: bold">${item.name}</span>: ${item.value}`,
             )}
           />
-          {report.data.report?.analystRecommendation?.recentAnalystViews.length ? (
+          {analystRecommendation?.recentAnalystViews.length ? (
             <>
               <SubHeading>Recent Analyst Views</SubHeading>
-              <List items={report.data.report?.analystRecommendation.recentAnalystViews} />
+              <List items={analystRecommendation.recentAnalystViews} />
             </>
           ) : null}
         </SectionWrapper>
         <SectionWrapper
           heading="4. EQUITY VALUATION & DCF ANALYSIS"
-          visible={
-            Boolean(report.data.report?.equityValuationAndDcfAnalysis) ||
-            equityValuationAndDcfAnalysisLoading
-          }
+          visible={Boolean(equityValuationAndDcfAnalysis) || equityValuationAndDcfAnalysisLoading}
           isLoading={
             equityValuationAndDcfAnalysisLoading ||
             isSectionEnhancing('equityValuationAndDcfAnalysis')
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('equityValuationAndDcfAnalysis', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'equityValuationAndDcfAnalysis',
+              improvementText,
+            });
           }}
         >
           <SubHeading>DCF Valuation Model</SubHeading>
           <TertiaryHeading>Key Assumptions</TertiaryHeading>
           <List
-            items={(report.data.report?.equityValuationAndDcfAnalysis?.keyAssumptions || []).map(
+            items={(equityValuationAndDcfAnalysis?.keyAssumptions || []).map(
               (a) => `<span style='font-weight: bold'>${a.modelName}</span>: ${a.assumption}`,
             )}
           />
@@ -441,8 +450,7 @@ function Report({ symbol }: { symbol: string }) {
               ];
             })()}
             rows={(() => {
-              const pfy =
-                report.data.report?.equityValuationAndDcfAnalysis?.projectedFinancialYears || [];
+              const pfy = equityValuationAndDcfAnalysis?.projectedFinancialYears || [];
               const byYear: Record<string, { metric: string; value: string }[]> = {};
               pfy.forEach((y) => {
                 byYear[y.financialYear] = (y.projections || []).map((p: ProjectionMetricRow) => ({
@@ -481,7 +489,7 @@ function Report({ symbol }: { symbol: string }) {
           />
           <TertiaryHeading>DCF Valuation Build-up:</TertiaryHeading>
           {(() => {
-            const b = report.data.report?.equityValuationAndDcfAnalysis?.dcfValuationBuildup;
+            const b = equityValuationAndDcfAnalysis?.dcfValuationBuildup;
             if (!b) return <div className="text-sm text-muted-foreground">No data</div>;
             const items = [
               `<span class='font-semibold'>PV of FCF</span>: ${b.pvOfFCF}`,
@@ -519,8 +527,7 @@ function Report({ symbol }: { symbol: string }) {
               ];
             })()}
             rows={(() => {
-              const rows =
-                report.data.report?.equityValuationAndDcfAnalysis?.valuationSensitivities || [];
+              const rows = equityValuationAndDcfAnalysis?.valuationSensitivities || [];
               const tgOrder = ['2.5%', '3.0%', '3.5%', '4.0%', '4.5%'];
               return rows.map((r, idx) => [
                 <div className="py-[10px] text-sm text-muted-foreground" key={`sen-w-${idx}`}>
@@ -537,22 +544,20 @@ function Report({ symbol }: { symbol: string }) {
               ]);
             })()}
           />
-          <p>
-            Key Takeaway: {report.data.report?.equityValuationAndDcfAnalysis?.keyTakeAway || ''}
-          </p>
+          <p>Key Takeaway: {equityValuationAndDcfAnalysis?.keyTakeAway || ''}</p>
         </SectionWrapper>
         <SectionWrapper
           heading="5. FINANCIAL STATEMENTS ANALYSIS"
-          visible={
-            Boolean(report.data.report?.financialStatementAnalyasis) ||
-            financialStatementAnalyasisLoading
-          }
+          visible={Boolean(financialStatementAnalyasis) || financialStatementAnalyasisLoading}
           isLoading={
             financialStatementAnalyasisLoading || isSectionEnhancing('financialStatementAnalyasis')
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('financialStatementAnalyasis', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'financialStatementAnalyasis',
+              improvementText,
+            });
           }}
         >
           {/* Income Statement Trend */}
@@ -575,8 +580,7 @@ function Report({ symbol }: { symbol: string }) {
               ));
             })()}
             rows={(() => {
-              const rows =
-                report.data.report?.financialStatementAnalyasis?.incomeStatementTrendRows || [];
+              const rows = financialStatementAnalyasis?.incomeStatementTrendRows || [];
               return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
                 .filter((r): r is IncomeStatementTrendRow => Boolean(r))
                 .slice(0, 6)
@@ -603,7 +607,7 @@ function Report({ symbol }: { symbol: string }) {
             })()}
           />
           <TertiaryHeading>Key Observations:</TertiaryHeading>
-          <List items={report.data.report?.financialStatementAnalyasis?.keyObservations || []} />
+          <List items={financialStatementAnalyasis?.keyObservations || []} />
 
           {/* Balance Sheet Strength */}
           <SubHeading>Balance Sheet Strength (FY20–FY25)</SubHeading>
@@ -625,8 +629,7 @@ function Report({ symbol }: { symbol: string }) {
               ));
             })()}
             rows={(() => {
-              const rows =
-                report.data.report?.financialStatementAnalyasis?.balanceSheetStrengthRows || [];
+              const rows = financialStatementAnalyasis?.balanceSheetStrengthRows || [];
               return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
                 .filter((r): r is BalanceSheetStrengthRow => Boolean(r))
                 .slice(0, 6)
@@ -653,9 +656,7 @@ function Report({ symbol }: { symbol: string }) {
             })()}
           />
           <TertiaryHeading>Capital Position Analysis:</TertiaryHeading>
-          <List
-            items={report.data.report?.financialStatementAnalyasis?.capitalPositionAnalysis || []}
-          />
+          <List items={financialStatementAnalyasis?.capitalPositionAnalysis || []} />
 
           {/* Cash Flow Analysis */}
           <SubHeading>Cash Flow Analysis</SubHeading>
@@ -678,8 +679,7 @@ function Report({ symbol }: { symbol: string }) {
               ));
             })()}
             rows={(() => {
-              const rows =
-                report.data.report?.financialStatementAnalyasis?.cashFlowAnalysisRows || [];
+              const rows = financialStatementAnalyasis?.cashFlowAnalysisRows || [];
               return FY_ORDER.map((fy) => rows.find((r) => r.fiscalYear === fy))
                 .filter((r): r is CashFlowAnalysisRow => Boolean(r))
                 .slice(0, 6)
@@ -709,13 +709,13 @@ function Report({ symbol }: { symbol: string }) {
             })()}
           />
           <TertiaryHeading>FCF Quality Analysis:</TertiaryHeading>
-          <List items={report.data.report?.financialStatementAnalyasis?.fcfQualityAnalysis || []} />
+          <List items={financialStatementAnalyasis?.fcfQualityAnalysis || []} />
 
           {/* Financial Ratios & Credit Metrics */}
           <SubHeading>Financial Ratios & Credit Metrics</SubHeading>
           {(() => {
-            const ratioRows =
-              report.data.report?.financialStatementAnalyasis?.financialRatioMetrics || [];
+            const ratioRows: ReportFinancialRatioMetric[] =
+              financialStatementAnalyasis?.financialRatioMetrics || [];
             const yearOrder = ['FY20', 'FY21', 'FY22', 'FY23', 'FY24', 'FY25'];
             const yearLabel: Record<string, string> = {
               FY20: 'FY20',
@@ -784,22 +784,23 @@ function Report({ symbol }: { symbol: string }) {
             ]);
           })()}
           <TertiaryHeading>Valuation Observations:</TertiaryHeading>
-          <List
-            items={report.data.report?.financialStatementAnalyasis?.valuationObservations || []}
-          />
+          <List items={financialStatementAnalyasis?.valuationObservations || []} />
         </SectionWrapper>
         {/* BUSINESS SEGMENTS & COMPETITIVE POSITION */}
         <SectionWrapper
           heading="6. BUSINESS SEGMENTS & COMPETITIVE POSITION"
-          visible={Boolean(report.data.report?.businessSegmentData) || businessSegmentDataLoading}
+          visible={Boolean(reportBusinessSegmentData) || businessSegmentDataLoading}
           isLoading={businessSegmentDataLoading || isSectionEnhancing('businessSegmentData')}
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('businessSegmentData', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'businessSegmentData',
+              improvementText,
+            });
           }}
         >
           {(() => {
-            const bs = report.data.report?.businessSegmentData;
+            const bs = reportBusinessSegmentData;
             if (!bs) return <div className="text-sm text-muted-foreground">No data</div>;
 
             // Revenue Model Breakdown
@@ -823,27 +824,27 @@ function Report({ symbol }: { symbol: string }) {
             ]);
 
             // Platform Segments Performance
-            const psp = bs.platformSegmentPerformance || [];
-            const pspRows = psp.map((row, i) => [
-              <div className="py-[10px] text-sm text-muted-foreground" key={`psp-sg-${i}`}>
-                {row.segment}
-              </div>,
-              <div className={cn('py-[10px] font-medium')} key={`psp-cus-${i}`}>
-                {row.customers}
-              </div>,
-              <div className={cn('py-[10px] font-medium')} key={`psp-aua-${i}`}>
-                {row.aua}
-              </div>,
-              <div className={cn('py-[10px] font-medium')} key={`psp-gr-${i}`}>
-                {row.growth}
-              </div>,
-              <div className={cn('py-[10px] font-medium')} key={`psp-ni-${i}`}>
-                {row.netInflows}
-              </div>,
-              <div className={cn('py-[10px] font-medium')} key={`psp-cm-${i}`}>
-                {row.comments}
-              </div>,
-            ]);
+            // const psp = bs.platformSegmentPerformance || [];
+            // const pspRows = psp.map((row, i) => [
+            //   <div className="py-[10px] text-sm text-muted-foreground" key={`psp-sg-${i}`}>
+            //     {row.segment}
+            //   </div>,
+            //   <div className={cn('py-[10px] font-medium')} key={`psp-cus-${i}`}>
+            //     {row.customers}
+            //   </div>,
+            //   <div className={cn('py-[10px] font-medium')} key={`psp-aua-${i}`}>
+            //     {row.aua}
+            //   </div>,
+            //   <div className={cn('py-[10px] font-medium')} key={`psp-gr-${i}`}>
+            //     {row.growth}
+            //   </div>,
+            //   <div className={cn('py-[10px] font-medium')} key={`psp-ni-${i}`}>
+            //     {row.netInflows}
+            //   </div>,
+            //   <div className={cn('py-[10px] font-medium')} key={`psp-cm-${i}`}>
+            //     {row.comments}
+            //   </div>,
+            // ]);
 
             const comp = bs.competitivePosition;
             const competitors = comp?.keyCompetitors || [];
@@ -931,7 +932,7 @@ function Report({ symbol }: { symbol: string }) {
         <SectionWrapper
           heading="7. INTERIM RESULTS & QUARTERLY PERFORMANCE"
           visible={
-            Boolean(report.data.report?.interimResultsAndQuarterlyPerformance) ||
+            Boolean(interimResultsAndQuarterlyPerformance) ||
             interimResultsAndQuarterlyPerformanceLoading
           }
           isLoading={
@@ -940,11 +941,14 @@ function Report({ symbol }: { symbol: string }) {
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('interimResultsAndQuarterlyPerformance', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'interimResultsAndQuarterlyPerformance',
+              improvementText,
+            });
           }}
         >
           {(() => {
-            const interim = report.data.report?.interimResultsAndQuarterlyPerformance;
+            const interim = interimResultsAndQuarterlyPerformance;
             if (!interim) return <div className="text-sm text-muted-foreground">No data</div>;
 
             return (
@@ -1024,7 +1028,7 @@ function Report({ symbol }: { symbol: string }) {
         <SectionWrapper
           heading="8. CONTINGENT LIABILITIES & REGULATORY RISKS"
           visible={
-            Boolean(report.data.report?.contingentLiabilitiesAndRegulatoryRisk) ||
+            Boolean(contingentLiabilitiesAndRegulatoryRisk) ||
             contingentLiabilitiesAndRegulatoryRiskLoading
           }
           isLoading={
@@ -1033,11 +1037,14 @@ function Report({ symbol }: { symbol: string }) {
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('contingentLiabilitiesAndRegulatoryRisk', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'contingentLiabilitiesAndRegulatoryRisk',
+              improvementText,
+            });
           }}
         >
           {(() => {
-            const contingent = report.data.report?.contingentLiabilitiesAndRegulatoryRisk;
+            const contingent = contingentLiabilitiesAndRegulatoryRisk;
             if (!contingent) return <div className="text-sm text-muted-foreground">No data</div>;
 
             return (
@@ -1110,8 +1117,7 @@ function Report({ symbol }: { symbol: string }) {
         <SectionWrapper
           heading="9. DCF VALUATION RECAP & PRICE TARGET"
           visible={
-            Boolean(report.data.report?.dcfValuationRecapAndPriceTarget) ||
-            dcfValuationRecapAndPriceTargetLoading
+            Boolean(dcfValuationRecapAndPriceTarget) || dcfValuationRecapAndPriceTargetLoading
           }
           isLoading={
             dcfValuationRecapAndPriceTargetLoading ||
@@ -1119,11 +1125,14 @@ function Report({ symbol }: { symbol: string }) {
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('dcfValuationRecapAndPriceTarget', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'dcfValuationRecapAndPriceTarget',
+              improvementText,
+            });
           }}
         >
           {(() => {
-            const dcfRecap = report.data.report?.dcfValuationRecapAndPriceTarget;
+            const dcfRecap = dcfValuationRecapAndPriceTarget;
             if (!dcfRecap) return <div className="text-sm text-muted-foreground">No data</div>;
 
             return (
@@ -1162,7 +1171,7 @@ function Report({ symbol }: { symbol: string }) {
                       Value
                     </div>,
                   ]}
-                  rows={(dcfRecap.sensitivityAnalysisRecap || []).map((row: any, idx: number) => [
+                  rows={(dcfRecap.sensitivityAnalysisRecap || []).map((row, idx: number) => [
                     <div className="py-[10px] text-sm text-muted-foreground" key={`dcf-s-${idx}`}>
                       {row.scenario}
                     </div>,
@@ -1187,21 +1196,21 @@ function Report({ symbol }: { symbol: string }) {
 
         <SectionWrapper
           heading="10. FORWARD PROJECTIONS: P&L, BALANCE SHEET & VALUATION"
-          visible={
-            Boolean(report.data.report?.forwardProjectionsAndValuation) ||
-            forwardProjectionsAndValuationLoading
-          }
+          visible={Boolean(forwardProjectionsAndValuation) || forwardProjectionsAndValuationLoading}
           isLoading={
             forwardProjectionsAndValuationLoading ||
             isSectionEnhancing('forwardProjectionsAndValuation')
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('forwardProjectionsAndValuation', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'forwardProjectionsAndValuation',
+              improvementText,
+            });
           }}
         >
           {(() => {
-            const forward = report.data.report?.forwardProjectionsAndValuation;
+            const forward = forwardProjectionsAndValuation;
             if (!forward) return <div className="text-sm text-muted-foreground">No data</div>;
 
             return (
@@ -1381,19 +1390,20 @@ function Report({ symbol }: { symbol: string }) {
 
         <SectionWrapper
           heading="11. ANNUAL GENERAL MEETING & SHAREHOLDER MATTERS"
-          visible={
-            Boolean(report.data.report?.agmAndShareholderMatters) || agmAndShareholderMattersLoading
-          }
+          visible={Boolean(agmAndShareholderMatters) || agmAndShareholderMattersLoading}
           isLoading={
             agmAndShareholderMattersLoading || isSectionEnhancing('agmAndShareholderMatters')
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('agmAndShareholderMatters', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'agmAndShareholderMatters',
+              improvementText,
+            });
           }}
         >
           {(() => {
-            const agm = report.data.report?.agmAndShareholderMatters;
+            const agm = agmAndShareholderMatters;
             if (!agm) return <div className="text-sm text-muted-foreground">No data</div>;
 
             return (
@@ -1452,20 +1462,20 @@ function Report({ symbol }: { symbol: string }) {
 
         <SectionWrapper
           heading="12. CONCLUSION"
-          visible={
-            Boolean(report.data.report?.conclusionAndRecommendation) ||
-            conclusionAndRecommendationLoading
-          }
+          visible={Boolean(conclusionAndRecommendation) || conclusionAndRecommendationLoading}
           isLoading={
             conclusionAndRecommendationLoading || isSectionEnhancing('conclusionAndRecommendation')
           }
           symbol={symbol}
           onEnhanceSection={async (_symbol: string, improvementText: string) => {
-            await enhanceSectionByApi('conclusionAndRecommendation', improvementText);
+            await enhanceSectionMutation.mutateAsync({
+              sectionKey: 'conclusionAndRecommendation',
+              improvementText,
+            });
           }}
         >
           {(() => {
-            const conclusion = report.data.report?.conclusionAndRecommendation;
+            const conclusion = conclusionAndRecommendation;
             if (!conclusion) return <div className="text-sm text-muted-foreground">No data</div>;
 
             return (

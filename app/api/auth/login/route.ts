@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
 
-    setAccessTokenCookie(response, accessToken);
+    setAccessTokenCookie({ response, accessToken });
     return response;
   } catch (error) {
     const parsed = convertToErrorInstance(error);

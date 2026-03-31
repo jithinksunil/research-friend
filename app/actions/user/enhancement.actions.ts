@@ -1,5 +1,4 @@
-'use server';
-import { ROLES, FinancialStatementYear } from '@/app/generated/prisma/enums';
+import { FinancialStatementYear } from '@/app/generated/prisma/enums';
 import { z } from 'zod';
 import {
   EXECUTIVE_PROMPT,
@@ -33,7 +32,6 @@ import {
   ConclusionAndRecommendationSchema,
   getReportSourceBundle,
   improveSection,
-  requireRBAC,
   resolveReportMarketContext,
   validateReportCurrencyConsistency,
 } from '@/server';
@@ -69,10 +67,7 @@ async function improveCurrencyAwareSection<T extends z.ZodRawShape>({
   return improved;
 }
 
-export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
-  symbol: string,
-  improvementNeeded,
-) => {
+export async function enhanceExecutiveSection(symbol: string, improvementNeeded: string) {
   const executiveData = (await prisma.executiveSummary.findFirst({
     where: { report: { company: { symbol } } },
   }))!;
@@ -101,12 +96,12 @@ export const enhanceExecutiveSection = requireRBAC(ROLES.USER)(async (
     okay: true,
     data: executiveSummary,
   };
-});
+}
 
-export const enhanceCompanyOverviewAndStockMetricsSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceCompanyOverviewAndStockMetricsSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const overviewData = (await prisma.overviewAndStockMetrics.findFirst({
     where: { report: { company: { symbol } } },
     select: { fiftyTwoWeekPerformance: true, stockMetrics: true, id: true },
@@ -144,12 +139,12 @@ export const enhanceCompanyOverviewAndStockMetricsSection = requireRBAC(ROLES.US
     okay: true,
     data: overView,
   };
-});
+}
 
-export const enhanceShareholderStructureSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceShareholderStructureSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const shareHolderData = (await prisma.shareHolderStructure.findFirst({
     where: { report: { company: { symbol } } },
     include: { majorShareholders: true },
@@ -193,12 +188,12 @@ export const enhanceShareholderStructureSection = requireRBAC(ROLES.USER)(async 
     okay: true,
     data: updated,
   };
-});
+}
 
-export const enhanceAnalystRecommendationSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceAnalystRecommendationSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const analystData = (await prisma.analystRecommendation.findFirst({
     where: { report: { company: { symbol } } },
     include: { currentConsensus: true, consensusDetails: true },
@@ -249,12 +244,9 @@ export const enhanceAnalystRecommendationSection = requireRBAC(ROLES.USER)(async
     okay: true,
     data: updated,
   };
-});
+}
 
-export const enhanceBusinessSegmentDataSection = requireRBAC(ROLES.USER)(async (
-  symbol: string,
-  improvementNeeded,
-) => {
+export async function enhanceBusinessSegmentDataSection(symbol: string, improvementNeeded: string) {
   const businessSegmentData = (await prisma.businessSegmentData.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -341,12 +333,12 @@ export const enhanceBusinessSegmentDataSection = requireRBAC(ROLES.USER)(async (
     okay: true,
     data: updated,
   };
-});
+}
 
-export const enhanceEquityValuationAndDcfAnalysisSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceEquityValuationAndDcfAnalysisSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const equityValuationData = (await prisma.equityValuationAndDcfAnalysis.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -451,12 +443,12 @@ export const enhanceEquityValuationAndDcfAnalysisSection = requireRBAC(ROLES.USE
     okay: true,
     data: updated,
   };
-});
+}
 
-export const enhanceFinancialStatementAnalysisSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceFinancialStatementAnalysisSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const financialData = (await prisma.financialStatementAnalyasis.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -556,12 +548,12 @@ export const enhanceFinancialStatementAnalysisSection = requireRBAC(ROLES.USER)(
     okay: true,
     data: updated,
   };
-});
+}
 
-export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceInterimResultsAndQuarterlyPerformanceSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const interimData = (await prisma.interimResultsAndQuarterlyPerformance.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -651,12 +643,12 @@ export const enhanceInterimResultsAndQuarterlyPerformanceSection = requireRBAC(R
     okay: true,
     data: updated,
   };
-});
+}
 
-export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceContingentLiabilitiesAndRegulatoryRiskSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const contingentData = (await prisma.contingentLiabilitiesAndRegulatoryRisk.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -706,12 +698,12 @@ export const enhanceContingentLiabilitiesAndRegulatoryRiskSection = requireRBAC(
   });
 
   return { okay: true, data: updated };
-});
+}
 
-export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceDcfValuationRecapAndPriceTargetSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const dcfRecapData = (await prisma.dcfValuationRecapAndPriceTarget.findFirst({
     where: { report: { company: { symbol } } },
     include: { sensitivityAnalysisRecap: true },
@@ -773,12 +765,12 @@ export const enhanceDcfValuationRecapAndPriceTargetSection = requireRBAC(ROLES.U
   });
 
   return { okay: true, data: updated };
-});
+}
 
-export const enhanceAgmAndShareholderMattersSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceAgmAndShareholderMattersSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const agmData = (await prisma.agmAndShareholderMatters.findFirst({
     where: { report: { company: { symbol } } },
     include: { expectedVotingAgenda: true },
@@ -822,12 +814,12 @@ export const enhanceAgmAndShareholderMattersSection = requireRBAC(ROLES.USER)(as
   });
 
   return { okay: true, data: updated };
-});
+}
 
-export const enhanceForwardProjectionsAndValuationSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceForwardProjectionsAndValuationSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const forwardData = (await prisma.forwardProjectionsAndValuation.findFirst({
     where: { report: { company: { symbol } } },
     include: {
@@ -886,12 +878,12 @@ export const enhanceForwardProjectionsAndValuationSection = requireRBAC(ROLES.US
   });
 
   return { okay: true, data: updated };
-});
+}
 
-export const enhanceConclusionAndRecommendationSection = requireRBAC(ROLES.USER)(async (
+export async function enhanceConclusionAndRecommendationSection(
   symbol: string,
-  improvementNeeded,
-) => {
+  improvementNeeded: string,
+) {
   const conclusionData = (await prisma.conclusionAndRecommendation.findFirst({
     where: { report: { company: { symbol } } },
   }))!;
@@ -927,4 +919,4 @@ export const enhanceConclusionAndRecommendationSection = requireRBAC(ROLES.USER)
   });
 
   return { okay: true, data: updated };
-});
+}

@@ -1,5 +1,6 @@
 'use client';
 
+import { brandingColors } from '@/lib';
 import { useEffect, useMemo, useRef } from 'react';
 import {
   createChart,
@@ -10,14 +11,17 @@ import {
   HistogramSeries,
   UTCTimestamp,
 } from 'lightweight-charts';
-import { brandingColors } from '@/lib';
 
-type Candle = {
+interface Candle {
   date: string | Date;
   open: number;
   close: number;
   volume: number;
-};
+}
+
+interface StockChartProps {
+  stock: Candle[];
+}
 
 function normalizeData(data: Candle[]) {
   const map = new Map<number, Candle>();
@@ -49,7 +53,7 @@ function normalizeData(data: Candle[]) {
   return { lineData, volumeData };
 }
 
-export default function StockChart({ stock }: { stock: Candle[] }) {
+export default function StockChart({ stock }: StockChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 

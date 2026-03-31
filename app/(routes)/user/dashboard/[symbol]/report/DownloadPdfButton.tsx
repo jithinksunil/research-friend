@@ -10,15 +10,17 @@ interface DownloadPdfButtonProps {
   symbol: string;
 }
 
+interface PrintableDocumentOptions {
+  companyName: string;
+  reportDate: string;
+  reportMarkup: string;
+}
+
 function buildPrintableDocument({
   companyName,
   reportDate,
   reportMarkup,
-}: {
-  companyName: string;
-  reportDate: string;
-  reportMarkup: string;
-}) {
+}: PrintableDocumentOptions) {
   const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
     .map((node) => node.outerHTML)
     .join('\n');

@@ -11,18 +11,8 @@ export const brandingColors = {
   // background: '#171717',
   // foreground: '#FFFFFF',
 };
-export const SYSTEM_PROMPT = `
-You are a senior equity research analyst at a global investment bank.
 
-Rules:
-- Use only verified public information
-- Be conservative with assumptions
-- Separate facts vs estimates
-- Output JSON ONLY
-- Follow the schema strictly
-`;
-
-export const REPORT_VALUE_FORMATTING_RULES = `
+const REPORT_VALUE_FORMATTING_RULES = `
 Universal report formatting rules:
 - Use the provided market context as the source of truth for currency and exchange.
 - Keep every monetary or per-share value in one consistent currency for the entire section.

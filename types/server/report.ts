@@ -1,0 +1,15 @@
+export type ReportMarketType =
+  | 'India'
+  | 'US'
+  | 'UK'
+  | 'Canada'
+  | 'Australia'
+  | 'Japan'
+  | 'China'
+  | 'Hong Kong'
+  | 'Singapore'
+  | 'South Korea'
+  | 'Taiwan'
+  | 'Europe'
+  | 'Middle East'
+  | 'Global';

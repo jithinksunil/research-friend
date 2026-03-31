@@ -3,10 +3,11 @@ import * as yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { SigninFormInterface } from '@/interfaces';
 import { toastMessage } from '@/lib/toast';
 import { TOKEN_NAMES } from '@/lib/enum';
+import { useLoginMutation } from '@/hooks/user/auth';
 import { PasswordInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
 
@@ -21,13 +22,13 @@ const defaultValues: SigninFormInterface = {
 };
 
 export function SigninForm() {
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { control, handleSubmit } = useForm<SigninFormInterface>({
     resolver: yupResolver(schema),
     defaultValues,
   });
   const params = useSearchParams();
+  const loginMutation = useLoginMutation();
 
   useEffect(() => {
     const message = params.get('message');
@@ -39,19 +40,7 @@ export function SigninForm() {
 
   const onSubmit = async (formData: SigninFormInterface) => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(typeof payload?.message === 'string' ? payload.message : 'Sign in failed');
-      }
+      const payload = await loginMutation.mutateAsync(formData);
       const refreshToken = payload?.data?.refreshToken;
       if (typeof refreshToken !== 'string' || !refreshToken) {
         throw new Error('Refresh token missing in login response');
@@ -62,8 +51,6 @@ export function SigninForm() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Something went wrong';
       toastMessage.error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -73,7 +60,7 @@ export function SigninForm() {
       <div>
         <PasswordInput control={control} name="password" placeholder="Password" />
       </div>
-      <PrimaryButton type="submit" isLoading={loading} className="mt-4">
+      <PrimaryButton type="submit" isLoading={loginMutation.isPending} className="mt-4">
         Sign In
       </PrimaryButton>
 

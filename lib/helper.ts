@@ -1,7 +1,7 @@
 import { ROLES } from '@/app/generated/prisma/enums';
 import { SessionPayload } from '@/interfaces';
 import { jwtVerify, SignJWT } from 'jose';
-import { clsx, type ClassValue } from 'clsx';
+import { clsx, ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 export function convertToErrorInstance(
@@ -24,7 +24,7 @@ export async function createJWTToken(
     secret: string;
     expirationTime?: number; //seconds
   },
-) {
+): Promise<string> {
   const encodedSecret = new TextEncoder().encode(payload.secret);
   const now = Math.floor(Date.now() / 1000);
   return await new SignJWT({
@@ -38,7 +38,13 @@ export async function createJWTToken(
     .sign(encodedSecret);
 }
 
-export async function verifyJWTToken(token: string, secret: string): Promise<SessionPayload> {
+export async function verifyJWTToken({
+  token,
+  secret,
+}: {
+  token: string;
+  secret: string;
+}): Promise<SessionPayload> {
   const encodedSecret = new TextEncoder().encode(secret);
 
   const { payload } = await jwtVerify(token, encodedSecret, {
@@ -51,7 +57,7 @@ export async function verifyJWTToken(token: string, secret: string): Promise<Ses
   };
 }
 
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
@@ -71,7 +77,15 @@ export const formatDate = (isoString: string, format: 'January 1, 2000'): string
   }
 };
 
-export function formatValue(value: number | null, format: string, unit?: string | null) {
+export function formatValue({
+  value,
+  format,
+  unit,
+}: {
+  value: number | null;
+  format: string;
+  unit?: string | null;
+}): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return '—';
   }

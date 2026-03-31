@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 
-interface PropTypes {
+interface LoaderProps {
   color?: boolean;
   size?: number;
 }
 
-export function Loader({ color, size }: PropTypes) {
+export function Loader({ color, size }: LoaderProps) {
   const style = useMemo(
     () => ({
       borderTopColor: color ? 'var(--primary)' : '#fff',

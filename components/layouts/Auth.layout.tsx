@@ -1,10 +1,11 @@
 import { productName } from '@/lib';
 import Image from 'next/image';
-import { ReactNode } from 'react';
-interface PropTypes {
-  children: ReactNode;
+
+interface AuthLayoutProps {
+  children: React.ReactNode;
 }
-export const AuthLayout = (props: PropTypes) => {
+
+export const AuthLayout = (props: AuthLayoutProps) => {
   return (
     <div className={`w-full flex justify-center bg-[#F4F4F0]`}>
       <div className="flex flex-col justify-between md:justify-start p-0 relative min-h-screen md:px-5 md:py-0 [&>div]:grow-0 md:[&>div]:grow">

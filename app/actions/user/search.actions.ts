@@ -1,14 +1,8 @@
-'use server';
-
-import { ROLES } from '@/app/generated/prisma/enums';
-import { SearchSuggestion } from '@/interfaces';
+import { SearchSuggestion, YahooSearchQuote } from '@/interfaces';
 import { convertToErrorInstance } from '@/lib';
 import prisma from '@/prisma';
-import { requireRBAC } from '@/server';
 
-export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(async (
-  query: string,
-) => {
+export async function searchForCompanies(query: string) {
   try {
     const trimmed = query.trim();
     if (!trimmed) return { okay: true, data: [] };
@@ -25,10 +19,10 @@ export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(as
 
     const data = await res.json();
 
-    const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
+    const quotes: YahooSearchQuote[] = Array.isArray(data?.quotes) ? data.quotes : [];
 
     const suggestions: SearchSuggestion[] = quotes
-      .map((quote: any) => {
+      .map((quote) => {
         const symbol = quote?.symbol?.trim();
         if (!symbol) return null;
 
@@ -43,15 +37,15 @@ export const searchForCompanies = requireRBAC(ROLES.USER)<SearchSuggestion[]>(as
           region,
         };
       })
-      .filter(Boolean);
+      .filter((suggestion): suggestion is SearchSuggestion => suggestion !== null);
 
     return { okay: true, data: suggestions };
   } catch (error) {
     return { okay: false, error: convertToErrorInstance(error) };
   }
-});
+}
 
-export const ensureCompanyFromSearch = requireRBAC(ROLES.USER)(async (symbol: string) => {
+export async function ensureCompanyFromSearch(symbol: string) {
   try {
     const normalizedSymbol = symbol.trim().toUpperCase();
     if (!normalizedSymbol) {
@@ -69,4 +63,4 @@ export const ensureCompanyFromSearch = requireRBAC(ROLES.USER)(async (symbol: st
   } catch (error) {
     return { okay: false, error: convertToErrorInstance(error) };
   }
-});
+}

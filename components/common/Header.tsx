@@ -1,25 +1,32 @@
 'use client';
+import { TOKEN_NAMES } from '@/lib/enum';
+import { useLogoutMutation } from '@/hooks/user/auth';
 import { Logout, Menu } from '@mui/icons-material';
 import { IconButton } from '@mui/material';
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { HeaderListLink } from './HeaderListLink';
 import { Logo } from './Logo';
-import { TOKEN_NAMES } from '@/lib/enum';
 
-interface PropTypes {
+interface HeaderProps {
   disableLogo?: boolean;
 }
-export function Header(props: PropTypes) {
+
+export function Header(props: HeaderProps) {
   const [show, setShow] = useState(false);
   const router = useRouter();
+  const logoutMutation = useLogoutMutation();
+
   const handleSignout = async () => {
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-    localStorage.removeItem(TOKEN_NAMES.REFRESH_TOKEN);
-    router.replace('/');
+    try {
+      await logoutMutation.mutateAsync();
+      localStorage.removeItem(TOKEN_NAMES.REFRESH_TOKEN);
+      router.replace('/');
+    } catch {
+      // Handle error if needed
+      localStorage.removeItem(TOKEN_NAMES.REFRESH_TOKEN);
+      router.replace('/');
+    }
   };
   const handleShow = () => {
     setShow((prev) => !prev);

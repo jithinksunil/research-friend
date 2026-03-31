@@ -1,3 +1,4 @@
+import { ReportSectionKey } from '@/types';
 import { REPORT_SECTION_KEYS, getOrGenerateReportSection } from '@/lib/server-only/report';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -18,12 +19,9 @@ export async function GET(
   }
 
   try {
-    const data = await getOrGenerateReportSection(
-      normalizedSymbol,
-      sectionKey as (typeof REPORT_SECTION_KEYS)[number],
-    );
+    const data = await getOrGenerateReportSection(normalizedSymbol, sectionKey as ReportSectionKey);
 
-    return NextResponse.json({ data }, { status: 200 });
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       {

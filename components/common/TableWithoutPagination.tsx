@@ -1,8 +1,8 @@
-import { FC, ReactNode } from 'react';
+import { FC } from 'react';
 
 interface TableProps {
-  headings?: ReactNode[];
-  rows?: ReactNode[][];
+  headings?: React.ReactNode[];
+  rows?: React.ReactNode[][];
   noData: string;
 }
 

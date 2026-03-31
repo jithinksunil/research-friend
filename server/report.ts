@@ -1,4 +1,32 @@
 import 'server-only';
+import {
+  AgmAndShareholderMattersData,
+  AnalystRecommendationsData,
+  BusinessSegmentsData,
+  CompanyOverviewMetrics,
+  ConclusionRecommendationData,
+  ContingentLiabilitiesRegulatoryRiskData,
+  DcfValuationRecapData,
+  EquityValuationData,
+  ExtendedBalanceSheet,
+  ExtendedCashFlow,
+  ExtendedCashFlowStatement,
+  ExtendedIncomeStatement,
+  FinancialStatementsAnalysisData,
+  ForwardProjectionsValuationInput,
+  InterimResultsData,
+  InstitutionOwnershipRow,
+  InsiderTransactionRow,
+  LegacyBalanceSheetStatement,
+  LegacyCashflowStatement,
+  LegacyIncomeStatement,
+  ReportMarketContext,
+  ReportSourceBundle,
+  SectionGenerationOptions,
+  ShareholderStructure,
+  StockResearchData,
+} from '@/interfaces';
+import { ReportMarketType } from '@/types';
 import YahooFinance from 'yahoo-finance2';
 import { z } from 'zod';
 import { fetchSection } from './common';
@@ -17,106 +45,8 @@ import {
   OVERVIEW_PROMPT,
   SHARE_HOLDER_STRUCTURE_PROMPT,
 } from '@/lib';
-interface StockResearchData {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-  };
-  company: {
-    name: string | null;
-    sector: string | null;
-    industry: string | null;
-    employees: number | null;
-  };
-  valuation: {
-    price: number | null;
-    marketCap: number | null;
-    trailingPE: number | null;
-    forwardPE: number | null;
-    priceToBook: number | null;
-    evToRevenue: number | null;
-    evToEbitda: number | null;
-    beta: number | null;
-  };
-  financials: {
-    revenueTTM: number | null;
-    netIncomeTTM: number | null;
-    revenueYoYGrowth: number | null;
-    netMargin: number | null;
-    freeCashFlow: number | null;
-    totalDebt: number | null;
-    totalCash: number | null;
-    roe: number | null;
-  };
-  analyst: {
-    targetMean: number | null;
-    upsidePercent: number | null;
-    recommendationKey: string | null;
-    earningsGrowth: number | null;
-    revenueGrowth: number | null;
-  };
-  pricePerformance: {
-    fiftyTwoWeekHigh: number | null;
-    fiftyTwoWeekLow: number | null;
-    oneYearReturn: number | null;
-  };
-  dividends: {
-    totalDividendsLastYear: number | null;
-    dividendYield: number | null;
-  };
-}
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
-
-type LegacyIncomeStatement = {
-  endDate: string;
-  totalRevenue: number | null;
-  operatingIncome: number | null;
-  netIncome: number | null;
-  interestExpense: number | null;
-};
-
-type LegacyBalanceSheetStatement = {
-  endDate: string;
-  cash: number | null;
-  totalAssets: number | null;
-  totalDebt: number | null;
-  totalStockholderEquity: number | null;
-  totalLiab: number | null;
-};
-
-type LegacyCashflowStatement = {
-  endDate: string;
-  totalCashFromOperatingActivities: number | null;
-  capitalExpenditures: number | null;
-  dividendsPaid: number | null;
-  repurchasesOfStock: number | null;
-};
-
-export type ReportMarketType =
-  | 'India'
-  | 'US'
-  | 'UK'
-  | 'Canada'
-  | 'Australia'
-  | 'Japan'
-  | 'China'
-  | 'Hong Kong'
-  | 'Singapore'
-  | 'South Korea'
-  | 'Taiwan'
-  | 'Europe'
-  | 'Middle East'
-  | 'Global';
-
-export type ReportMarketContext = {
-  currencyCode: string;
-  exchangeName: string | null;
-  marketType: ReportMarketType;
-  currencySymbol: string | null;
-};
 
 function getNumberField(item: Record<string, unknown>, key: string): number | null {
   const value = item[key];
@@ -211,12 +141,6 @@ async function getSharedChart(symbol: string) {
     events: 'div',
   });
 }
-
-export type ReportSourceBundle = {
-  summary: Awaited<ReturnType<typeof getSharedQuoteSummary>>;
-  chart: Awaited<ReturnType<typeof getSharedChart>>;
-  annualStatements: Awaited<ReturnType<typeof getAnnualFinancialStatements>>;
-};
 
 export async function getReportSourceBundle(symbol: string): Promise<ReportSourceBundle> {
   const [summary, chart, annualStatements] = await Promise.all([
@@ -391,7 +315,7 @@ function deriveMarketType(exchangeName: string | null, country: string | null): 
   return 'Global';
 }
 
-export function resolveReportMarketContextFromSummary(
+function resolveReportMarketContextFromSummary(
   summary: ReportSourceBundle['summary'],
 ): ReportMarketContext {
   const currencyCode =
@@ -431,10 +355,35 @@ function collectStringValues(value: unknown): string[] {
   return [];
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsCurrencyMarker(text: string, marker: string): boolean {
+  const escapedMarker = escapeRegex(marker);
+  const normalizedText = text.normalize('NFKC');
+
+  if (/^[A-Za-z]{2,}$/.test(marker)) {
+    const beforeNumberPattern = new RegExp(`\\b${escapedMarker}\\b\\s*\\d`, 'i');
+    const afterNumberPattern = new RegExp(`\\d(?:[\\d,\\.\\s])*\\s*\\b${escapedMarker}\\b`, 'i');
+    return beforeNumberPattern.test(normalizedText) || afterNumberPattern.test(normalizedText);
+  }
+
+  if (/^[A-Za-z]{1,2}$/.test(marker)) {
+    const beforeNumberPattern = new RegExp(`(?:^|\\s)${escapedMarker}\\s*\\d`, 'i');
+    const afterNumberPattern = new RegExp(`\\d(?:[\\d,\\.\\s])*\\s*${escapedMarker}(?:\\s|$)`, 'i');
+    return beforeNumberPattern.test(normalizedText) || afterNumberPattern.test(normalizedText);
+  }
+
+  const prefixedAmountPattern = new RegExp(`${escapedMarker}\\s*\\d`, 'i');
+  const suffixedAmountPattern = new RegExp(`\\d(?:[\\d,\\.\\s])*\\s*${escapedMarker}`, 'i');
+  return prefixedAmountPattern.test(normalizedText) || suffixedAmountPattern.test(normalizedText);
+}
+
 export function validateReportCurrencyConsistency(
   payload: unknown,
   marketContext: ReportMarketContext,
-) {
+): void {
   const currencyMarkers: Record<string, string[]> = {
     INR: ['₹', 'INR'],
     USD: ['$', 'US$', 'USD'],
@@ -471,7 +420,7 @@ export function validateReportCurrencyConsistency(
   if (!disallowedMarkers.length) return;
 
   for (const text of collectStringValues(payload)) {
-    if (disallowedMarkers.some((marker) => text.includes(marker))) {
+    if (disallowedMarkers.some((marker) => containsCurrencyMarker(text, marker))) {
       throw new Error(
         `Generated section output contains currency markers inconsistent with ${marketContext.currencyCode}`,
       );
@@ -522,7 +471,7 @@ function calculateOneYearReturnPercent(chart: ReportSourceBundle['chart']) {
   return startClose && lastClose ? ((lastClose - startClose) / startClose) * 100 : null;
 }
 
-export async function getTrimmedExecutiveData(
+async function getTrimmedExecutiveData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<StockResearchData> {
@@ -531,7 +480,7 @@ export async function getTrimmedExecutiveData(
   const { incomeStatements } = annualStatements;
   const marketContext = resolveReportMarketContext(sharedBundle);
 
-  const safe = (v: any) => v ?? null;
+  const safe = <T>(value: T | null | undefined): T | null => value ?? null;
 
   // ---- Financials ----
   const latest = incomeStatements[0];
@@ -617,11 +566,6 @@ export async function getTrimmedExecutiveData(
   };
 }
 
-type SectionGenerationOptions = {
-  sourceBundle?: ReportSourceBundle;
-  enableWebSearch?: boolean;
-};
-
 export async function getExecutiveInformationAboutCompany(
   symbol: string,
   options?: SectionGenerationOptions,
@@ -650,43 +594,7 @@ export const ExecutiveSchema = z.object({
   }),
 });
 
-interface CompanyOverviewMetrics {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-  };
-  price: number | null;
-  marketCap: number | null;
-  sharesOutstanding: number | null;
-
-  fiftyTwoWeekHigh: number | null;
-  fiftyTwoWeekLow: number | null;
-  fiftyTwoWeekRangePercent: number | null;
-
-  trailingPE: number | null;
-  forwardPE: number | null;
-
-  dividendYield: number | null;
-  annualDividend: number | null;
-
-  analystTargetMean: number | null;
-  analystTargetHigh: number | null;
-  analystTargetLow: number | null;
-  analystCount: number | null;
-
-  oneYearReturnPercent: number | null;
-  recoveryFromLowPercent: number | null;
-
-  // NEW
-  dcfFairValue: number | null;
-  wacc: number | null;
-  terminalGrowth: number;
-  asOfDate: string | null;
-}
-
-export async function getTrimmedCompanyOverviewMetrics(
+async function getTrimmedCompanyOverviewMetrics(
   symbol: string,
   terminalGrowth = 0.04, // 4% default India large cap
   riskFreeRate = 0.07, // 7% India 10Y G-Sec
@@ -697,7 +605,7 @@ export async function getTrimmedCompanyOverviewMetrics(
   const { summary, chart } = sharedBundle;
   const marketContext = resolveReportMarketContext(sharedBundle);
 
-  const safe = (v: any) => v ?? null;
+  const safe = <T>(value: T | null | undefined): T | null => value ?? null;
 
   const price = summary.price?.regularMarketPrice ?? null;
   const high52 = summary.summaryDetail?.fiftyTwoWeekHigh ?? null;
@@ -858,41 +766,7 @@ export const CompanyOverviewSchema = z.object({
   fiftyTwoWeekPerformance: z.string(),
 });
 
-interface ShareholderStructure {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-  };
-  freeFloatPercent: number | null;
-  institutionalPercent: number | null;
-  insiderPercent: number | null;
-
-  sharesOutstanding: number | null;
-  floatShares: number | null;
-
-  majorInstitutions: {
-    name: string;
-    percentHeld: number;
-  }[];
-
-  insiderSummary: {
-    totalBuysValue: number;
-    totalSellsValue: number;
-    netActivity: 'NET_BUY' | 'NET_SELL' | 'NEUTRAL';
-    largestTransaction: {
-      name: string | null;
-      type: 'BUY' | 'SELL' | null;
-      value: number | null;
-      date: string | null;
-    };
-    activeInsiders: number;
-    transactionCount: number;
-  };
-}
-
-export async function getTrimmedShareholderStructure(
+async function getTrimmedShareholderStructure(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<ShareholderStructure> {
@@ -900,7 +774,7 @@ export async function getTrimmedShareholderStructure(
   const { summary } = sharedBundle;
   const marketContext = resolveReportMarketContext(sharedBundle);
 
-  const safe = (v: any) => v ?? null;
+  const safe = <T>(value: T | null | undefined): T | null => value ?? null;
 
   // --------------------------
   // Ownership Breakdown
@@ -924,7 +798,7 @@ export async function getTrimmedShareholderStructure(
   // --------------------------
 
   const majorInstitutions =
-    summary.institutionOwnership?.ownershipList?.map((inst: any) => ({
+    summary.institutionOwnership?.ownershipList?.map((inst: InstitutionOwnershipRow) => ({
       name: inst.organization,
       percentHeld: typeof inst.pctHeld === 'number' ? inst.pctHeld * 100 : 0,
     })) ?? [];
@@ -938,15 +812,18 @@ export async function getTrimmedShareholderStructure(
   let totalBuysValue = 0;
   let totalSellsValue = 0;
   let largestTransactionValue = 0;
-  let largestTransaction: any = null;
+  let largestTransaction: ShareholderStructure['insiderSummary']['largestTransaction'] | null =
+    null;
 
   const uniqueInsiders = new Set<string>();
 
-  for (const tx of transactions) {
+  for (const tx of transactions as InsiderTransactionRow[]) {
     const value = tx.value ?? 0;
     const isBuy = tx.transactionText?.toLowerCase().includes('buy');
 
-    uniqueInsiders.add(tx.filerName);
+    if (tx.filerName) {
+      uniqueInsiders.add(tx.filerName);
+    }
 
     if (isBuy) {
       totalBuysValue += value;
@@ -1043,36 +920,7 @@ export async function getShareholderStructureAboutCompany(
   return analysis;
 }
 
-interface AnalystRecommendationsData {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-  };
-  currentPrice: number | null;
-  reportingPeriod: string;
-
-  ratings: {
-    buy: number;
-    hold: number;
-    sell: number;
-    strongBuy: number;
-    strongSell: number;
-    total: number;
-  };
-
-  priceTargets: {
-    mean: number | null;
-    median: number | null;
-    high: number | null;
-    low: number | null;
-  };
-
-  recommendationKey: string | null;
-}
-
-export async function getAnalystRecommendationsData(
+async function getAnalystRecommendationsData(
   symbol: string,
   reportingPeriod: string = 'Last 3 Months',
   sourceBundle?: ReportSourceBundle,
@@ -1188,52 +1036,7 @@ export async function getAnalystRecommendationsAboutCompany(
   return analysis;
 }
 
-interface EquityValuationData {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-    forecastYears: number;
-    currentPrice: number | null;
-    reportingStandard: 'UK' | 'US' | 'India' | 'Global';
-  };
-
-  assumptions: {
-    wacc: number;
-    terminalGrowth: number;
-    forecastYears: number;
-    revenueGrowth: number;
-    taxRate: number;
-  };
-
-  projections: {
-    year: number;
-    revenue: number;
-    revenueGrowth: number;
-    netIncome: number;
-    shares: number;
-    eps: number;
-  }[];
-
-  valuation: {
-    pvOfFCF: number;
-    pvOfTerminalValue: number;
-    enterpriseValue: number;
-    netDebt: number;
-    equityValue: number;
-    fairValuePerShare: number;
-    impliedUpsidePercent: number | null;
-  };
-
-  sensitivityTable: {
-    wacc: number;
-    terminalGrowth: number;
-    fairValue: number;
-  }[];
-}
-
-export async function getTrimmedEquityValuationData(
+async function getTrimmedEquityValuationData(
   symbol: string,
   options?: {
     wacc?: number;
@@ -1483,51 +1286,7 @@ export async function getEquityValuationAboutCompany(
   return analysis;
 }
 
-interface FinancialStatementsAnalysisData {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-    reportingStandard: ReportMarketType;
-    fiscalYearsCovered: string; // "FY20–FY25"
-  };
-
-  incomeStatement: {
-    fiscalYear: string;
-    revenue: number | null;
-    operatingIncome: number | null;
-    netIncome: number | null;
-    eps: number | null;
-  }[];
-
-  balanceSheet: {
-    fiscalYear: string;
-    cash: number | null;
-    totalAssets: number | null;
-    totalDebt: number | null;
-    shareholdersEquity: number | null;
-  }[];
-
-  cashFlow: {
-    fiscalYear: string;
-    operatingCF: number | null;
-    capex: number | null;
-    freeCF: number | null;
-    dividendsPaid: number | null;
-    shareBuyback: number | null;
-  }[];
-
-  ratios: {
-    fiscalYear: string;
-    pe: number | null;
-    debtToEquity: number | null;
-    roe: number | null;
-    currentRatio: number | null;
-  }[];
-}
-
-export async function getTrimmedFinancialStatementsAnalysisData(
+async function getTrimmedFinancialStatementsAnalysisData(
   symbol: string,
   reportingStandard?: ReportMarketType,
   sourceBundle?: ReportSourceBundle,
@@ -1557,7 +1316,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
     return `FY${String(year).slice(-2)}`;
   };
 
-  const incomeStatement = latestIncome.map((stmt: any) => ({
+  const incomeStatement = latestIncome.map((stmt: LegacyIncomeStatement) => ({
     fiscalYear: getFYLabel(stmt.endDate),
     revenue: stmt.totalRevenue ?? null,
     operatingIncome: stmt.operatingIncome ?? null,
@@ -1565,7 +1324,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
     eps: stmt.netIncome && sharesOutstanding ? stmt.netIncome / sharesOutstanding : null,
   }));
 
-  const balanceSheet = latestBalance.map((bs: any) => ({
+  const balanceSheet = latestBalance.map((bs: LegacyBalanceSheetStatement) => ({
     fiscalYear: getFYLabel(bs.endDate),
     cash: bs.cash ?? null,
     totalAssets: bs.totalAssets ?? null,
@@ -1573,7 +1332,7 @@ export async function getTrimmedFinancialStatementsAnalysisData(
     shareholdersEquity: bs.totalStockholderEquity ?? null,
   }));
 
-  const cashFlow = latestCashFlow.map((cf: any) => ({
+  const cashFlow = latestCashFlow.map((cf: LegacyCashflowStatement) => ({
     fiscalYear: getFYLabel(cf.endDate),
     operatingCF: cf.totalCashFromOperatingActivities ?? null,
     capex: cf.capitalExpenditures ?? null,
@@ -1738,57 +1497,7 @@ export async function getFinancialStatementsAnalysisAboutCompany(
   return analysis;
 }
 
-interface BusinessSegmentsData {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-    industry: string | null;
-    sector: string | null;
-  };
-
-  revenue: {
-    totalRevenue: number | null;
-    revenueGrowth: number | null;
-    operatingMargin: number | null;
-    profitMargin: number | null;
-    revenueVolatility3Y: number | null; // std dev growth proxy
-  };
-
-  profitability: {
-    returnOnEquity: number | null;
-    returnOnAssets: number | null;
-    ebitdaMargin: number | null;
-  };
-
-  scaleMetrics: {
-    marketCap: number | null;
-    enterpriseValue: number | null;
-    totalAssets: number | null;
-    totalDebt: number | null;
-    beta: number | null;
-  };
-
-  balanceStrength: {
-    debtToEquity: number | null;
-    currentRatio: number | null;
-    netDebt: number | null;
-  };
-
-  segmentData: {
-    name: string;
-    revenue: number | null;
-    revenueGrowth: number | null;
-  }[];
-
-  competitiveSignals: {
-    grossMargins: number | null;
-    costStructureSignal: 'Capital Light' | 'Asset Heavy' | 'Mixed' | null;
-  };
-}
-
-export async function getTrimmedBusinessSegmentsData(
+async function getTrimmedBusinessSegmentsData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<BusinessSegmentsData> {
@@ -1805,8 +1514,8 @@ export async function getTrimmedBusinessSegmentsData(
   // 3Y revenue volatility (growth consistency proxy)
   const revenues = incomeStatements
     .slice(0, 3)
-    .map((i: any) => i.totalRevenue)
-    .filter(Boolean);
+    .map((statement: LegacyIncomeStatement) => statement.totalRevenue)
+    .filter((revenue): revenue is number => typeof revenue === 'number');
 
   let revenueVolatility3Y: number | null = null;
 
@@ -1981,76 +1690,7 @@ export async function getBusinessSegmentDataAboutCompany(
   return analysis;
 }
 
-interface InterimResultsData {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-    fiscalYearLabel: string | null;
-    previousFiscalYearLabel: string | null;
-  };
-
-  fullYearComparison: {
-    revenue: {
-      current: number | null;
-      previous: number | null;
-      growth: number | null;
-      absoluteChange: number | null;
-    };
-    netIncome: {
-      current: number | null;
-      previous: number | null;
-      growth: number | null;
-    };
-    operatingCashFlow: {
-      current: number | null;
-      previous: number | null;
-      growth: number | null;
-    };
-    freeCashFlow: {
-      current: number | null;
-      previous: number | null;
-      growth: number | null;
-      conversionRatio: number | null; // FCF / Net Income
-    };
-    eps: {
-      current: number | null;
-      previous: number | null;
-      growth: number | null;
-    };
-    profitMargin: number | null;
-    operatingMargin: number | null;
-    marginExpansion: number | null; // current - previous margin
-  };
-
-  leverageSignals: {
-    operatingLeverage: number | null; // revenue growth vs net income growth
-    buybackSignal: boolean;
-    shareCountChange: number | null;
-  };
-
-  forwardSignals: {
-    revenueFY1: number | null;
-    revenueGrowthFY1: number | null;
-    epsFY1: number | null;
-    epsGrowthFY1: number | null;
-    dividendRate: number | null;
-    forwardGrowthVsHistorical: number | null;
-  };
-
-  riskSignals: {
-    growthDeceleration: boolean;
-    marginCompressionRisk: boolean;
-  };
-}
-
-type ExtendedCashFlowStatement = {
-  totalCashFromOperatingActivities?: number;
-  capitalExpenditures?: number;
-};
-
-export async function getInterimResultsData(
+async function getInterimResultsData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<InterimResultsData> {
@@ -2222,10 +1862,6 @@ export const InterimResultsQuarterlyPerformanceSchema = z.object({
   }),
 });
 
-export type InterimResultsQuarterlyPerformanceSection = z.infer<
-  typeof InterimResultsQuarterlyPerformanceSchema
->;
-
 export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   symbol: string,
   options?: SectionGenerationOptions,
@@ -2255,86 +1891,7 @@ export async function getInterimResultsAndQuarterlyPerformanceAboutCompany(
   return analysis;
 }
 
-interface ContingentLiabilitiesRegulatoryRiskData {
-  context: {
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-    industry: string | null;
-    sector: string | null;
-    country: string | null;
-  };
-
-  scaleMetrics: {
-    revenueTTM: number | null;
-    marketCap: number | null;
-    enterpriseValue: number | null;
-  };
-
-  balanceSheet: {
-    totalAssets: number | null;
-    totalLiabilities: number | null;
-    totalDebt: number | null;
-    cash: number | null;
-    netDebt: number | null;
-    equity: number | null;
-  };
-
-  liquidityStrength: {
-    currentRatio: number | null;
-    quickRatio: number | null;
-  };
-
-  profitabilityBuffer: {
-    operatingMargin: number | null;
-    profitMargin: number | null;
-    freeCashFlow: number | null;
-    netIncome: number | null;
-    fcfToNetIncome: number | null;
-  };
-
-  leverageMetrics: {
-    debtToEquity: number | null;
-    netDebtToEbitda: number | null;
-    interestCoverage: number | null;
-  };
-
-  shareholderPressure: {
-    dividendYield: number | null;
-    payoutRatio: number | null;
-  };
-
-  marketRiskSignals: {
-    beta: number | null;
-    oneYearReturnPercent: number | null;
-    volatilityProxy: number | null;
-  };
-
-  legalRiskSignals: {
-    litigationKeywordFlag: boolean;
-  };
-}
-
-type ExtendedBalanceSheet = {
-  totalAssets?: number;
-  totalLiab?: number;
-  totalDebt?: number;
-  cash?: number;
-  totalStockholderEquity?: number;
-};
-
-type ExtendedCashFlow = {
-  totalCashFromOperatingActivities?: number;
-  capitalExpenditures?: number;
-};
-
-type ExtendedIncomeStatement = {
-  netIncome?: number;
-  interestExpense?: number;
-};
-
-export async function getContingentLiabilitiesData(
+async function getContingentLiabilitiesData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<ContingentLiabilitiesRegulatoryRiskData> {
@@ -2599,34 +2156,7 @@ export async function getContingentLiabilitiesAndRegulatoryRiskAboutCompany(
   return analysis;
 }
 
-interface DcfValuationRecapData {
-  company: {
-    name: string | null;
-    marketType: ReportMarketType;
-    currencyCode: string;
-    exchangeName: string | null;
-    currencySymbol: string | null;
-  };
-  valuation: {
-    currentPrice: number | null;
-    targetMeanPrice: number | null;
-    targetHighPrice: number | null;
-    targetLowPrice: number | null;
-    recommendationKey: string | null;
-    enterpriseValue: number | null;
-    marketCap: number | null;
-    totalDebt: number | null;
-    totalCash: number | null;
-  };
-  dcfSignals: {
-    trailingPE: number | null;
-    forwardPE: number | null;
-    enterpriseToRevenue: number | null;
-    enterpriseToEbitda: number | null;
-  };
-}
-
-export async function getDcfValuationRecapData(
+async function getDcfValuationRecapData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<DcfValuationRecapData> {
@@ -2721,34 +2251,7 @@ Requirements:
   return analysis;
 }
 
-interface AgmAndShareholderMattersData {
-  company: {
-    name: string | null;
-    marketType: ReportMarketType;
-    currencyCode: string;
-    exchangeName: string | null;
-    currencySymbol: string | null;
-  };
-  agm: {
-    expectedDate: string | null;
-    location: string | null;
-    noticeFiledDate: string | null;
-  };
-  governance: {
-    auditRisk: number | null;
-    boardRisk: number | null;
-    compensationRisk: number | null;
-    shareholderRightsRisk: number | null;
-    overallRisk: number | null;
-  };
-  valuationSignals: {
-    marketCap: number | null;
-    recommendationKey: string | null;
-    targetMeanPrice: number | null;
-  };
-}
-
-export async function getAgmAndShareholderMattersData(
+async function getAgmAndShareholderMattersData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<AgmAndShareholderMattersData> {
@@ -2836,31 +2339,7 @@ Requirements:
   return analysis;
 }
 
-interface ForwardProjectionsValuationInput {
-  company: {
-    name: string | null;
-    currencyCode: string;
-    exchangeName: string | null;
-    marketType: ReportMarketType;
-    currencySymbol: string | null;
-  };
-  valuationSignals: {
-    currentPrice: number | null;
-    targetMeanPrice: number | null;
-    recommendationKey: string | null;
-    marketCap: number | null;
-  };
-  forwardSignals: {
-    revenueGrowth: number | null;
-    earningsGrowth: number | null;
-    operatingMargins: number | null;
-    profitMargins: number | null;
-    returnOnEquity: number | null;
-    debtToEquity: number | null;
-  };
-}
-
-export async function getForwardProjectionsAndValuationInput(
+async function getForwardProjectionsAndValuationInput(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<ForwardProjectionsValuationInput> {
@@ -2978,42 +2457,7 @@ Requirements:
   return analysis;
 }
 
-interface ConclusionRecommendationData {
-  company: {
-    name: string | null;
-    sector: string | null;
-    industry: string | null;
-    marketType: ReportMarketType;
-    currencyCode: string;
-    exchangeName: string | null;
-    currencySymbol: string | null;
-  };
-  valuation: {
-    currentPrice: number | null;
-    targetMeanPrice: number | null;
-    targetHighPrice: number | null;
-    targetLowPrice: number | null;
-    recommendationKey: string | null;
-    trailingPE: number | null;
-    forwardPE: number | null;
-    marketCap: number | null;
-    fiftyTwoWeekHigh: number | null;
-    fiftyTwoWeekLow: number | null;
-    oneYearReturnPercent: number | null;
-  };
-  fundamentals: {
-    revenueGrowth: number | null;
-    earningsGrowth: number | null;
-    returnOnEquity: number | null;
-    operatingMargin: number | null;
-    profitMargin: number | null;
-    totalDebt: number | null;
-    totalCash: number | null;
-    freeCashFlow: number | null;
-  };
-}
-
-export async function getConclusionRecommendationData(
+async function getConclusionRecommendationData(
   symbol: string,
   sourceBundle?: ReportSourceBundle,
 ): Promise<ConclusionRecommendationData> {

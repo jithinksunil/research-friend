@@ -1,11 +1,13 @@
 'use client';
+import { SignupFormInterface } from '@/interfaces';
 import * as yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { toastMessage } from '@/lib/toast';
 import { TOKEN_NAMES } from '@/lib/enum';
+import { useRegisterMutation } from '@/hooks/user/auth';
 import { CheckBoxInput, PasswordInput, TextInput } from '../form';
 import { PrimaryButton } from '../common';
 
@@ -17,15 +19,7 @@ const schema = yup.object().shape({
   termAndPrivacyPolicy: yup.bool().defined(),
 });
 
-type SignupFormValues = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  termAndPrivacyPolicy: boolean;
-};
-
-const defaultValues: SignupFormValues = {
+const defaultValues: SignupFormInterface = {
   firstName: '',
   lastName: '',
   email: '',
@@ -34,13 +28,13 @@ const defaultValues: SignupFormValues = {
 };
 
 export function SignupForm() {
-  const [registering, setRegistering] = useState(false);
   const router = useRouter();
-  const { control, handleSubmit } = useForm<SignupFormValues>({
+  const { control, handleSubmit } = useForm<SignupFormInterface>({
     resolver: yupResolver(schema),
     defaultValues,
   });
   const params = useSearchParams();
+  const registerMutation = useRegisterMutation();
 
   useEffect(() => {
     const message = params.get('message');
@@ -50,27 +44,15 @@ export function SignupForm() {
     }
   }, [params, router]);
 
-  const onSubmit = async (formData: SignupFormValues) => {
+  const onSubmit = async (formData: SignupFormInterface) => {
     try {
-      setRegistering(true);
       if (!formData.termAndPrivacyPolicy) throw new Error('Must agree to terms and services');
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: formData.email,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          password: formData.password,
-        }),
+      const payload = await registerMutation.mutateAsync({
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        password: formData.password,
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(typeof payload?.message === 'string' ? payload.message : 'Sign up failed');
-      }
       const refreshToken = payload?.data?.refreshToken;
       if (typeof refreshToken !== 'string' || !refreshToken) {
         throw new Error('Refresh token missing in register response');
@@ -81,8 +63,6 @@ export function SignupForm() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Something went wrong';
       toastMessage.error(message);
-    } finally {
-      setRegistering(false);
     }
   };
   return (
@@ -117,7 +97,7 @@ export function SignupForm() {
         }
       />
 
-      <PrimaryButton type="submit" isLoading={registering}>
+      <PrimaryButton type="submit" isLoading={registerMutation.isPending}>
         Register
       </PrimaryButton>
 

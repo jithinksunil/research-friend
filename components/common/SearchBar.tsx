@@ -1,9 +1,9 @@
 'use client';
 
+import { SearchSuggestion } from '@/interfaces';
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { Search as SearchIcon, KeyboardArrowDown } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
-import { SearchSuggestion } from '@/interfaces';
 
 interface SearchBarProps {
   placeholder?: string;

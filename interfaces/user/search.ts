@@ -4,3 +4,11 @@ export interface SearchSuggestion {
   region: string;
   symbol: string;
 }
+
+export interface YahooSearchQuote {
+  symbol?: string | null;
+  shortname?: string | null;
+  longname?: string | null;
+  exchDisp?: string | null;
+  exchange?: string | null;
+}

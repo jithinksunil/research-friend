@@ -6,6 +6,20 @@ import { NextRequest, NextResponse } from 'next/server';
 const isProtectedPath = (pathname: string) =>
   pathname.startsWith('/user') || pathname.startsWith('/admin');
 
+const isUserApiPath = (pathname: string): boolean =>
+  pathname.startsWith('/api/search') ||
+  pathname.startsWith('/api/company') ||
+  pathname.startsWith('/api/dashboard/') ||
+  pathname.startsWith('/api/report');
+
+const isPublicDashboardReadPath = ({
+  pathname,
+  method,
+}: {
+  pathname: string;
+  method: string;
+}): boolean => /^\/api\/dashboard\/[^/]+$/.test(pathname) && method === 'GET';
+
 export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const accessToken = request.cookies.get(TOKEN_NAMES.ACCESS_TOKEN)?.value;
@@ -13,7 +27,10 @@ export async function middleware(request: NextRequest) {
 
   if (accessToken) {
     try {
-      const payload = await verifyJWTToken(accessToken, process.env.ACCESS_TOKEN_SECRET!);
+      const payload = await verifyJWTToken({
+        token: accessToken,
+        secret: process.env.ACCESS_TOKEN_SECRET!,
+      });
       session = {
         userId: payload.userId,
         role: payload.role,
@@ -26,6 +43,17 @@ export async function middleware(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
+  const isProtectedUserApiPath =
+    isUserApiPath(pathname) && !isPublicDashboardReadPath({ pathname, method: request.method });
+
+  if (isProtectedUserApiPath && !session) {
+    return NextResponse.json({ message: unauthorizedMessage }, { status: 401 });
+  }
+
+  if (isProtectedUserApiPath && session?.role !== 'USER') {
+    return NextResponse.json({ message: forbiddenMessage }, { status: 403 });
+  }
+
   if (isProtectedPath(pathname) && !session) {
     const loginUrl = new URL(`/?message=${encodeURIComponent(unauthorizedMessage)}`, request.url);
     return NextResponse.redirect(loginUrl);

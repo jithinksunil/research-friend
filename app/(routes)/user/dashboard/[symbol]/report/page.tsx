@@ -1,13 +1,13 @@
 import { Suspense } from 'react';
 import Report from './Report';
 
-interface PageProps {
+interface SymbolPageProps {
   params: Promise<{
     symbol: string;
   }>;
 }
 
-async function Page({ params }: PageProps) {
+async function Page({ params }: SymbolPageProps) {
   const { symbol } = await params;
 
   return (

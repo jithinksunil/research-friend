@@ -37,12 +37,10 @@ POST /api/report/:symbol/sections/:sectionKey/enhance
   -> return updated section data
 ```
 
-## 4. API + Action Split Pattern
+## 4. API Mutation Pattern
 
 - Reads: API routes (`/api/dashboard/:symbol`, `/api/report/:symbol/sections/:sectionKey`).
-- Mutations:
-  - Server Actions for auth/session-bound write flows already in use.
-  - API route for report section enhancement to support client HTTP updates.
+- Mutations: API routes for search selection, votes, comments, auth flows, and report enhancement.
 
 ## 5. UI Section Rendering Pattern
 

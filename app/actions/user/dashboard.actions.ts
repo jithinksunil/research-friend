@@ -1,19 +1,15 @@
-'use server';
-
-import { ROLES } from '@/app/generated/prisma/enums';
 import { convertToErrorInstance } from '@/lib';
 import prisma from '@/prisma';
-import { getSession, requireRBAC } from '@/server';
+import { getSession } from '@/server';
 
-export const registerVote = requireRBAC(ROLES.USER)(async ({
-  symbol,
-  vote,
-}: {
-  vote: boolean;
-  symbol: string;
-}) => {
+export async function registerVote({ symbol, vote }: { vote: boolean; symbol: string }) {
   try {
-    const userId = (await getSession())!.userId;
+    const session = await getSession();
+    if (!session) {
+      throw new Error('Unauthorized');
+    }
+
+    const userId = session.userId;
     const company = await prisma.company.upsert({
       where: { symbol },
       update: {},
@@ -31,4 +27,4 @@ export const registerVote = requireRBAC(ROLES.USER)(async ({
   } catch (error) {
     return { okay: false, error: convertToErrorInstance(error) };
   }
-});
+}

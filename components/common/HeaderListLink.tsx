@@ -1,10 +1,10 @@
-import React, { ReactNode } from 'react';
-interface PropsType {
-  children: ReactNode;
+interface HeaderListLinkProps {
+  children: React.ReactNode;
   onClick: () => void;
   className?: string;
 }
-export function HeaderListLink(props: PropsType) {
+
+export function HeaderListLink(props: HeaderListLinkProps) {
   return (
     <h1
       onClick={props.onClick}

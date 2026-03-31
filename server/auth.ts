@@ -12,7 +12,7 @@ import {
 } from '@/lib';
 import { cookies, headers } from 'next/headers';
 
-const isClosedConnectionError = (error: unknown) => {
+const isClosedConnectionError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   const maybeCode = (error as { code?: string }).code;
   if (maybeCode === 'P1017') return true;
@@ -57,13 +57,26 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!accessToken) return null;
 
   try {
-    return await verifyJWTToken(accessToken, process.env.ACCESS_TOKEN_SECRET!);
+    return await verifyJWTToken({
+      token: accessToken,
+      secret: process.env.ACCESS_TOKEN_SECRET!,
+    });
   } catch {
     return null;
   }
 }
 
-export async function issueTokensForUser({ userId, role }: { userId: string; role: ROLES }) {
+export async function issueTokensForUser({
+  userId,
+  role,
+}: {
+  userId: string;
+  role: ROLES;
+}): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  expires_at: number;
+}> {
   const accessToken = await createJWTToken({
     userId,
     role,
@@ -83,8 +96,15 @@ export async function issueTokensForUser({ userId, role }: { userId: string; rol
   };
 }
 
-export async function refresh(token: string) {
-  const payload = await verifyJWTToken(token, process.env.REFRESH_TOKEN_SECRET!);
+export async function refresh({ token }: { token: string }): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  expires_at: number;
+}> {
+  const payload = await verifyJWTToken({
+    token,
+    secret: process.env.REFRESH_TOKEN_SECRET!,
+  });
   const user = await withPrismaReconnectRetry(() =>
     prisma.user.findUnique({
       where: { id: payload.userId },
@@ -95,7 +115,20 @@ export async function refresh(token: string) {
   return await issueTokensForUser({ userId: user.id, role: user.role });
 }
 
-export const signinUser = async ({ email, password }: { email: string; password: string }) => {
+export const signinUser = async ({
+  email,
+  password,
+}: {
+  email: string;
+  password: string;
+}): Promise<{
+  id: string;
+  email: string;
+  role: ROLES;
+  accessToken: string;
+  refreshToken: string;
+  expires_at: number;
+}> => {
   const user = await withPrismaReconnectRetry(() =>
     prisma.user.findUnique({
       where: { email },

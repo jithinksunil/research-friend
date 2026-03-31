@@ -1,5 +1,5 @@
 import '@/lib/server-only/fetch-logger';
-import type { Metadata } from 'next';
+import { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ToasterComponent } from '@/components/common';

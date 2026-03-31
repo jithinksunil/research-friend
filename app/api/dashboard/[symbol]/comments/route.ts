@@ -5,8 +5,8 @@ export async function GET(_request: Request, context: { params: Promise<{ symbol
   const { symbol } = await context.params;
 
   try {
-    const comments = await listCompanyComments(symbol);
-    return NextResponse.json({ data: comments }, { status: 200 });
+    const comments = await listCompanyComments({ symbol });
+    return NextResponse.json(comments, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch comments';
     return NextResponse.json({ message }, { status: message === 'Unauthorized' ? 401 : 400 });
@@ -18,8 +18,11 @@ export async function POST(request: Request, context: { params: Promise<{ symbol
 
   try {
     const body = (await request.json().catch(() => null)) as { text?: string } | null;
-    const comment = await createCompanyComment(symbol, body?.text ?? '');
-    return NextResponse.json({ data: comment }, { status: 201 });
+    const comment = await createCompanyComment({
+      symbol,
+      text: body?.text ?? '',
+    });
+    return NextResponse.json(comment, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create comment';
     return NextResponse.json({ message }, { status: message === 'Unauthorized' ? 401 : 400 });

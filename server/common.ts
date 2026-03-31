@@ -1,6 +1,5 @@
 import 'server-only';
 import { ROLES } from '@/app/generated/prisma/enums';
-import { ServerActionResult } from '@/interfaces';
 import { redirect } from 'next/navigation';
 import { getSession } from './auth';
 import { forbiddenMessage, unauthorizedMessage } from '@/lib';
@@ -8,24 +7,7 @@ import z, { ZodObject, ZodRawShape } from 'zod';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod.mjs';
 
-export function requireRBAC(role: ROLES) {
-  return function <T, TArgs extends unknown[] = any[]>(
-    action: (...args: TArgs) => Promise<ServerActionResult<T>>,
-  ) {
-    return async (...args: TArgs): Promise<ServerActionResult<T>> => {
-      const user = await getSession();
-      if (!user) {
-        throw new Error(unauthorizedMessage);
-      }
-      if (user.role !== role) {
-        throw new Error(forbiddenMessage);
-      }
-      return await action(...args);
-    };
-  };
-}
-
-export async function requirePageLevelRBAC(role: ROLES) {
+export async function requirePageLevelRBAC({ role }: { role: ROLES }): Promise<void> {
   const user = await getSession();
   if (!user) {
     return redirect(`/?message=${unauthorizedMessage}`);

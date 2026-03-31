@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       accessToken,
       refreshToken: rotatedRefreshToken,
       expires_at,
-    } = await refresh(refreshToken);
+    } = await refresh({ token: refreshToken });
     const response = NextResponse.json(
       {
         data: {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 },
     );
-    setAccessTokenCookie(response, accessToken);
+    setAccessTokenCookie({ response, accessToken });
     return response;
   } catch (error) {
     const parsed = convertToErrorInstance(error);

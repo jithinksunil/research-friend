@@ -14,18 +14,8 @@ import {
   enhanceShareholderStructureSection,
 } from '@/app/actions/user/enhancement.actions';
 import { REPORT_SECTION_KEYS } from '@/lib/server-only/report';
+import { EnhanceHandler, ReportSectionKey } from '@/types';
 import { NextRequest, NextResponse } from 'next/server';
-
-type ReportSectionKey = (typeof REPORT_SECTION_KEYS)[number];
-
-type EnhanceHandler = (
-  symbol: string,
-  improvementNeeded: string,
-) => Promise<{
-  okay: boolean;
-  data?: unknown;
-  error?: { message?: string };
-}>;
 
 const ENHANCE_BY_SECTION: Record<ReportSectionKey, EnhanceHandler> = {
   executiveSummary: enhanceExecutiveSection,
@@ -81,10 +71,8 @@ export async function POST(
 
     return NextResponse.json(
       {
-        data: {
-          sectionKey: typedSectionKey,
-          data: result.data,
-        },
+        sectionKey: typedSectionKey,
+        data: result.data,
       },
       { status: 200 },
     );

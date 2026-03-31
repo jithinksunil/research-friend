@@ -1,31 +1,17 @@
 'use client';
 
-import React, { ReactNode, useState } from 'react';
+import { Citation } from '@/interfaces';
+import { toastMessage } from '@/lib';
+import React, { useState } from 'react';
 import { Popover } from '@headlessui/react';
 import { Tooltip } from '@mui/material';
 import { AutoAwesome } from '@mui/icons-material';
 import { SectionSeparator } from './SectionSeparator';
 import { Heading } from './Heading';
-import { toastMessage } from '@/lib';
-
-export type SectionFieldName =
-  | 'executiveSummary'
-  | 'overviewAndStockMetrics'
-  | 'shareHolderStructure'
-  | 'analystRecommendation'
-  | 'equityValuationAndDcfAnalysis'
-  | 'financialStatementAnalyasis'
-  | 'businessSegmentData'
-  | 'interimResultsAndQuarterlyPerformance'
-  | 'contingentLiabilitiesAndRegulatoryRisk'
-  | 'dcfValuationRecapAndPriceTarget'
-  | 'forwardProjectionsAndValuation'
-  | 'agmAndShareholderMatters'
-  | 'conclusionAndRecommendation';
 
 interface SectionWrapperProps {
   heading: string;
-  children: ReactNode;
+  children: React.ReactNode;
   symbol?: string;
   onEnhanceSection?: (symbol: string, improvementNeeded: string) => Promise<void>;
   visible?: boolean;
@@ -42,7 +28,7 @@ export const SectionWrapper: React.FC<SectionWrapperProps> = ({
 }) => {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [improvementText, setImprovementText] = useState('');
-  const [citations] = useState<Array<{ title?: string; url: string; claim?: string }>>([]);
+  const [citations] = useState<Citation[]>([]);
   const [showSources, setShowSources] = useState(false);
   const hasInput = improvementText.trim().length > 0;
   const canEnhance = Boolean(symbol && onEnhanceSection);

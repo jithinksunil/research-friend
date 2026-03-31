@@ -1,29 +1,21 @@
 import StockChart from '@/components/common/StockChart';
 import { TableWithoutPagination } from '@/components/common/TableWithoutPagination';
+import { Metric, StockDashboardData } from '@/interfaces';
 import { cn, formatValue } from '@/lib';
 import { Fragment } from 'react/jsx-runtime';
 import { ViewDetailedReport } from '@/components/dashbord/ViewDetailedReport';
 import { VoteButton } from './VoteButton';
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
-import type { Metric, StockDashboardData } from '@/interfaces';
 import Link from 'next/link';
 
-interface PageProps {
+interface SymbolPageProps {
   params: Promise<{
     symbol: string;
   }>;
 }
 
-type DashboardApiResponse =
-  | {
-      data: StockDashboardData;
-    }
-  | {
-      message: string;
-    };
-
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: SymbolPageProps) {
   const { symbol } = await params;
 
   const normalizedSymbol = symbol.trim().toUpperCase();
@@ -44,15 +36,13 @@ export default async function Page({ params }: PageProps) {
       },
     );
 
-    const responseJson = (await response.json().catch(() => null)) as DashboardApiResponse | null;
-
-    if (!response.ok || !responseJson || !('data' in responseJson)) {
-      errorMessage =
-        responseJson && 'message' in responseJson
-          ? responseJson.message
-          : 'Unable to load dashboard right now.';
+    if (!response.ok) {
+      const errorJson = await response
+        .json()
+        .catch(() => ({ message: 'Unable to load dashboard right now.' }));
+      errorMessage = errorJson.message;
     } else {
-      dashboard = responseJson.data;
+      dashboard = (await response.json()) as StockDashboardData;
     }
   } catch {
     errorMessage = 'Unable to load dashboard right now.';
@@ -87,8 +77,8 @@ export default async function Page({ params }: PageProps) {
 
   const company = dashboard.keyMetrics;
   const quickMetrics = dashboard.quickMetrics?.keyMetrics ?? [];
-  const fundamentals = company.fundamentals ?? [];
-  const companyProfile = company.companyProfile;
+  const fundamentals = company?.fundamentals ?? [];
+  const companyProfile = company?.companyProfile;
   const companyDetails = [
     { label: 'Country', value: companyProfile?.country ?? null },
     { label: 'Sector', value: companyProfile?.sector ?? null },
@@ -108,7 +98,8 @@ export default async function Page({ params }: PageProps) {
     <div className="py-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-muted-foreground">
-          <span className="font-bold">{normalizedSymbol}</span> {dashboard?.quickMetrics?.name}
+          <span className="font-bold">{normalizedSymbol}</span>{' '}
+          {dashboard.quickMetrics?.name ?? company?.header.name}
         </div>
         <ViewDetailedReport symbol={normalizedSymbol} />
       </div>
@@ -157,7 +148,11 @@ export default async function Page({ params }: PageProps) {
                   'text-red-400',
               )}
             >
-              {formatValue(metric.value, metric.format, metric.unit)}
+              {formatValue({
+                value: metric.value,
+                format: metric.format,
+                unit: metric.unit,
+              })}
             </div>,
           ])}
           noData="No fundamentals available"

@@ -19,17 +19,12 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ sy
     });
     const dashboardData = await getDashboardData(normalizedSymbol);
 
-    return NextResponse.json(
-      {
-        data: dashboardData,
+    return NextResponse.json(dashboardData, {
+      status: 200,
+      headers: {
+        'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
       },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
-        },
-      },
-    );
+    });
   } catch (error) {
     return NextResponse.json(
       {

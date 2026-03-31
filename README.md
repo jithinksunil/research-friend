@@ -35,7 +35,7 @@ Research Friend helps users analyze public companies through two experiences:
 - yahoo-finance2
 - OpenAI SDK
 - Zod
-- Server Actions + API routes
+- API routes + server-side modules
 
 ## Routing Scope
 
@@ -59,10 +59,8 @@ The exact section schema should remain modular so each section can be generated,
 
 ## API and Mutation Strategy
 
-- Preferred future direction:
-  - GET/read operations via API routes.
-  - Mutations via Server Actions.
-- Existing project may contain both patterns; migrate incrementally toward this contract.
+- GET/read operations via API routes.
+- Mutations via API routes.
 
 ## Frontend Component Pattern
 

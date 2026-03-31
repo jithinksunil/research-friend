@@ -1,109 +1,23 @@
 'use client';
 
-import { registerVote } from '@/app/actions/user';
 import { toastMessage } from '@/lib';
+import { useComments, useCommentMutation, useVoteMutation, useVotes } from '@/hooks/user/dashboard';
 import { KeyboardDoubleArrowDown, KeyboardDoubleArrowUp } from '@mui/icons-material';
-import { useCallback, useEffect, useState } from 'react';
-
-type VotesResponse =
-  | {
-      data: {
-        upVotes: number;
-        downVotes: number;
-      };
-    }
-  | {
-      message: string;
-    };
-
-type CompanyComment = {
-  id: number;
-  text: string;
-  createdAt: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string | null;
-  };
-};
-
-type CommentsResponse =
-  | {
-      data: CompanyComment[];
-    }
-  | {
-      message: string;
-    };
-
-type CreateCommentResponse =
-  | {
-      data: CompanyComment;
-    }
-  | {
-      message: string;
-    };
+import { useState } from 'react';
 
 export const VoteButton = ({ symbol }: { symbol: string }) => {
-  const [votes, setVotes] = useState({ upVotes: 0, downVotes: 0 });
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
-  const [comments, setComments] = useState<CompanyComment[]>([]);
   const [commentText, setCommentText] = useState('');
-  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
-  const fetchVotes = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/dashboard/${encodeURIComponent(symbol)}/votes`, {
-        cache: 'no-store',
-        credentials: 'include',
-      });
-      const responseJson = (await response.json().catch(() => null)) as VotesResponse | null;
-
-      if (!response.ok || !responseJson || !('data' in responseJson)) {
-        throw new Error(
-          responseJson && 'message' in responseJson
-            ? responseJson.message
-            : 'Failed to fetch votes',
-        );
-      }
-
-      setVotes(responseJson.data);
-    } catch {
-      toastMessage.error('Error while fetching votes');
-    }
-  }, [symbol]);
-
-  const fetchComments = useCallback(async () => {
-    setIsCommentsLoading(true);
-    try {
-      const response = await fetch(`/api/dashboard/${encodeURIComponent(symbol)}/comments`, {
-        cache: 'no-store',
-        credentials: 'include',
-      });
-      const responseJson = (await response.json().catch(() => null)) as CommentsResponse | null;
-
-      if (!response.ok || !responseJson || !('data' in responseJson)) {
-        throw new Error(
-          responseJson && 'message' in responseJson
-            ? responseJson.message
-            : 'Failed to fetch comments',
-        );
-      }
-
-      setComments(responseJson.data);
-    } catch {
-      toastMessage.error('Error while fetching comments');
-    } finally {
-      setIsCommentsLoading(false);
-    }
-  }, [symbol]);
+  const { data: votes = { upVotes: 0, downVotes: 0 } } = useVotes(symbol);
+  const { data: comments = [] } = useComments(symbol);
+  const voteMutation = useVoteMutation();
+  const commentMutation = useCommentMutation();
 
   const handleVote = async (vote: boolean, companySymbol: string) => {
     try {
-      const res = await registerVote({ symbol: companySymbol, vote });
-      // @ts-ignore
-      if (!res.okay) throw new Error(res.error);
-      await fetchVotes();
+      await voteMutation.mutateAsync({ symbol: companySymbol, vote });
       toastMessage.success(vote ? 'Up voted' : 'Down voted');
     } catch {
       toastMessage.error('Error while voting');
@@ -112,7 +26,6 @@ export const VoteButton = ({ symbol }: { symbol: string }) => {
 
   const handleOpenComments = async () => {
     setIsCommentsOpen(true);
-    await fetchComments();
   };
 
   const handleSubmitComment = async () => {
@@ -125,27 +38,7 @@ export const VoteButton = ({ symbol }: { symbol: string }) => {
 
     setIsSubmittingComment(true);
     try {
-      const response = await fetch(`/api/dashboard/${encodeURIComponent(symbol)}/comments`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: normalizedComment }),
-      });
-      const responseJson = (await response
-        .json()
-        .catch(() => null)) as CreateCommentResponse | null;
-
-      if (!response.ok || !responseJson || !('data' in responseJson)) {
-        throw new Error(
-          responseJson && 'message' in responseJson
-            ? responseJson.message
-            : 'Failed to create comment',
-        );
-      }
-
-      setComments((currentComments) => [responseJson.data, ...currentComments]);
+      await commentMutation.mutateAsync({ symbol, text: normalizedComment });
       setCommentText('');
       toastMessage.success('Comment submitted');
     } catch {
@@ -154,10 +47,6 @@ export const VoteButton = ({ symbol }: { symbol: string }) => {
       setIsSubmittingComment(false);
     }
   };
-
-  useEffect(() => {
-    fetchVotes();
-  }, [fetchVotes]);
 
   return (
     <>
@@ -245,9 +134,7 @@ export const VoteButton = ({ symbol }: { symbol: string }) => {
             <div className="mt-6">
               <h4 className="text-sm font-semibold text-foreground">Recent comments</h4>
               <div className="mt-3 max-h-[280px] space-y-3 overflow-y-auto pr-1">
-                {isCommentsLoading ? (
-                  <div className="text-sm text-muted-foreground">Loading comments...</div>
-                ) : comments.length ? (
+                {comments.length ? (
                   comments.map((comment) => (
                     <div key={comment.id} className="rounded-xl border border-gray-200 p-4">
                       <div className="flex items-center justify-between gap-3">

@@ -2,10 +2,12 @@
 import { Tooltip } from '@mui/material';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-interface PropTypes {
+
+interface LogoProps {
   disableLogo?: boolean;
 }
-export function Logo({ disableLogo }: PropTypes) {
+
+export function Logo({ disableLogo }: LogoProps) {
   const { push } = useRouter();
   const handleDashboard = () => {
     push('/user/search');

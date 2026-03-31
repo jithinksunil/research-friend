@@ -5,7 +5,13 @@ import { NextResponse } from 'next/server';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-export function setAccessTokenCookie(response: NextResponse, accessToken: string) {
+export function setAccessTokenCookie({
+  response,
+  accessToken,
+}: {
+  response: NextResponse;
+  accessToken: string;
+}): void {
   response.cookies.set(TOKEN_NAMES.ACCESS_TOKEN, accessToken, {
     httpOnly: true,
     secure: isProduction,
@@ -15,7 +21,7 @@ export function setAccessTokenCookie(response: NextResponse, accessToken: string
   });
 }
 
-export function clearAccessTokenCookie(response: NextResponse) {
+export function clearAccessTokenCookie({ response }: { response: NextResponse }): void {
   response.cookies.set(TOKEN_NAMES.ACCESS_TOKEN, '', {
     httpOnly: true,
     secure: isProduction,

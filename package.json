@@ -8,15 +8,12 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "prettier:fix": "prettier --write .",
+    "prettier": "prettier --check .",
     "spellcheck": "cspell \"**/*\"",
     "typecheck": "tsc --noEmit",
-    "check:prettier": "bun run format:check",
-    "check:eslint": "bun run lint",
-    "check:spellcheck": "bun run spellcheck",
-    "check:typecheck": "bun run typecheck",
-    "check": "bun run check:prettier && bun run check:eslint && bun run check:spellcheck && bun run check:typecheck"
+    "check": "bun run lint && bun run prettier && bun run typecheck",
+    "knip": "knip"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -29,12 +26,11 @@
     "@prisma/client": "^7.2.0",
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.6",
-    "docx-templates": "^4.15.0",
+    "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
-    "html2canvas": "^1.4.1",
-    "immer": "^11.1.4",
+    "eslint-plugin-unused-imports": "^4.4.1",
     "jose": "^6.1.3",
-    "jspdf": "^4.2.1",
+    "knip": "^6.1.0",
     "lightweight-charts": "^5.1.0",
     "next": "16.1.1",
     "openai": "^6.21.0",
@@ -44,6 +40,7 @@
     "react-hook-form": "^7.71.0",
     "react-hot-toast": "^2.6.0",
     "react-lottie": "^1.2.10",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.4.0",
     "yahoo-finance2": "^3.13.2",
     "yup": "^1.7.1",
@@ -51,19 +48,24 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@tanstack/eslint-plugin-query": "^5.91.4",
     "@types/node": "^20",
-    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-lottie": "^1.2.10",
     "cspell": "^9.7.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "postcss": "^8.4.49",
     "prettier": "^3.8.1",
     "prisma": "^7.2.0",
     "tailwindcss": "^4",
-    "tsx": "^4.21.0",
+    "typescript-eslint": "^8.29.0",
     "typescript": "^5"
+  },
+  "knip": {
+    "ignoreDependencies": [
+      "@prisma/client",
+      "pg"
+    ]
   }
 }

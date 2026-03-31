@@ -1,19 +1,10 @@
 import 'server-only';
 
-import type {
-  BasicStockInfo,
-  KeyMetrics,
-  QuickMetric,
-  RiskMetric,
-  StockDashboardData,
-} from '@/interfaces';
+import { KeyMetrics, QuickMetric, RiskMetric, StockDashboardData } from '@/interfaces';
 import YahooFinance from 'yahoo-finance2';
-import type {
-  HistoricalHistoryResult,
-  HistoricalRowHistory,
-} from 'yahoo-finance2/modules/historical';
-import type { ChartResultArrayQuote } from 'yahoo-finance2/modules/chart';
-import type { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary-iface';
+import { HistoricalHistoryResult, HistoricalRowHistory } from 'yahoo-finance2/modules/historical';
+import { ChartResultArrayQuote } from 'yahoo-finance2/modules/chart';
+import { QuoteSummaryResult } from 'yahoo-finance2/modules/quoteSummary-iface';
 
 const yahooFinance = new YahooFinance();
 
@@ -27,9 +18,6 @@ const DASHBOARD_QUOTE_SUMMARY_MODULES = [
 
 const ONE_YEAR_IN_MS = 365.25 * 24 * 60 * 60 * 1000;
 
-type DashboardQuoteSummary = QuoteSummaryResult;
-type DashboardHistory = HistoricalHistoryResult | null;
-
 function asNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
@@ -38,7 +26,7 @@ function safePercentage(value: number | null): number | null {
   return value === null ? null : value * 100;
 }
 
-function getCurrency(summary: DashboardQuoteSummary): string {
+function getCurrency(summary: QuoteSummaryResult): string {
   return (
     summary.price?.currency ??
     summary.summaryDetail?.currency ??
@@ -47,7 +35,7 @@ function getCurrency(summary: DashboardQuoteSummary): string {
   );
 }
 
-function getValidPriceHistory(history: DashboardHistory): HistoricalRowHistory[] {
+function getValidPriceHistory(history: HistoricalHistoryResult | null): HistoricalRowHistory[] {
   if (!history?.length) {
     return [];
   }
@@ -60,7 +48,7 @@ function getValidPriceHistory(history: DashboardHistory): HistoricalRowHistory[]
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
-function calculateYtdReturn(history: DashboardHistory): number | null {
+function calculateYtdReturn(history: HistoricalHistoryResult | null): number | null {
   const sortedHistory = getValidPriceHistory(history);
 
   if (!sortedHistory.length) {
@@ -81,7 +69,7 @@ function calculateYtdReturn(history: DashboardHistory): number | null {
   return ((endPoint.close - startPoint.close) / startPoint.close) * 100;
 }
 
-function calculateVolatility(history: DashboardHistory): number | null {
+function calculateVolatility(history: HistoricalHistoryResult | null): number | null {
   const closes = getValidPriceHistory(history).map((item: HistoricalRowHistory) => item.close);
 
   if (closes.length < 2) {
@@ -98,7 +86,7 @@ function calculateVolatility(history: DashboardHistory): number | null {
   return Math.sqrt(variance) * Math.sqrt(252) * 100;
 }
 
-function calculateMaxDrawdown(history: DashboardHistory): number | null {
+function calculateMaxDrawdown(history: HistoricalHistoryResult | null): number | null {
   const closes = getValidPriceHistory(history).map((item: HistoricalRowHistory) => item.close);
 
   if (!closes.length) {
@@ -122,13 +110,13 @@ function calculateMaxDrawdown(history: DashboardHistory): number | null {
   return maxDrawdown * 100;
 }
 
-async function getDashboardQuoteSummary(symbol: string): Promise<DashboardQuoteSummary> {
+async function getDashboardQuoteSummary(symbol: string): Promise<QuoteSummaryResult> {
   return yahooFinance.quoteSummary(symbol, {
     modules: [...DASHBOARD_QUOTE_SUMMARY_MODULES],
   });
 }
 
-export async function getHistory(symbol: string): Promise<DashboardHistory> {
+async function getHistory(symbol: string): Promise<HistoricalHistoryResult | null> {
   try {
     const chart = await yahooFinance.chart(symbol, {
       period1: new Date(Date.now() - 2 * ONE_YEAR_IN_MS),
@@ -211,8 +199,8 @@ function formatMetricValue(value: number | null, format: string, unit?: string |
 }
 
 function buildQuickMetrics(
-  summary: DashboardQuoteSummary,
-  history: DashboardHistory,
+  summary: QuoteSummaryResult,
+  history: HistoricalHistoryResult | null,
 ): QuickMetric | null {
   const currency = getCurrency(summary);
 
@@ -268,7 +256,10 @@ function buildQuickMetrics(
   };
 }
 
-function buildRiskMetrics(summary: DashboardQuoteSummary, history: DashboardHistory): RiskMetric[] {
+function buildRiskMetrics(
+  summary: QuoteSummaryResult,
+  history: HistoricalHistoryResult | null,
+): RiskMetric[] {
   const totalDebt = asNumber(summary.financialData?.totalDebt);
   const marketCap = asNumber(summary.price?.marketCap);
   const debtBurden = totalDebt !== null && marketCap ? (totalDebt / marketCap) * 100 : null;
@@ -303,8 +294,8 @@ function buildRiskMetrics(summary: DashboardQuoteSummary, history: DashboardHist
 
 function buildKeyMetrics(
   symbol: string,
-  summary: DashboardQuoteSummary,
-  history: DashboardHistory,
+  summary: QuoteSummaryResult,
+  history: HistoricalHistoryResult | null,
 ): KeyMetrics {
   const currency = getCurrency(summary);
 
@@ -448,73 +439,6 @@ function buildKeyMetrics(
       employees: asNumber(summary.assetProfile?.fullTimeEmployees),
     },
   };
-}
-
-export async function getBasicInfo(symbol: string): Promise<BasicStockInfo | null> {
-  try {
-    const summary = await getDashboardQuoteSummary(symbol);
-    const currency = getCurrency(summary);
-
-    return {
-      symbol: summary.price?.symbol ?? symbol,
-      name: summary.price?.longName ?? summary.price?.shortName ?? null,
-      price: asNumber(summary.price?.regularMarketPrice),
-      currency,
-      exchange: summary.price?.exchangeName ?? null,
-      marketCap: asNumber(summary.price?.marketCap),
-      trailingPE: asNumber(summary.summaryDetail?.trailingPE),
-      forwardPE: asNumber(summary.summaryDetail?.forwardPE),
-      eps: asNumber(summary.defaultKeyStatistics?.trailingEps),
-      fiftyTwoWeekHigh: asNumber(summary.summaryDetail?.fiftyTwoWeekHigh),
-      fiftyTwoWeekLow: asNumber(summary.summaryDetail?.fiftyTwoWeekLow),
-      fiftyDayAverage: asNumber(summary.summaryDetail?.fiftyDayAverage),
-      twoHundredDayAverage: asNumber(summary.summaryDetail?.twoHundredDayAverage),
-      avgVolume: asNumber(summary.summaryDetail?.averageVolume),
-      beta: asNumber(summary.defaultKeyStatistics?.beta),
-      sector: summary.assetProfile?.sector ?? null,
-      industry: summary.assetProfile?.industry ?? null,
-      website: summary.assetProfile?.website ?? null,
-      description:
-        summary.assetProfile?.longBusinessSummary ?? summary.assetProfile?.description ?? null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export async function getQuickMetrics(symbol: string): Promise<QuickMetric | null> {
-  try {
-    const [summary, history] = await Promise.all([
-      getDashboardQuoteSummary(symbol),
-      getHistory(symbol),
-    ]);
-
-    return buildQuickMetrics(summary, history);
-  } catch {
-    return null;
-  }
-}
-
-export async function getRiskMetrics(symbol: string): Promise<RiskMetric[] | null> {
-  try {
-    const [summary, history] = await Promise.all([
-      getDashboardQuoteSummary(symbol),
-      getHistory(symbol),
-    ]);
-
-    return buildRiskMetrics(summary, history);
-  } catch {
-    return null;
-  }
-}
-
-export async function getStockDashboardData(symbol: string): Promise<KeyMetrics> {
-  const [summary, history] = await Promise.all([
-    getDashboardQuoteSummary(symbol),
-    getHistory(symbol),
-  ]);
-
-  return buildKeyMetrics(symbol, summary, history);
 }
 
 export async function getDashboardData(symbol: string): Promise<StockDashboardData> {

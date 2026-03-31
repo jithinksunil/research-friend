@@ -1,33 +1,14 @@
 import 'server-only';
 
+import { CompanyComment, SerializableComment } from '@/interfaces';
 import prisma from '@/prisma';
 import { getSession } from './auth';
 
-export interface CompanyComment {
-  id: number;
-  text: string;
-  createdAt: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string | null;
-  };
-}
-
-function normalizeSymbol(symbol: string) {
+function normalizeSymbol({ symbol }: { symbol: string }): string {
   return symbol.trim().toUpperCase();
 }
 
-function serializeComment(comment: {
-  id: number;
-  text: string;
-  createdAt: Date;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string | null;
-  };
-}): CompanyComment {
+function serializeComment({ comment }: { comment: SerializableComment }): CompanyComment {
   return {
     id: comment.id,
     text: comment.text,
@@ -40,13 +21,17 @@ function serializeComment(comment: {
   };
 }
 
-export async function listCompanyComments(symbol: string): Promise<CompanyComment[]> {
+export async function listCompanyComments({
+  symbol,
+}: {
+  symbol: string;
+}): Promise<CompanyComment[]> {
   const session = await getSession();
   if (!session) {
     throw new Error('Unauthorized');
   }
 
-  const normalizedSymbol = normalizeSymbol(symbol);
+  const normalizedSymbol = normalizeSymbol({ symbol });
   if (!normalizedSymbol) {
     throw new Error('Symbol is required');
   }
@@ -74,16 +59,22 @@ export async function listCompanyComments(symbol: string): Promise<CompanyCommen
     },
   });
 
-  return comments.map(serializeComment);
+  return comments.map((comment) => serializeComment({ comment }));
 }
 
-export async function createCompanyComment(symbol: string, text: string): Promise<CompanyComment> {
+export async function createCompanyComment({
+  symbol,
+  text,
+}: {
+  symbol: string;
+  text: string;
+}): Promise<CompanyComment> {
   const session = await getSession();
   if (!session) {
     throw new Error('Unauthorized');
   }
 
-  const normalizedSymbol = normalizeSymbol(symbol);
+  const normalizedSymbol = normalizeSymbol({ symbol });
   const normalizedText = text.trim();
 
   if (!normalizedSymbol) {
@@ -125,5 +116,5 @@ export async function createCompanyComment(symbol: string, text: string): Promis
     },
   });
 
-  return serializeComment(comment);
+  return serializeComment({ comment });
 }

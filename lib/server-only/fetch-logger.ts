@@ -1,5 +1,3 @@
-'use server';
-
 const originalFetch = global.fetch;
 
 global.fetch = async (input, init) => {
@@ -13,7 +11,7 @@ global.fetch = async (input, init) => {
   try {
     const response = await originalFetch(input, init);
 
-    // console.log('🌍 SERVER ACTION → 3RD PARTY', {
+    // console.log('🌍 SERVER FETCH → 3RD PARTY', {
     //   url,
     //   method: init?.method ?? 'GET',
     //   status: response.status,
@@ -24,7 +22,7 @@ global.fetch = async (input, init) => {
 
     return response;
   } catch (err) {
-    console.error('❌ SERVER ACTION API ERROR', {
+    console.error('❌ SERVER FETCH API ERROR', {
       url,
       method: init?.method,
       error: err,
