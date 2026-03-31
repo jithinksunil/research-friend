@@ -4,12 +4,25 @@ interface TableProps {
   headings?: React.ReactNode[];
   rows?: React.ReactNode[][];
   noData: string;
+  columnWidths?: string[];
 }
 
-export const TableWithoutPagination: FC<TableProps> = ({ headings, rows, noData }) => {
+export const TableWithoutPagination: FC<TableProps> = ({
+  headings,
+  rows,
+  noData,
+  columnWidths,
+}) => {
   return (
     <div className="w-full overflow-x-auto">
       <table className="w-full min-w-[640px]">
+        {columnWidths?.length ? (
+          <colgroup>
+            {columnWidths.map((width, index) => (
+              <col key={`col-width-${index}`} style={{ width }} />
+            ))}
+          </colgroup>
+        ) : null}
         {headings && (
           <thead>
             <tr className="bg-[#f4f4f0] border-[#E5E7EB]">

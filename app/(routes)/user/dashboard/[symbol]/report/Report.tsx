@@ -254,6 +254,7 @@ function Report({ symbol }: { symbol: string }) {
           <SubHeading>Key Statistics</SubHeading>
 
           <TableWithoutPagination
+            columnWidths={['22%', '14%', '64%']}
             headings={[
               <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
                 Metric
@@ -297,6 +298,7 @@ function Report({ symbol }: { symbol: string }) {
           <SubHeading>Major Shareholders (Latest Data)</SubHeading>
 
           <TableWithoutPagination
+            columnWidths={['30%', '16%', '54%']}
             headings={[
               <div key={`h1`} className={cn('px-[26px] py-[10px] font-medium')}>
                 Shareholder Type
@@ -854,6 +856,7 @@ function Report({ symbol }: { symbol: string }) {
               <>
                 <TertiaryHeading>Revenue Model Breakdown</TertiaryHeading>
                 <TableWithoutPagination
+                  columnWidths={['28%', '14%', '22%', '10%', '26%']}
                   noData="No data"
                   headings={[
                     <div
@@ -963,6 +966,7 @@ function Report({ symbol }: { symbol: string }) {
 
                 <TertiaryHeading>Record Financial Performance</TertiaryHeading>
                 <TableWithoutPagination
+                  columnWidths={['16%', '27%', '24%', '13%', '20%']}
                   noData="No data"
                   headings={[
                     <div key="irfp-metric" className={cn('px-[26px] py-[10px] font-medium')}>
